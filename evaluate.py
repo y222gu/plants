@@ -8,6 +8,7 @@ Usage:
 """
 
 import argparse
+import csv
 import json
 from pathlib import Path
 
@@ -258,12 +259,14 @@ def predict_yolo(checkpoint: str, samples, img_size: int) -> dict:
             labels = results.boxes.cls.cpu().numpy().astype(np.int32)
             scores = results.boxes.conf.cpu().numpy().astype(np.float32)
 
-            # Resize masks to original image size
+            # Resize masks to original image size with bilinear + threshold
+            # for smooth edges (INTER_NEAREST creates blocky artifacts)
             h, w = img.shape[:2]
             resized = np.zeros((len(masks), h, w), dtype=np.uint8)
             for i in range(len(masks)):
-                resized[i] = cv2.resize(masks[i], (w, h),
-                                        interpolation=cv2.INTER_NEAREST)
+                smooth = cv2.resize(masks[i].astype(np.float32), (w, h),
+                                    interpolation=cv2.INTER_LINEAR)
+                resized[i] = (smooth > 0.5).astype(np.uint8)
             masks = resized
         else:
             h, w = img.shape[:2]
@@ -356,8 +359,8 @@ def main():
     parser.add_argument("--output", type=str, default=None,
                         help="Output JSON path for metrics")
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--save-vis", action="store_true",
-                        help="Save side-by-side GT vs prediction overlay images")
+    parser.add_argument("--no-vis", action="store_true",
+                        help="Skip saving visualization overlay images")
     parser.add_argument("--vis-dir", type=str, default=None,
                         help="Directory for visualization PNGs (default: output/evaluation/vis_*)")
     args = parser.parse_args()
@@ -384,6 +387,7 @@ def main():
         class_names=TARGET_CLASSES,
     )
 
+    per_sample_rows = []
     for sample in tqdm(samples, desc="Loading GT & scoring"):
         if sample.uid not in predictions:
             continue
@@ -410,21 +414,54 @@ def main():
             sample_id=sample.uid,
         )
 
+        # Collect per-sample metrics for CSV
+        sm = _compute_sample_metrics(pred.masks, pred.labels, gt["masks"], gt["labels"])
+        row = {
+            "sample_id": sample.uid,
+            "species": sample.species,
+            "microscope": sample.microscope,
+            "experiment": sample.experiment,
+        }
+        iou_vals = []
+        for cls_id in sorted(sm.keys()):
+            m = sm[cls_id]
+            row[f"{m['name']}_IoU"] = round(m["iou"], 4) if not np.isnan(m["iou"]) else ""
+            row[f"{m['name']}_Dice"] = round(m["dice"], 4) if not np.isnan(m["dice"]) else ""
+            if not np.isnan(m["iou"]):
+                iou_vals.append(m["iou"])
+        row["mean_IoU"] = round(np.mean(iou_vals), 4) if iou_vals else 0.0
+        per_sample_rows.append(row)
+
     # Print and save (compute only once)
     results = metrics.print_summary()
+
+    out_dir = OUTPUT_DIR / "evaluation"
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     if args.output:
         out_path = Path(args.output)
     else:
-        out_dir = OUTPUT_DIR / "evaluation"
-        out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"{args.model}_{args.strategy}_{args.subset}.json"
 
     metrics.save(out_path, _cached_results=results)
     print(f"\nMetrics saved to {out_path}")
 
-    # Save visualizations
-    if args.save_vis:
+    # Save per-sample CSV sorted by mean_IoU (worst first)
+    per_sample_rows.sort(key=lambda r: r["mean_IoU"])
+    csv_path = out_dir / f"{args.model}_{args.strategy}_{args.subset}_per_sample.csv"
+    if per_sample_rows:
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=per_sample_rows[0].keys())
+            writer.writeheader()
+            writer.writerows(per_sample_rows)
+        print(f"Per-sample metrics saved to {csv_path} (sorted worst-first)")
+        # Print worst 10
+        print(f"\nWorst 10 samples by mean IoU:")
+        for row in per_sample_rows[:10]:
+            print(f"  {row['sample_id']:50s}  mean_IoU={row['mean_IoU']:.4f}")
+
+    # Save visualizations (default on, use --no-vis to skip)
+    if not args.no_vis:
         if args.vis_dir:
             vis_dir = Path(args.vis_dir)
         else:
