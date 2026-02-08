@@ -8,14 +8,11 @@ import cv2
 import numpy as np
 
 from .annotation_utils import (
-    load_sample_annotations,
     parse_yolo_annotations,
     polygon_to_mask,
     polygons_to_instance_masks,
 )
-from .config import NUM_CLASSES, TARGET_CLASSES, SampleRecord
-from .metrics import SegmentationMetrics
-from .preprocessing import load_sample_normalized
+from .config import SampleRecord
 
 
 @dataclass
@@ -74,33 +71,49 @@ def convert_semantic_to_instances(
     labels_list = []
     scores_list = []
 
-    # Class 0 (Whole Root) — single instance (semantic label 1)
-    wr = (sem_mask == 1).astype(np.uint8)
+    # Class 0 (Whole Root) — union of all non-background pixels
+    # In semantic segmentation, sem_mask==1 is just the cortex portion;
+    # the full root boundary includes aerenchyma, endo, and vascular too.
+    wr = (sem_mask >= 1).astype(np.uint8)
     if wr.sum() > 0:
         masks_list.append(wr)
         labels_list.append(0)
         scores_list.append(score)
 
+    # Extract endodermis and vascular masks
+    endo = (sem_mask == 3).astype(np.uint8)
+    vasc = (sem_mask == 4).astype(np.uint8)
+
     # Class 1 (Aerenchyma) — multiple instances (semantic label 2)
+    # Post-processing: morphological cleanup + anatomical constraints
     aer = (sem_mask == 2).astype(np.uint8)
     if aer.sum() > 0:
+        # Morphological closing (fill holes) + opening (remove fragments)
+        kern_size = max(5, int(min(sem_mask.shape) * 0.005) | 1)  # ensure odd
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
+        aer = cv2.morphologyEx(aer, cv2.MORPH_CLOSE, kernel, iterations=2)
+        aer = cv2.morphologyEx(aer, cv2.MORPH_OPEN, kernel, iterations=1)
+
+        # Clip: aerenchyma must be inside whole root, outside endodermis/vascular
+        aer = aer & wr & (~endo.astype(bool)).astype(np.uint8) & (~vasc.astype(bool)).astype(np.uint8)
+
+        # Minimum area: filter components smaller than 0.01% of image area
+        min_area = max(50, int(sem_mask.shape[0] * sem_mask.shape[1] * 0.0001))
         n_components, component_map = cv2.connectedComponents(aer)
         for comp_id in range(1, n_components):
             mask = (component_map == comp_id).astype(np.uint8)
-            if mask.sum() > 10:  # filter tiny noise
+            if mask.sum() >= min_area:
                 masks_list.append(mask)
                 labels_list.append(1)
                 scores_list.append(score)
 
     # Class 2 (Endodermis) — single instance (semantic label 3)
-    endo = (sem_mask == 3).astype(np.uint8)
     if endo.sum() > 0:
         masks_list.append(endo)
         labels_list.append(2)
         scores_list.append(score)
 
     # Class 3 (Vascular) — single instance (semantic label 4)
-    vasc = (sem_mask == 4).astype(np.uint8)
     if vasc.sum() > 0:
         masks_list.append(vasc)
         labels_list.append(3)
@@ -121,42 +134,3 @@ def convert_semantic_to_instances(
     )
 
 
-def evaluate_samples(
-    predictions: Dict[str, PredictionResult],
-    samples: List[SampleRecord],
-) -> SegmentationMetrics:
-    """Evaluate predictions against GT for a list of samples.
-
-    Args:
-        predictions: Dict mapping sample.uid → PredictionResult.
-        samples: List of SampleRecord to evaluate.
-
-    Returns:
-        SegmentationMetrics with accumulated results.
-    """
-    metrics = SegmentationMetrics(
-        num_classes=NUM_CLASSES,
-        class_names=TARGET_CLASSES,
-    )
-
-    for sample in samples:
-        if sample.uid not in predictions:
-            continue
-
-        pred = predictions[sample.uid]
-        img = load_sample_normalized(sample)
-        h, w = img.shape[:2]
-        gt = load_sample_annotations(sample, h, w)
-
-        metrics.add_sample(
-            pred_masks=pred.masks,
-            pred_labels=pred.labels,
-            pred_scores=pred.scores,
-            gt_masks=gt["masks"],
-            gt_labels=gt["labels"],
-            species=sample.species,
-            microscope=sample.microscope,
-            sample_id=sample.uid,
-        )
-
-    return metrics
