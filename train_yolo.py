@@ -92,6 +92,48 @@ def main():
         mixup=0.1,
     )
 
+    # Plot loss curves from YOLO results CSV
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    results_csv = project_dir / run_name / "results.csv"
+    if results_csv.exists():
+        df = pd.read_csv(results_csv)
+        df.columns = df.columns.str.strip()
+
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+        # Box + Seg loss
+        loss_cols_train = [c for c in df.columns if "train" in c.lower() and "loss" in c.lower()]
+        loss_cols_val = [c for c in df.columns if "val" in c.lower() and "loss" in c.lower()]
+        for col in loss_cols_train:
+            axes[0].plot(df["epoch"], df[col], label=col)
+        for col in loss_cols_val:
+            axes[0].plot(df["epoch"], df[col], label=col, linestyle="--")
+        axes[0].set_xlabel("Epoch")
+        axes[0].set_ylabel("Loss")
+        axes[0].set_title(f"{args.model} — Loss")
+        axes[0].legend(fontsize=7)
+        axes[0].grid(True, alpha=0.3)
+
+        # mAP metrics
+        map_cols = [c for c in df.columns if "map" in c.lower() or "mAP" in c]
+        for col in map_cols:
+            axes[1].plot(df["epoch"], df[col], label=col)
+        axes[1].set_xlabel("Epoch")
+        axes[1].set_ylabel("mAP")
+        axes[1].set_title(f"{args.model} — mAP")
+        axes[1].legend(fontsize=7)
+        axes[1].grid(True, alpha=0.3)
+
+        fig.tight_layout()
+        plot_path = project_dir / run_name / "loss_curve.png"
+        fig.savefig(plot_path, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print(f"Loss curve saved to {plot_path}")
+
     # Evaluate on test set
     print("\n" + "=" * 60)
     print("EVALUATING ON TEST SET")

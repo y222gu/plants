@@ -204,6 +204,49 @@ def main():
 
     trainer.fit(model, train_dl, val_dl)
 
+    # Plot loss curves from CSVLogger output
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    metrics_file = Path(logger.log_dir) / "metrics.csv"
+    if metrics_file.exists():
+        df = pd.read_csv(metrics_file)
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+        # Loss curves
+        if "train_loss" in df.columns:
+            train = df[df["train_loss"].notna()]
+            axes[0].plot(train["epoch"], train["train_loss"], label="Train Loss")
+        if "val_loss" in df.columns:
+            val = df[df["val_loss"].notna()]
+            axes[0].plot(val["epoch"], val["val_loss"], label="Val Loss")
+        axes[0].set_xlabel("Epoch")
+        axes[0].set_ylabel("Loss")
+        axes[0].set_title(f"{args.arch} ({args.encoder}) — Loss")
+        axes[0].legend()
+        axes[0].grid(True, alpha=0.3)
+
+        # Pixel accuracy
+        if "train_pixel_acc" in df.columns:
+            train = df[df["train_pixel_acc"].notna()]
+            axes[1].plot(train["epoch"], train["train_pixel_acc"], label="Train Acc")
+        if "val_pixel_acc" in df.columns:
+            val = df[df["val_pixel_acc"].notna()]
+            axes[1].plot(val["epoch"], val["val_pixel_acc"], label="Val Acc")
+        axes[1].set_xlabel("Epoch")
+        axes[1].set_ylabel("Pixel Accuracy")
+        axes[1].set_title(f"{args.arch} ({args.encoder}) — Accuracy")
+        axes[1].legend()
+        axes[1].grid(True, alpha=0.3)
+
+        fig.tight_layout()
+        plot_path = run_dir / "loss_curve.png"
+        fig.savefig(plot_path, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print(f"Loss curve saved to {plot_path}")
+
     # Test
     print("\n" + "=" * 60)
     print("EVALUATING ON TEST SET")

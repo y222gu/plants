@@ -1,14 +1,40 @@
 """Cellpose data preparation utilities."""
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 from ..annotation_utils import load_sample_annotations
 from ..config import OUTPUT_DIR, TARGET_CLASSES, SampleRecord
 from ..preprocessing import load_sample_normalized
+
+
+def _load_one_sample(sample: 'SampleRecord', img_size: int, target_class: Optional[int]):
+    """Load and process a single sample (for parallel loading)."""
+    img = load_sample_normalized(sample)
+    h, w = img.shape[:2]
+    ann = load_sample_annotations(sample, h, w)
+    masks = ann["masks"]
+    cls_labels = ann["labels"]
+
+    img = cv2.resize(img, (img_size, img_size), interpolation=cv2.INTER_LINEAR)
+    img_uint8 = (np.clip(img, 0, 1) * 255).astype(np.uint8)
+
+    label_mask = np.zeros((img_size, img_size), dtype=np.int32)
+    instance_id = 1
+    for i in range(len(masks)):
+        if target_class is not None and cls_labels[i] != target_class:
+            continue
+        m = cv2.resize(masks[i], (img_size, img_size),
+                       interpolation=cv2.INTER_NEAREST)
+        label_mask[m > 0] = instance_id
+        instance_id += 1
+
+    return img_uint8, label_mask
 
 
 def prepare_cellpose_data(
@@ -16,6 +42,7 @@ def prepare_cellpose_data(
     output_dir: Path = None,
     img_size: int = 1024,
     target_class: Optional[int] = None,
+    num_workers: int = 8,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Prepare images and label masks for Cellpose training.
 
@@ -28,6 +55,7 @@ def prepare_cellpose_data(
         img_size: Target image size.
         target_class: If specified, only include instances of this class.
             If None, include all classes (each instance gets unique ID).
+        num_workers: Number of threads for parallel loading.
 
     Returns:
         (images, labels) where images are (H,W,C) uint8 and labels are (H,W) int32.
@@ -35,31 +63,13 @@ def prepare_cellpose_data(
     images = []
     labels = []
 
-    for sample in samples:
-        img = load_sample_normalized(sample)
-        h, w = img.shape[:2]
-        ann = load_sample_annotations(sample, h, w)
-        masks = ann["masks"]
-        cls_labels = ann["labels"]
-
-        # Resize
-        img = cv2.resize(img, (img_size, img_size), interpolation=cv2.INTER_LINEAR)
-        img_uint8 = (np.clip(img, 0, 1) * 255).astype(np.uint8)
-
-        # Build integer-labeled mask
-        label_mask = np.zeros((img_size, img_size), dtype=np.int32)
-        instance_id = 1
-
-        for i in range(len(masks)):
-            if target_class is not None and cls_labels[i] != target_class:
-                continue
-            m = cv2.resize(masks[i], (img_size, img_size),
-                           interpolation=cv2.INTER_NEAREST)
-            label_mask[m > 0] = instance_id
-            instance_id += 1
-
-        images.append(img_uint8)
-        labels.append(label_mask)
+    with ThreadPoolExecutor(max_workers=num_workers) as executor:
+        futures = [executor.submit(_load_one_sample, s, img_size, target_class)
+                   for s in samples]
+        for f in tqdm(futures, desc="Loading data", total=len(futures)):
+            img_uint8, label_mask = f.result()
+            images.append(img_uint8)
+            labels.append(label_mask)
 
     if output_dir is not None:
         output_dir.mkdir(parents=True, exist_ok=True)

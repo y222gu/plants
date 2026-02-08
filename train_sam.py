@@ -1,7 +1,7 @@
 """SAM (Segment Anything Model) fine-tuning script.
 
-Freezes the image encoder, fine-tunes mask decoder (and optionally prompt encoder).
-Uses point and box prompts generated from GT masks.
+Freezes the image encoder, pre-computes embeddings, fine-tunes mask decoder
+(and optionally prompt encoder). Uses point and box prompts from GT masks.
 
 Usage:
     python train_sam.py --strategy strategy1
@@ -16,7 +16,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from src.config import (
@@ -45,65 +45,116 @@ class DiceLoss(nn.Module):
         return 1 - dice.mean()
 
 
-def train_one_epoch(
-    model: nn.Module,
-    dataloader: DataLoader,
-    optimizer: torch.optim.Optimizer,
-    device: torch.device,
-    dice_loss_fn: DiceLoss,
-) -> float:
+class EmbeddingDataset(Dataset):
+    """Lightweight dataset that serves pre-computed image embeddings."""
+
+    def __init__(self, embeddings, gt_masks, point_coords, point_labels, boxes):
+        self.embeddings = embeddings
+        self.gt_masks = gt_masks
+        self.point_coords = point_coords
+        self.point_labels = point_labels
+        self.boxes = boxes
+
+    def __len__(self):
+        return len(self.embeddings)
+
+    def __getitem__(self, idx):
+        return {
+            "embedding": self.embeddings[idx],
+            "gt_mask": self.gt_masks[idx],
+            "point_coords": self.point_coords[idx],
+            "point_labels": self.point_labels[idx],
+            "box": self.boxes[idx],
+        }
+
+
+@torch.no_grad()
+def precompute_embeddings(model, dataset, device, batch_size=4):
+    """Run frozen image encoder once on all images, cache embeddings."""
+    model.eval()
+    # Use a DataLoader just for image loading
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False,
+                        num_workers=0, pin_memory=True)
+
+    embeddings = []
+    gt_masks = []
+    point_coords_list = []
+    point_labels_list = []
+    boxes_list = []
+
+    print(f"Pre-computing image embeddings for {len(dataset)} instances...")
+    for batch in tqdm(loader, desc="Encoding"):
+        images = batch["image"].to(device)
+        # Encode each image in the batch
+        for i in range(images.shape[0]):
+            with torch.amp.autocast("cuda"):
+                emb = model.image_encoder(images[i:i+1])
+            embeddings.append(emb.cpu())
+
+        gt_masks.append(batch["gt_mask"])
+        point_coords_list.append(batch["point_coords"])
+        point_labels_list.append(batch["point_labels"])
+        boxes_list.append(batch["box"])
+
+    embeddings = torch.cat(embeddings, dim=0)
+    gt_masks = torch.cat(gt_masks, dim=0)
+    point_coords = torch.cat(point_coords_list, dim=0)
+    point_labels = torch.cat(point_labels_list, dim=0)
+    boxes = torch.cat(boxes_list, dim=0)
+
+    print(f"  Embeddings shape: {embeddings.shape}, cached {embeddings.element_size() * embeddings.nelement() / 1e9:.1f} GB")
+    return EmbeddingDataset(embeddings, gt_masks, point_coords, point_labels, boxes)
+
+
+def train_one_epoch(model, dataloader, optimizer, device, dice_loss_fn, scaler):
     model.train()
+    # Keep image encoder in eval mode (frozen)
+    model.image_encoder.eval()
     total_loss = 0.0
     n_batches = 0
 
     for batch in tqdm(dataloader, desc="Train", leave=False):
-        images = batch["image"].to(device)
+        embeddings = batch["embedding"].to(device)
         gt_masks = batch["gt_mask"].to(device)
         point_coords = batch["point_coords"].to(device)
         point_labels = batch["point_labels"].to(device)
         boxes = batch["box"].to(device)
 
-        # SAM forward (per-sample since SAM processes one image at a time)
         losses = []
-        for i in range(images.shape[0]):
-            with torch.no_grad():
-                image_embedding = model.image_encoder(images[i:i+1])
+        with torch.amp.autocast("cuda"):
+            for i in range(embeddings.shape[0]):
+                sparse_embeddings, dense_embeddings = model.prompt_encoder(
+                    points=(point_coords[i:i+1], point_labels[i:i+1]),
+                    boxes=boxes[i:i+1, None, :],
+                    masks=None,
+                )
 
-            # Prompt encoding
-            sparse_embeddings, dense_embeddings = model.prompt_encoder(
-                points=(point_coords[i:i+1], point_labels[i:i+1]),
-                boxes=boxes[i:i+1, None, :] if boxes is not None else None,
-                masks=None,
-            )
+                low_res_masks, _ = model.mask_decoder(
+                    image_embeddings=embeddings[i:i+1],
+                    image_pe=model.prompt_encoder.get_dense_pe(),
+                    sparse_prompt_embeddings=sparse_embeddings,
+                    dense_prompt_embeddings=dense_embeddings,
+                    multimask_output=False,
+                )
 
-            # Mask prediction
-            low_res_masks, iou_predictions = model.mask_decoder(
-                image_embeddings=image_embedding,
-                image_pe=model.prompt_encoder.get_dense_pe(),
-                sparse_prompt_embeddings=sparse_embeddings,
-                dense_prompt_embeddings=dense_embeddings,
-                multimask_output=False,
-            )
+                pred_mask = F.interpolate(
+                    low_res_masks,
+                    size=(gt_masks.shape[-2], gt_masks.shape[-1]),
+                    mode="bilinear",
+                    align_corners=False,
+                ).squeeze(1)
 
-            # Upscale masks to input resolution
-            pred_mask = F.interpolate(
-                low_res_masks,
-                size=(images.shape[-2], images.shape[-1]),
-                mode="bilinear",
-                align_corners=False,
-            ).squeeze(1)  # (1, H, W)
+                target = gt_masks[i:i+1]
+                bce = F.binary_cross_entropy_with_logits(pred_mask, target)
+                dice = dice_loss_fn(pred_mask, target)
+                losses.append(bce + dice)
 
-            target = gt_masks[i:i+1]
+            batch_loss = torch.stack(losses).mean()
 
-            bce = F.binary_cross_entropy_with_logits(pred_mask, target)
-            dice = dice_loss_fn(pred_mask, target)
-            loss = bce + dice
-            losses.append(loss)
-
-        batch_loss = torch.stack(losses).mean()
         optimizer.zero_grad()
-        batch_loss.backward()
-        optimizer.step()
+        scaler.scale(batch_loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
 
         total_loss += batch_loss.item()
         n_batches += 1
@@ -112,52 +163,46 @@ def train_one_epoch(
 
 
 @torch.no_grad()
-def validate(
-    model: nn.Module,
-    dataloader: DataLoader,
-    device: torch.device,
-    dice_loss_fn: DiceLoss,
-) -> float:
+def validate(model, dataloader, device, dice_loss_fn):
     model.eval()
     total_loss = 0.0
     n_batches = 0
 
     for batch in tqdm(dataloader, desc="Val", leave=False):
-        images = batch["image"].to(device)
+        embeddings = batch["embedding"].to(device)
         gt_masks = batch["gt_mask"].to(device)
         point_coords = batch["point_coords"].to(device)
         point_labels = batch["point_labels"].to(device)
         boxes = batch["box"].to(device)
 
-        for i in range(images.shape[0]):
-            image_embedding = model.image_encoder(images[i:i+1])
+        for i in range(embeddings.shape[0]):
+            with torch.amp.autocast("cuda"):
+                sparse_embeddings, dense_embeddings = model.prompt_encoder(
+                    points=(point_coords[i:i+1], point_labels[i:i+1]),
+                    boxes=boxes[i:i+1, None, :],
+                    masks=None,
+                )
 
-            sparse_embeddings, dense_embeddings = model.prompt_encoder(
-                points=(point_coords[i:i+1], point_labels[i:i+1]),
-                boxes=boxes[i:i+1, None, :] if boxes is not None else None,
-                masks=None,
-            )
+                low_res_masks, _ = model.mask_decoder(
+                    image_embeddings=embeddings[i:i+1],
+                    image_pe=model.prompt_encoder.get_dense_pe(),
+                    sparse_prompt_embeddings=sparse_embeddings,
+                    dense_prompt_embeddings=dense_embeddings,
+                    multimask_output=False,
+                )
 
-            low_res_masks, _ = model.mask_decoder(
-                image_embeddings=image_embedding,
-                image_pe=model.prompt_encoder.get_dense_pe(),
-                sparse_prompt_embeddings=sparse_embeddings,
-                dense_prompt_embeddings=dense_embeddings,
-                multimask_output=False,
-            )
+                pred_mask = F.interpolate(
+                    low_res_masks,
+                    size=(gt_masks.shape[-2], gt_masks.shape[-1]),
+                    mode="bilinear",
+                    align_corners=False,
+                ).squeeze(1)
 
-            pred_mask = F.interpolate(
-                low_res_masks,
-                size=(images.shape[-2], images.shape[-1]),
-                mode="bilinear",
-                align_corners=False,
-            ).squeeze(1)
-
-            target = gt_masks[i:i+1]
-            bce = F.binary_cross_entropy_with_logits(pred_mask, target)
-            dice = dice_loss_fn(pred_mask, target)
-            total_loss += (bce + dice).item()
-            n_batches += 1
+                target = gt_masks[i:i+1]
+                bce = F.binary_cross_entropy_with_logits(pred_mask, target)
+                dice = dice_loss_fn(pred_mask, target)
+                total_loss += (bce + dice).item()
+                n_batches += 1
 
     return total_loss / max(n_batches, 1)
 
@@ -171,10 +216,11 @@ def main():
                         choices=["vit_b", "vit_l", "vit_h"])
     parser.add_argument("--checkpoint", type=str, default=None,
                         help="Path to SAM checkpoint. Auto-downloaded if None.")
-    parser.add_argument("--img-size", type=int, default=1024)
+    parser.add_argument("--img-size", type=int, default=1024,
+                        help="SAM requires 1024x1024 input (fixed positional embeddings)")
     parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
-    parser.add_argument("--batch-size", type=int, default=2,
-                        help="Batch size (SAM is memory-heavy)")
+    parser.add_argument("--batch-size", type=int, default=8,
+                        help="Batch size (embeddings are small, can use larger batches)")
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--patience", type=int, default=DEFAULT_PATIENCE)
     parser.add_argument("--unfreeze-prompt-encoder", action="store_true")
@@ -183,22 +229,15 @@ def main():
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Setup data
-    registry = SampleRegistry()
-    split = get_split(args.strategy, registry, seed=args.seed, species=args.species)
-    print_split_summary(split)
+    if not torch.cuda.is_available():
+        raise RuntimeError("CUDA is not available. SAM training requires a GPU.")
+    device = torch.device("cuda")
+    torch.cuda.set_device(0)
+    print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+    print(f"CUDA version: {torch.version.cuda}")
 
-    train_ds = SAMDataset(split["train"], img_size=args.img_size)
-    val_ds = SAMDataset(split["val"], img_size=args.img_size)
-
-    train_dl = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True,
-                          num_workers=2, pin_memory=True)
-    val_dl = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False,
-                        num_workers=2, pin_memory=True)
-
-    # Load SAM
+    # Check SAM checkpoint exists BEFORE loading data
     if args.checkpoint is None:
         checkpoint_map = {
             "vit_b": "sam_vit_b_01ec64.pth",
@@ -214,8 +253,10 @@ def main():
     else:
         ckpt_path = Path(args.checkpoint)
 
+    # Load SAM
     model = sam_model_registry[args.sam_type](checkpoint=str(ckpt_path))
     model.to(device)
+    print(f"Model device: {next(model.parameters()).device}")
 
     # Freeze image encoder
     for param in model.image_encoder.parameters():
@@ -226,13 +267,30 @@ def main():
         for param in model.prompt_encoder.parameters():
             param.requires_grad = False
 
-    # Optimizer (only trainable params)
     trainable_params = [p for p in model.parameters() if p.requires_grad]
     n_trainable = sum(p.numel() for p in trainable_params)
     n_total = sum(p.numel() for p in model.parameters())
     print(f"Trainable parameters: {n_trainable:,} / {n_total:,} "
           f"({100*n_trainable/n_total:.1f}%)")
 
+    # Setup data
+    registry = SampleRegistry()
+    split = get_split(args.strategy, registry, seed=args.seed, species=args.species)
+    print_split_summary(split)
+
+    train_ds = SAMDataset(split["train"], img_size=args.img_size)
+    val_ds = SAMDataset(split["val"], img_size=args.img_size)
+
+    # Pre-compute image embeddings (one-time cost, skips encoder during training)
+    train_emb_ds = precompute_embeddings(model, train_ds, device, batch_size=4)
+    val_emb_ds = precompute_embeddings(model, val_ds, device, batch_size=4)
+
+    train_dl = DataLoader(train_emb_ds, batch_size=args.batch_size, shuffle=True,
+                          num_workers=0, pin_memory=True)
+    val_dl = DataLoader(val_emb_ds, batch_size=args.batch_size, shuffle=False,
+                        num_workers=0, pin_memory=True)
+
+    # Optimizer
     optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=args.epochs, eta_min=1e-7,
@@ -254,7 +312,7 @@ def main():
     for epoch in range(args.epochs):
         print(f"\nEpoch {epoch+1}/{args.epochs}")
 
-        train_loss = train_one_epoch(model, train_dl, optimizer, device, dice_loss_fn)
+        train_loss = train_one_epoch(model, train_dl, optimizer, device, dice_loss_fn, scaler)
         val_loss = validate(model, val_dl, device, dice_loss_fn)
         scheduler.step()
 
@@ -278,6 +336,23 @@ def main():
     # Save training history
     with open(run_dir / "training_history.json", "w") as f:
         json.dump(history, f, indent=2)
+
+    # Plot loss curves
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(history["train_loss"], label="Train Loss")
+    ax.plot(history["val_loss"], label="Val Loss")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss")
+    ax.set_title(f"SAM ({args.sam_type}) Training Loss — {args.strategy}")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.savefig(run_dir / "loss_curve.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Loss curve saved to {run_dir / 'loss_curve.png'}")
 
     print(f"\nTraining complete. Best val loss: {best_val_loss:.4f}")
     print(f"Model saved to {run_dir / 'best.pth'}")
