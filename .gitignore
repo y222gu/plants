@@ -1,0 +1,9 @@
+/.claude
+/data
+/data_excluded
+/data_not_annotated
+/output
+/preview
+/__pycache__
+# Ignore all .pyc files
+*.pyc
