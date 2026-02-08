@@ -54,25 +54,32 @@ def train_cellpose_model(
     if version == 3:
         model_type = "cyto3"
 
-    # Initialize model
+    # Initialize model — verify CUDA
+    import torch
+    if not torch.cuda.is_available():
+        raise RuntimeError("CUDA is not available. Cellpose training requires a GPU.")
+    print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+
     model = models.CellposeModel(
         gpu=True,
         model_type=model_type,
     )
+    print(f"Cellpose model device: {model.device}")
 
-    # Train
+    # Train — nimg_per_epoch limits images sampled per epoch to speed up training
+    nimg_epoch = min(len(train_images), 200)
     model_path, train_losses, test_losses = train.train_seg(
         model.net,
         train_data=train_images,
         train_labels=train_labels,
         test_data=val_images if val_images else None,
         test_labels=val_labels if val_labels else None,
-        channels=[0, 0],  # grayscale-like (use all channels)
         save_path=str(model_dir),
         n_epochs=n_epochs,
         learning_rate=learning_rate,
         batch_size=batch_size,
-        nimg_per_epoch=len(train_images),
+        nimg_per_epoch=nimg_epoch,
+        min_train_masks=1,
     )
 
     # Save training history
@@ -82,6 +89,24 @@ def train_cellpose_model(
     }
     with open(model_dir / "training_history.json", "w") as f:
         json.dump(history, f, indent=2)
+
+    # Plot loss curves
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(history["train_losses"], label="Train Loss")
+    if history["test_losses"]:
+        ax.plot(history["test_losses"], label="Val Loss")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss")
+    ax.set_title(f"Cellpose v{version} Training Loss")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.savefig(model_dir / "loss_curve.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Loss curve saved to {model_dir / 'loss_curve.png'}")
 
     print(f"Model saved to {model_path}")
     return Path(model_path)
@@ -132,7 +157,7 @@ def main():
                         help="Train separate models for each class")
     parser.add_argument("--version", type=int, default=2, choices=[2, 3],
                         help="Cellpose version")
-    parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
+    parser.add_argument("--img-size", type=int, default=512)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=0.1)
     parser.add_argument("--batch-size", type=int, default=8)

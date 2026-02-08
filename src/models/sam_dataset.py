@@ -1,6 +1,7 @@
 """Dataset for SAM (Segment Anything Model) fine-tuning with prompt generation."""
 
 import random
+from collections import OrderedDict
 from typing import Dict, List, Optional, Tuple
 
 import cv2
@@ -8,9 +9,31 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from ..annotation_utils import load_sample_annotations, masks_to_boxes
+from ..annotation_utils import load_sample_annotations, masks_to_boxes, parse_yolo_annotations
 from ..config import SampleRecord
 from ..preprocessing import load_sample_normalized
+
+
+class _LRUCache:
+    """Simple LRU cache that is picklable (unlike functools.lru_cache)."""
+
+    def __init__(self, maxsize: int = 64):
+        self.maxsize = maxsize
+        self._cache: OrderedDict = OrderedDict()
+
+    def get(self, key):
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        return None
+
+    def put(self, key, value):
+        if key in self._cache:
+            self._cache.move_to_end(key)
+        else:
+            if len(self._cache) >= self.maxsize:
+                self._cache.popitem(last=False)
+            self._cache[key] = value
 
 
 class SAMDataset(Dataset):
@@ -19,7 +42,7 @@ class SAMDataset(Dataset):
     Each item returns a random instance from a random sample,
     with point and/or box prompts generated from the GT mask.
 
-    SAM expects 1024x1024 input images.
+    Uses num_workers=0 in DataLoader for in-process caching.
     """
 
     def __init__(
@@ -29,34 +52,48 @@ class SAMDataset(Dataset):
         points_per_mask: int = 3,
         use_box_prompt: bool = True,
         use_point_prompt: bool = True,
+        cache_size: int = 64,
     ):
         self.samples = samples
         self.img_size = img_size
         self.points_per_mask = points_per_mask
         self.use_box_prompt = use_box_prompt
         self.use_point_prompt = use_point_prompt
+        self._cache = _LRUCache(maxsize=cache_size)
 
-        # Build index: (sample_idx, instance_idx) for all instances
+        # Build index by parsing annotation text files only (no image loading)
         self._index: List[Tuple[int, int]] = []
         for si, sample in enumerate(samples):
-            img = load_sample_normalized(sample)
-            h, w = img.shape[:2]
-            ann = load_sample_annotations(sample, h, w)
-            n_instances = len(ann["labels"])
+            anns = parse_yolo_annotations(sample.annotation_path, 1, 1)
+            # Count instances: class 0 and 1 directly, plus endodermis ring + vascular
+            n_direct = sum(1 for a in anns if a["class_id"] in (0, 1))
+            has_outer = any(a["class_id"] == 2 for a in anns)
+            has_inner = any(a["class_id"] == 3 for a in anns)
+            n_derived = (1 if (has_outer and has_inner) else 0) + (1 if has_inner else 0)
+            n_instances = n_direct + n_derived
             for ii in range(n_instances):
                 self._index.append((si, ii))
+
+    def _load_sample(self, sample_idx: int):
+        cached = self._cache.get(sample_idx)
+        if cached is not None:
+            return cached
+        sample = self.samples[sample_idx]
+        img = load_sample_normalized(sample)
+        h, w = img.shape[:2]
+        ann = load_sample_annotations(sample, h, w)
+        self._cache.put(sample_idx, (img, ann))
+        return img, ann
 
     def __len__(self) -> int:
         return len(self._index)
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         sample_idx, instance_idx = self._index[idx]
-        sample = self.samples[sample_idx]
 
-        # Load image and annotations
-        img = load_sample_normalized(sample)
+        # Load image and annotations (cached)
+        img, ann = self._load_sample(sample_idx)
         h, w = img.shape[:2]
-        ann = load_sample_annotations(sample, h, w)
 
         gt_mask = ann["masks"][instance_idx]  # (H, W)
         class_id = ann["labels"][instance_idx]
