@@ -350,8 +350,9 @@ def main():
                         help="Model type")
     parser.add_argument("--checkpoint", required=True,
                         help="Path to model checkpoint")
-    parser.add_argument("--strategy", default="strategy1",
-                        choices=["strategy1", "strategy2", "strategy3"])
+    parser.add_argument("--strategy", default=None,
+                        choices=["strategy1", "strategy2", "strategy3"],
+                        help="Splitting strategy. Auto-detected from checkpoint path if not set.")
     parser.add_argument("--species", default=None)
     parser.add_argument("--subset", default="test",
                         help="Which split to evaluate on")
@@ -364,6 +365,17 @@ def main():
     parser.add_argument("--vis-dir", type=str, default=None,
                         help="Directory for visualization PNGs (default: output/evaluation/vis_*)")
     args = parser.parse_args()
+
+    # Auto-detect strategy from checkpoint path if not explicitly set
+    if args.strategy is None:
+        ckpt_lower = args.checkpoint.lower()
+        if "strategy2" in ckpt_lower:
+            args.strategy = "strategy2"
+        elif "strategy3" in ckpt_lower:
+            args.strategy = "strategy3"
+        else:
+            args.strategy = "strategy1"
+        print(f"Auto-detected strategy: {args.strategy}")
 
     # Setup
     registry = SampleRegistry()
