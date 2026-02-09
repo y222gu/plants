@@ -58,6 +58,12 @@ def polygon_to_mask(polygon: np.ndarray, h: int, w: int) -> np.ndarray:
     mask = np.zeros((h, w), dtype=np.uint8)
     pts = np.round(polygon).astype(np.int32).reshape((-1, 1, 2))
     cv2.fillPoly(mask, [pts], 1)
+    # Fix holes from self-intersecting polygons: cv2.fillPoly uses the
+    # even-odd rule, so self-crossings create unfilled interior regions.
+    # Re-fill from outer contour to produce a solid mask.
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if contours:
+        cv2.drawContours(mask, contours, -1, 1, thickness=cv2.FILLED)
     return mask
 
 
@@ -201,6 +207,64 @@ def polygons_to_semantic_mask(
         sem[vasc_m > 0] = 4
 
     return sem
+
+
+def polygons_to_multilabel_mask(
+    annotations: List[Dict],
+    h: int,
+    w: int,
+) -> np.ndarray:
+    """Convert YOLO annotations to multi-label mask with independent channels.
+
+    Each pixel can belong to multiple classes (e.g., aerenchyma is also inside
+    the whole root). Returns 4 binary channels with sigmoid-compatible targets.
+
+    Channel mapping:
+        0: Whole Root (entire root area)
+        1: Aerenchyma (air spaces — also marked in ch0)
+        2: Endodermis ring (outer - inner endo — also marked in ch0)
+        3: Vascular (inner endo area — also marked in ch0)
+
+    Returns:
+        (4, H, W) float32 mask with values 0.0 or 1.0.
+    """
+    multilabel = np.zeros((4, h, w), dtype=np.float32)
+
+    outer_endo = None
+    inner_endo = None
+
+    for ann in annotations:
+        cid = ann["class_id"]
+        if cid == 0:
+            mask = polygon_to_mask(ann["polygon"], h, w)
+            multilabel[0][mask > 0] = 1.0
+        elif cid == 1:
+            mask = polygon_to_mask(ann["polygon"], h, w)
+            multilabel[1][mask > 0] = 1.0
+            # Aerenchyma is inside whole root
+            multilabel[0][mask > 0] = 1.0
+        elif cid == 2:
+            outer_endo = ann["polygon"]
+        elif cid == 3:
+            inner_endo = ann["polygon"]
+
+    # Endodermis ring: outer - inner (channel 2)
+    if outer_endo is not None and inner_endo is not None:
+        outer_mask = polygon_to_mask(outer_endo, h, w)
+        inner_mask = polygon_to_mask(inner_endo, h, w)
+        ring = np.clip(outer_mask.astype(np.int8) - inner_mask.astype(np.int8), 0, 1)
+        multilabel[2][ring > 0] = 1.0
+        # Endodermis is inside whole root
+        multilabel[0][ring > 0] = 1.0
+
+    # Vascular: inner endodermis area (channel 3)
+    if inner_endo is not None:
+        vasc_mask = polygon_to_mask(inner_endo, h, w)
+        multilabel[3][vasc_mask > 0] = 1.0
+        # Vascular is inside whole root
+        multilabel[0][vasc_mask > 0] = 1.0
+
+    return multilabel
 
 
 def load_sample_annotations(

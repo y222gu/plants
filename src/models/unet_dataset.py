@@ -1,4 +1,4 @@
-"""PyTorch Dataset for U-Net semantic segmentation training."""
+"""PyTorch Dataset for U-Net semantic/multilabel segmentation training."""
 
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
@@ -9,17 +9,27 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from ..annotation_utils import parse_yolo_annotations, polygons_to_semantic_mask
+from ..annotation_utils import (
+    parse_yolo_annotations,
+    polygons_to_multilabel_mask,
+    polygons_to_semantic_mask,
+)
 from ..config import SampleRecord
 from ..preprocessing import load_sample_normalized
 
 
 class UNetDataset(Dataset):
-    """Dataset for semantic segmentation with U-Net / U-Net++.
+    """Dataset for segmentation with U-Net / U-Net++.
 
-    Returns (image, mask) pairs where:
-        image: (3, H, W) float32 tensor
-        mask: (H, W) int64 tensor (0=bg, 1-4=classes)
+    Supports two modes:
+        "semantic": Returns (H, W) int64 mask (0=bg, 1-4=classes). Mutually exclusive.
+        "multilabel": Returns (4, H, W) float32 mask. Independent binary channels (sigmoid).
+
+    Args:
+        samples: List of SampleRecord.
+        transform: Albumentations Compose pipeline.
+        img_size: Target image size (square).
+        mode: "semantic" or "multilabel".
     """
 
     def __init__(
@@ -27,10 +37,13 @@ class UNetDataset(Dataset):
         samples: List[SampleRecord],
         transform: Optional[A.Compose] = None,
         img_size: int = 1024,
+        mode: str = "semantic",
     ):
+        assert mode in ("semantic", "multilabel"), f"Unknown mode: {mode}"
         self.samples = samples
         self.transform = transform
         self.img_size = img_size
+        self.mode = mode
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -42,8 +55,15 @@ class UNetDataset(Dataset):
         img = load_sample_normalized(sample)  # (H, W, 3) float32 [0,1]
         h, w = img.shape[:2]
 
-        # Load semantic mask
+        # Load annotations
         anns = parse_yolo_annotations(sample.annotation_path, w, h)
+
+        if self.mode == "semantic":
+            return self._get_semantic(img, anns, h, w, sample.uid)
+        else:
+            return self._get_multilabel(img, anns, h, w, sample.uid)
+
+    def _get_semantic(self, img, anns, h, w, uid):
         sem_mask = polygons_to_semantic_mask(anns, h, w)  # (H, W) int32
 
         # Resize to target
@@ -63,4 +83,32 @@ class UNetDataset(Dataset):
         img_tensor = torch.from_numpy(img.copy()).permute(2, 0, 1).float()  # (3, H, W)
         mask_tensor = torch.from_numpy(sem_mask.copy()).long()               # (H, W)
 
-        return {"image": img_tensor, "mask": mask_tensor, "uid": sample.uid}
+        return {"image": img_tensor, "mask": mask_tensor, "uid": uid}
+
+    def _get_multilabel(self, img, anns, h, w, uid):
+        ml_mask = polygons_to_multilabel_mask(anns, h, w)  # (4, H, W) float32
+
+        # Resize to target
+        img = cv2.resize(img, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
+        # Resize each channel of multilabel mask with nearest neighbor
+        resized_mask = np.zeros((4, self.img_size, self.img_size), dtype=np.float32)
+        for c in range(4):
+            resized_mask[c] = cv2.resize(
+                ml_mask[c], (self.img_size, self.img_size),
+                interpolation=cv2.INTER_NEAREST,
+            )
+
+        # Apply augmentation: albumentations handles (H, W, C) masks
+        if self.transform is not None:
+            # Transpose mask to (H, W, 4) for albumentations
+            mask_hwc = resized_mask.transpose(1, 2, 0)  # (H, W, 4)
+            transformed = self.transform(image=img, mask=mask_hwc)
+            img = transformed["image"]
+            mask_hwc = transformed["mask"]
+            resized_mask = mask_hwc.transpose(2, 0, 1)  # (4, H, W)
+
+        # Convert to tensors
+        img_tensor = torch.from_numpy(img.copy()).permute(2, 0, 1).float()    # (3, H, W)
+        mask_tensor = torch.from_numpy(resized_mask.copy()).float()            # (4, H, W)
+
+        return {"image": img_tensor, "mask": mask_tensor, "uid": uid}

@@ -23,6 +23,39 @@ class PredictionResult:
     scores: np.ndarray       # (N,) float32 confidence scores
 
 
+def _fill_mask_holes(mask: np.ndarray) -> np.ndarray:
+    """Fill internal holes in a single binary mask.
+
+    Extracts outer contours and re-fills them, removing any internal holes.
+    Equivalent to: mask → polygon (outer boundary) → filled polygon.
+    """
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return mask
+    filled = np.zeros_like(mask)
+    cv2.drawContours(filled, contours, -1, 1, thickness=cv2.FILLED)
+    return filled
+
+
+def fill_prediction_holes(pred: PredictionResult) -> PredictionResult:
+    """Fill holes in all predicted masks.
+
+    For each instance mask, extracts the outer contour and re-fills it,
+    producing solid polygon-like masks with no internal holes.
+    Works universally for any model (YOLO, U-Net, Mask R-CNN, SAM, Cellpose).
+    """
+    if len(pred.masks) == 0:
+        return pred
+    filled_masks = np.zeros_like(pred.masks)
+    for i in range(len(pred.masks)):
+        filled_masks[i] = _fill_mask_holes(pred.masks[i])
+    return PredictionResult(
+        masks=filled_masks,
+        labels=pred.labels,
+        scores=pred.scores,
+    )
+
+
 def convert_yolo_predictions(
     pred_path: Path,
     img_h: int,
@@ -107,11 +140,21 @@ def convert_semantic_to_instances(
                 labels_list.append(1)
                 scores_list.append(score)
 
-    # Class 2 (Endodermis) — single instance (semantic label 3)
+    # Class 2 (Endodermis) — single ring instance (semantic label 3)
+    # Morphological closing connects fragmented endodermis pixels into a ring,
+    # then subtract the vascular interior to preserve the ring shape.
     if endo.sum() > 0:
-        masks_list.append(endo)
-        labels_list.append(2)
-        scores_list.append(score)
+        kern_size = max(7, int(min(sem_mask.shape) * 0.01) | 1)  # larger kernel for ring
+        endo_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
+        endo = cv2.morphologyEx(endo, cv2.MORPH_CLOSE, endo_kernel, iterations=3)
+        # Remove small isolated fragments
+        endo = cv2.morphologyEx(endo, cv2.MORPH_OPEN, endo_kernel, iterations=1)
+        # Clip to inside root, outside vascular
+        endo = endo & wr & (~vasc.astype(bool)).astype(np.uint8)
+        if endo.sum() > 0:
+            masks_list.append(endo)
+            labels_list.append(2)
+            scores_list.append(score)
 
     # Class 3 (Vascular) — single instance (semantic label 4)
     if vasc.sum() > 0:
@@ -121,6 +164,93 @@ def convert_semantic_to_instances(
 
     if not masks_list:
         h, w = sem_mask.shape
+        return PredictionResult(
+            masks=np.zeros((0, h, w), dtype=np.uint8),
+            labels=np.zeros(0, dtype=np.int32),
+            scores=np.zeros(0, dtype=np.float32),
+        )
+
+    return PredictionResult(
+        masks=np.stack(masks_list),
+        labels=np.array(labels_list, dtype=np.int32),
+        scores=np.array(scores_list, dtype=np.float32),
+    )
+
+
+def convert_multilabel_to_instances(
+    ml_mask: np.ndarray,
+    score: float = 1.0,
+) -> PredictionResult:
+    """Convert multilabel mask (4, H, W) to instance predictions.
+
+    Channels: 0=whole_root, 1=aerenchyma, 2=endodermis, 3=vascular.
+    Each channel is thresholded at 0.5 and converted to instances.
+    Aerenchyma uses connected components; others are single instances.
+    """
+    masks_list = []
+    labels_list = []
+    scores_list = []
+
+    h, w = ml_mask.shape[1], ml_mask.shape[2]
+
+    # Channel 0: Whole Root (single instance)
+    wr = (ml_mask[0] > 0.5).astype(np.uint8)
+    if wr.sum() > 0:
+        masks_list.append(wr)
+        labels_list.append(0)
+        scores_list.append(score)
+
+    # Channel 2: Endodermis (single ring instance)
+    endo = (ml_mask[2] > 0.5).astype(np.uint8)
+
+    # Channel 3: Vascular (single instance)
+    vasc = (ml_mask[3] > 0.5).astype(np.uint8)
+
+    # Channel 1: Aerenchyma (multiple instances via connected components)
+    aer = (ml_mask[1] > 0.5).astype(np.uint8)
+    if aer.sum() > 0:
+        # Morphological cleanup
+        kern_size = max(5, int(min(h, w) * 0.005) | 1)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
+        aer = cv2.morphologyEx(aer, cv2.MORPH_CLOSE, kernel, iterations=2)
+        aer = cv2.morphologyEx(aer, cv2.MORPH_OPEN, kernel, iterations=1)
+
+        # Clip: aerenchyma must be inside whole root, outside endo/vascular
+        if wr.sum() > 0:
+            aer = aer & wr & (~endo.astype(bool)).astype(np.uint8) & (~vasc.astype(bool)).astype(np.uint8)
+
+        # Connected components with minimum area filter
+        min_area = max(50, int(h * w * 0.0001))
+        n_components, component_map = cv2.connectedComponents(aer)
+        for comp_id in range(1, n_components):
+            mask = (component_map == comp_id).astype(np.uint8)
+            if mask.sum() >= min_area:
+                masks_list.append(mask)
+                labels_list.append(1)
+                scores_list.append(score)
+
+    # Endodermis instance
+    if endo.sum() > 0:
+        # Morphological cleanup for ring
+        kern_size = max(7, int(min(h, w) * 0.01) | 1)
+        endo_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
+        endo = cv2.morphologyEx(endo, cv2.MORPH_CLOSE, endo_kernel, iterations=3)
+        endo = cv2.morphologyEx(endo, cv2.MORPH_OPEN, endo_kernel, iterations=1)
+        # Clip to inside root, outside vascular
+        if wr.sum() > 0:
+            endo = endo & wr & (~vasc.astype(bool)).astype(np.uint8)
+        if endo.sum() > 0:
+            masks_list.append(endo)
+            labels_list.append(2)
+            scores_list.append(score)
+
+    # Vascular instance
+    if vasc.sum() > 0:
+        masks_list.append(vasc)
+        labels_list.append(3)
+        scores_list.append(score)
+
+    if not masks_list:
         return PredictionResult(
             masks=np.zeros((0, h, w), dtype=np.uint8),
             labels=np.zeros(0, dtype=np.int32),
