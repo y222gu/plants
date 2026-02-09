@@ -32,7 +32,7 @@ GRID = [
             "--model", "unet", "--unet-mode", "multilabel",
             "--strategy", "strategy1", "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/unet/unet_resnet50_strategy1_multilabel/checkpoints/best-*.ckpt",
+        "checkpoint_pattern": "output/runs/unet/unet_resnet34_strategy1_multilabel/checkpoints/best-*.ckpt",
     },
     {
         "id": 2,
@@ -46,7 +46,7 @@ GRID = [
             "--model", "unet", "--unet-mode", "multilabel",
             "--strategy", "strategy2", "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/unet/unet_resnet50_strategy2_multilabel/checkpoints/best-*.ckpt",
+        "checkpoint_pattern": "output/runs/unet/unet_resnet34_strategy2_multilabel/checkpoints/best-*.ckpt",
     },
     {
         "id": 3,
@@ -60,7 +60,7 @@ GRID = [
             "--model", "unet", "--unet-mode", "semantic",
             "--strategy", "strategy1", "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/unet/unet_resnet50_strategy1_semantic/checkpoints/best-*.ckpt",
+        "checkpoint_pattern": "output/runs/unet/unet_resnet34_strategy1_semantic/checkpoints/best-*.ckpt",
     },
     {
         "id": 4,
@@ -74,7 +74,7 @@ GRID = [
             "--model", "unet", "--unet-mode", "semantic",
             "--strategy", "strategy2", "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/unet/unet_resnet50_strategy2_semantic/checkpoints/best-*.ckpt",
+        "checkpoint_pattern": "output/runs/unet/unet_resnet34_strategy2_semantic/checkpoints/best-*.ckpt",
     },
     {
         "id": 5,

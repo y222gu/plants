@@ -45,7 +45,7 @@ class SegmentationModule(pl.LightningModule):
     def __init__(
         self,
         arch: str = "unet",
-        encoder: str = "resnet50",
+        encoder: str = "resnet34",
         lr: float = DEFAULT_LR,
         backbone_lr: float = 1e-5,
     ):
@@ -146,7 +146,7 @@ class MultiLabelSegmentationModule(pl.LightningModule):
     def __init__(
         self,
         arch: str = "unet",
-        encoder: str = "resnet50",
+        encoder: str = "resnet34",
         lr: float = DEFAULT_LR,
         backbone_lr: float = 1e-5,
     ):
@@ -246,7 +246,7 @@ def main():
                         choices=["semantic", "multilabel"],
                         help="Segmentation mode: semantic (softmax) or multilabel (sigmoid)")
     parser.add_argument("--arch", default="unet", choices=["unet", "unetplusplus"])
-    parser.add_argument("--encoder", default="resnet50",
+    parser.add_argument("--encoder", default="resnet34",
                         help="Encoder backbone (e.g. resnet50, resnet101, efficientnet-b4)")
     parser.add_argument("--strategy", default="strategy1",
                         choices=["strategy1", "strategy2", "strategy3"])
