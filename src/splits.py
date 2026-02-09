@@ -25,56 +25,105 @@ def strategy1_standard(
     val_ratio: float = 0.1,
     seed: int = 42,
 ) -> Dict[str, List[SampleRecord]]:
-    """Strategy 1: Standard 80/10/10 split, stratified by species x microscope.
+    """Strategy 1: Standard split, stratified by species x microscope.
 
-    Splits at experiment level, stratified so each (species, microscope) combo
-    has proportional representation in train/val/test.
+    Millet/Olympus and Rice/Zeiss: few experiments, split smallest→test, next→val.
+    Rice/C10, Rice/Olympus, Sorghum/C10, Sorghum/Olympus: accumulate smallest
+    experiments until test/val minimums are met (same distribution as Strategy 2).
     """
     rng = random.Random(seed)
-    sm_groups = registry.get_species_microscope_groups()
 
-    train_exps, val_exps, test_exps = [], [], []
+    train_samples = []
+    val_samples = []
+    test_samples = []
 
-    for sm_key, experiments in sorted(sm_groups.items()):
-        # Sort experiments by sample count (descending) then shuffle within
-        # size tiers so the largest experiments are more likely to end up in train
-        exp_groups = registry.get_experiment_groups()
+    # Helper: accumulate smallest experiments until >= min_samples
+    def _pick_experiments(species, microscope, min_samples, exclude=None):
+        combo = registry.filter(species=[species], microscopes=[microscope])
+        exps = defaultdict(list)
+        for s in combo:
+            exps[s.group_key].append(s)
+        sorted_keys = sorted(exps.keys(), key=lambda k: len(exps[k]))
+        picked_keys = set()
+        picked_samples = []
+        total = 0
+        for k in sorted_keys:
+            if exclude and k in exclude:
+                continue
+            picked_keys.add(k)
+            picked_samples.extend(exps[k])
+            total += len(exps[k])
+            if total >= min_samples:
+                break
+        return picked_keys, picked_samples
+
+    # --- Millet/Olympus and Rice/Zeiss: use n<=3 logic (unchanged) ---
+    exp_groups = registry.get_experiment_groups()
+    for sm_key in ["Millet/Olympus", "Rice/Zeiss"]:
+        sm_groups = registry.get_species_microscope_groups()
+        experiments = sm_groups.get(sm_key, [])
         exps_with_size = [(e, len(exp_groups[e])) for e in experiments]
-        exps_with_size.sort(key=lambda x: -x[1])  # largest first
+        exps_with_size.sort(key=lambda x: x[1])  # smallest first
 
         n = len(exps_with_size)
-        if n <= 1:
-            # Single experiment: put in train
-            train_exps.extend([e for e, _ in exps_with_size])
-            continue
+        if n >= 3:
+            test_samples.extend(exp_groups[exps_with_size[0][0]])
+            val_samples.extend(exp_groups[exps_with_size[1][0]])
+            for e, _ in exps_with_size[2:]:
+                train_samples.extend(exp_groups[e])
+        elif n == 2:
+            test_samples.extend(exp_groups[exps_with_size[0][0]])
+            train_samples.extend(exp_groups[exps_with_size[1][0]])
+        elif n == 1:
+            train_samples.extend(exp_groups[exps_with_size[0][0]])
 
-        if n <= 3:
-            # Very few experiments: put largest in train, smallest in test/val
-            # Sort smallest-first for allocation to test/val
-            exps_with_size.sort(key=lambda x: x[1])
-            test_exps.append(exps_with_size[0][0])
-            if n == 3:
-                val_exps.append(exps_with_size[1][0])
-                train_exps.append(exps_with_size[2][0])
-            else:  # n == 2
-                train_exps.append(exps_with_size[1][0])
-            continue
+    # --- Seen combos: same holdout logic as Strategy 2 ---
+    test_holdout_keys = set()
+    test_min = [
+        ("Rice", "C10", 10),
+        ("Rice", "Olympus", 20),
+        ("Sorghum", "C10", 10),
+        ("Sorghum", "Olympus", 20),
+    ]
+    for sp, micro, min_n in test_min:
+        keys, samples = _pick_experiments(sp, micro, min_n)
+        test_holdout_keys |= keys
+        test_samples.extend(samples)
 
-        # Normal case: shuffle and split proportionally
-        exps = [e for e, _ in exps_with_size]
-        rng.shuffle(exps)
+    # Val: hold out a few Sorghum/C10 not in test
+    val_holdout_keys = set()
+    sorg_c10 = registry.filter(species=["Sorghum"], microscopes=["C10"])
+    sc10_exps = defaultdict(list)
+    for s in sorg_c10:
+        sc10_exps[s.group_key].append(s)
+    for k in sorted(sc10_exps.keys(), key=lambda k: len(sc10_exps[k])):
+        if k not in test_holdout_keys:
+            val_holdout_keys.add(k)
+            val_samples.extend(sc10_exps[k])
+            break
 
-        n_test = max(1, round(n * (1 - train_ratio - val_ratio)))
-        n_val = max(1, round(n * val_ratio))
+    # Remaining experiments from the 4 combos: 10% to val, rest to train
+    excluded = test_holdout_keys | val_holdout_keys
+    remaining_exps = defaultdict(list)
+    for sp, micro in [("Rice", "C10"), ("Rice", "Olympus"),
+                       ("Sorghum", "C10"), ("Sorghum", "Olympus")]:
+        for s in registry.filter(species=[sp], microscopes=[micro]):
+            if s.group_key not in excluded:
+                remaining_exps[s.group_key].append(s)
 
-        test_exps.extend(exps[:n_test])
-        val_exps.extend(exps[n_test:n_test + n_val])
-        train_exps.extend(exps[n_test + n_val:])
+    rem_keys = sorted(remaining_exps.keys())
+    rng.shuffle(rem_keys)
+
+    n_val = max(1, round(len(rem_keys) * val_ratio))
+    for k in rem_keys[:n_val]:
+        val_samples.extend(remaining_exps[k])
+    for k in rem_keys[n_val:]:
+        train_samples.extend(remaining_exps[k])
 
     return {
-        "train": _experiments_to_samples(registry, train_exps),
-        "val": _experiments_to_samples(registry, val_exps),
-        "test": _experiments_to_samples(registry, test_exps),
+        "train": train_samples,
+        "val": val_samples,
+        "test": test_samples,
     }
 
 
@@ -85,24 +134,72 @@ def strategy2_generalizability(
 ) -> Dict[str, List[SampleRecord]]:
     """Strategy 2: Generalizability test.
 
-    Train: Sorghum + Rice (C10 + Olympus only)
+    Train: Sorghum + Rice (C10 + Olympus only), minus held-out experiments
     Test:  Millet/Olympus (unseen species) + Rice/Zeiss (unseen microscope)
-    Val:   10% of train experiments held out
+           + held-out experiments from each seen combo to meet minimums
+    Val:   Sorghum/C10 experiments + 10% of remaining train experiments
     """
     rng = random.Random(seed)
 
-    # Train pool: Sorghum(all) + Rice(C10, Olympus)
-    train_pool = registry.filter(species=["Sorghum"]) + \
-                 registry.filter(species=["Rice"], microscopes=["C10", "Olympus"])
-
-    # Test: Millet/Olympus + Rice/Zeiss
+    # Test: Millet/Olympus + Rice/Zeiss (unseen species/microscope)
     test_samples = registry.filter(species=["Millet"]) + \
                    registry.filter(species=["Rice"], microscopes=["Zeiss"])
 
-    # Split train pool by experiment for val holdout
+    # Helper: accumulate smallest experiments until >= min_samples
+    def _pick_experiments(species, microscope, min_samples):
+        combo = registry.filter(species=[species], microscopes=[microscope])
+        exps = defaultdict(list)
+        for s in combo:
+            exps[s.group_key].append(s)
+        # Sort by size (smallest first)
+        sorted_keys = sorted(exps.keys(), key=lambda k: len(exps[k]))
+        picked_keys = set()
+        picked_samples = []
+        total = 0
+        for k in sorted_keys:
+            picked_keys.add(k)
+            picked_samples.extend(exps[k])
+            total += len(exps[k])
+            if total >= min_samples:
+                break
+        return picked_keys, picked_samples
+
+    # Hold out experiments for test: meet minimums per combo
+    test_holdout_keys = set()
+    test_min = [
+        ("Rice", "C10", 10),
+        ("Rice", "Olympus", 20),
+        ("Sorghum", "C10", 10),
+        ("Sorghum", "Olympus", 20),
+    ]
+    for sp, micro, min_n in test_min:
+        keys, samples = _pick_experiments(sp, micro, min_n)
+        test_holdout_keys |= keys
+        test_samples.extend(samples)
+
+    # Hold out a few Sorghum/C10 for val
+    val_holdout_keys = set()
+    val_holdout_samples = []
+    sorg_c10 = registry.filter(species=["Sorghum"], microscopes=["C10"])
+    sc10_exps = defaultdict(list)
+    for s in sorg_c10:
+        sc10_exps[s.group_key].append(s)
+    # Pick smallest not already in test
+    for k in sorted(sc10_exps.keys(), key=lambda k: len(sc10_exps[k])):
+        if k not in test_holdout_keys:
+            val_holdout_keys.add(k)
+            val_holdout_samples.extend(sc10_exps[k])
+            break
+
+    # Train pool: Sorghum(all) + Rice(C10, Olympus), minus holdouts
+    train_pool = registry.filter(species=["Sorghum"]) + \
+                 registry.filter(species=["Rice"], microscopes=["C10", "Olympus"])
+
+    excluded = test_holdout_keys | val_holdout_keys
     train_exps = defaultdict(list)
     for s in train_pool:
-        train_exps[s.group_key].append(s)
+        if s.group_key not in excluded:
+            train_exps[s.group_key].append(s)
 
     exp_keys = sorted(train_exps.keys())
     rng.shuffle(exp_keys)
@@ -114,7 +211,7 @@ def strategy2_generalizability(
     train_samples = []
     for k in train_exp_keys:
         train_samples.extend(train_exps[k])
-    val_samples = []
+    val_samples = val_holdout_samples[:]
     for k in val_exp_keys:
         val_samples.extend(train_exps[k])
 

@@ -21,18 +21,25 @@ def get_train_transform(
         A.HorizontalFlip(p=0.5),
         A.VerticalFlip(p=0.5),
         A.Affine(
-            translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
-            scale=(0.9, 1.1),
-            rotate=(-15, 15),
-            mode=0, cval=0, p=0.5,
+            translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
+            scale=(0.7, 1.3),
+            rotate=(-45, 45),
+            shear=(-10, 10),
+            border_mode=0, p=0.7,
         ),
         A.ElasticTransform(
-            alpha=50, sigma=10, border_mode=0, p=0.2,
+            alpha=120, sigma=12, border_mode=0, p=0.3,
         ),
         A.RandomBrightnessContrast(
-            brightness_limit=0.15, contrast_limit=0.15, p=0.5,
+            brightness_limit=0.3, contrast_limit=0.3, p=0.6,
         ),
-        A.GaussNoise(std_range=(0.01, 0.05), p=0.3),
+        A.GaussianBlur(blur_limit=(3, 7), p=0.2),
+        A.GaussNoise(std_range=(0.01, 0.08), p=0.4),
+        A.RandomGamma(gamma_limit=(70, 150), p=0.3),
+        A.CoarseDropout(
+            num_holes_range=(3, 8), hole_height_range=(0.02, 0.06),
+            hole_width_range=(0.02, 0.06), p=0.3,
+        ),
         A.ChannelDropout(
             channel_drop_range=(1, 1), p=p_channel_dropout,
         ),

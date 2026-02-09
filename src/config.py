@@ -44,7 +44,7 @@ CLASS_COLORS_RGB = {
 }
 
 # ── Training defaults ─────────────────────────────────────────────────────────
-DEFAULT_IMG_SIZE = 512
+DEFAULT_IMG_SIZE = 1024
 DEFAULT_BATCH_SIZE = 4
 DEFAULT_EPOCHS = 200
 DEFAULT_PATIENCE = 15

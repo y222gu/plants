@@ -29,7 +29,9 @@ from src.config import (
 from src.dataset import SampleRegistry
 from src.evaluation import (
     PredictionResult,
+    convert_multilabel_to_instances,
     convert_semantic_to_instances,
+    fill_prediction_holes,
 )
 from src.metrics import SegmentationMetrics
 from src.preprocessing import load_sample_normalized, to_uint8
@@ -281,11 +283,19 @@ def predict_yolo(checkpoint: str, samples, img_size: int) -> dict:
     return predictions
 
 
-def predict_unet(checkpoint: str, samples, img_size: int) -> dict:
-    """Run U-Net inference and return predictions."""
-    from train_unet import SegmentationModule
+def predict_unet(checkpoint: str, samples, img_size: int,
+                  unet_mode: str = "semantic") -> dict:
+    """Run U-Net inference and return predictions.
 
-    model = SegmentationModule.load_from_checkpoint(checkpoint)
+    Args:
+        unet_mode: "semantic" (softmax/argmax) or "multilabel" (sigmoid/threshold).
+    """
+    if unet_mode == "multilabel":
+        from train_unet import MultiLabelSegmentationModule
+        model = MultiLabelSegmentationModule.load_from_checkpoint(checkpoint)
+    else:
+        from train_unet import SegmentationModule
+        model = SegmentationModule.load_from_checkpoint(checkpoint)
     model.eval()
     model.cuda()
 
@@ -298,13 +308,21 @@ def predict_unet(checkpoint: str, samples, img_size: int) -> dict:
 
         with torch.no_grad():
             logits = model(tensor)
-        sem_mask = logits.argmax(dim=1).squeeze().cpu().numpy()
 
-        # Resize back
-        sem_mask = cv2.resize(sem_mask.astype(np.uint8), (w, h),
-                              interpolation=cv2.INTER_NEAREST).astype(np.int32)
+        if unet_mode == "multilabel":
+            # Sigmoid → (4, H, W) probabilities
+            probs = torch.sigmoid(logits).squeeze(0).cpu().numpy()  # (4, img_size, img_size)
+            # Resize each channel back to original size
+            ml_mask = np.zeros((4, h, w), dtype=np.float32)
+            for c in range(4):
+                ml_mask[c] = cv2.resize(probs[c], (w, h), interpolation=cv2.INTER_LINEAR)
+            pred = convert_multilabel_to_instances(ml_mask)
+        else:
+            sem_mask = logits.argmax(dim=1).squeeze().cpu().numpy()
+            sem_mask = cv2.resize(sem_mask.astype(np.uint8), (w, h),
+                                  interpolation=cv2.INTER_NEAREST).astype(np.int32)
+            pred = convert_semantic_to_instances(sem_mask)
 
-        pred = convert_semantic_to_instances(sem_mask)
         predictions[sample.uid] = pred
 
     return predictions
@@ -359,6 +377,9 @@ def main():
     parser.add_argument("--output", type=str, default=None,
                         help="Output JSON path for metrics")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--unet-mode", default="semantic",
+                        choices=["semantic", "multilabel"],
+                        help="U-Net mode: semantic (softmax) or multilabel (sigmoid)")
     parser.add_argument("--no-vis", action="store_true",
                         help="Skip saving visualization overlay images")
     parser.add_argument("--vis-dir", type=str, default=None,
@@ -372,13 +393,20 @@ def main():
     print(f"Evaluating {args.model} on {len(samples)} {args.subset} samples")
 
     # Run inference
-    predict_fn = {
-        "yolo": predict_yolo,
-        "maskrcnn": predict_maskrcnn,
-        "unet": predict_unet,
-    }[args.model]
+    if args.model == "unet":
+        predictions = predict_unet(args.checkpoint, samples, args.img_size,
+                                   unet_mode=args.unet_mode)
+    else:
+        predict_fn = {
+            "yolo": predict_yolo,
+            "maskrcnn": predict_maskrcnn,
+        }[args.model]
+        predictions = predict_fn(args.checkpoint, samples, args.img_size)
 
-    predictions = predict_fn(args.checkpoint, samples, args.img_size)
+    # Fill holes in all predicted masks (mask → outer contour → fill)
+    print("Filling mask holes...")
+    for uid in predictions:
+        predictions[uid] = fill_prediction_holes(predictions[uid])
 
     # Evaluate — load GT and compute metrics with progress
     print("Computing metrics...")
@@ -441,14 +469,17 @@ def main():
     if args.output:
         out_path = Path(args.output)
     else:
-        out_path = out_dir / f"{args.model}_{args.strategy}_{args.subset}.json"
+        model_tag = args.model
+        if args.model == "unet":
+            model_tag = f"unet_{args.unet_mode}"
+        out_path = out_dir / f"{model_tag}_{args.strategy}_{args.subset}.json"
 
     metrics.save(out_path, _cached_results=results)
     print(f"\nMetrics saved to {out_path}")
 
     # Save per-sample CSV sorted by mean_IoU (worst first)
     per_sample_rows.sort(key=lambda r: r["mean_IoU"])
-    csv_path = out_dir / f"{args.model}_{args.strategy}_{args.subset}_per_sample.csv"
+    csv_path = out_dir / f"{model_tag}_{args.strategy}_{args.subset}_per_sample.csv"
     if per_sample_rows:
         with open(csv_path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=per_sample_rows[0].keys())
@@ -465,7 +496,7 @@ def main():
         if args.vis_dir:
             vis_dir = Path(args.vis_dir)
         else:
-            vis_dir = OUTPUT_DIR / "evaluation" / f"vis_{args.model}_{args.strategy}_{args.subset}"
+            vis_dir = OUTPUT_DIR / "evaluation" / f"vis_{model_tag}_{args.strategy}_{args.subset}"
         save_visualizations(samples, predictions, vis_dir)
 
 
