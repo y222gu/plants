@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-from .config import IMAGE_DIR, ANNOTATION_DIR, SampleRecord
+from .config import IMAGE_DIR, ANNOTATION_DIR, EXCLUDE_FILE, SampleRecord
 
 
 class SampleRegistry:
@@ -18,8 +18,22 @@ class SampleRegistry:
         self.samples: List[SampleRecord] = []
         self._discover()
 
+    @staticmethod
+    def _load_exclude_set() -> Set[str]:
+        """Load UIDs to exclude from data/exclude_samples.txt."""
+        if not EXCLUDE_FILE.exists():
+            return set()
+        excluded = set()
+        for line in EXCLUDE_FILE.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                excluded.add(line)
+        return excluded
+
     def _discover(self):
         """Walk IMAGE_DIR to find all samples with matching annotations."""
+        excluded = self._load_exclude_set()
+
         annotation_files: Set[str] = set()
         if ANNOTATION_DIR.exists():
             annotation_files = {f.name for f in ANNOTATION_DIR.iterdir() if f.is_file()}
@@ -43,6 +57,10 @@ class SampleRegistry:
                 if annotation_name not in annotation_files:
                     continue
 
+                uid = "_".join(parts)
+                if uid in excluded:
+                    continue
+
                 self.samples.append(SampleRecord(
                     species=species,
                     microscope=microscope,
@@ -54,6 +72,9 @@ class SampleRegistry:
 
         # Sort for deterministic ordering
         self.samples.sort(key=lambda s: s.uid)
+        if excluded:
+            print(f"SampleRegistry: excluded {len(excluded)} samples "
+                  f"(from {EXCLUDE_FILE.name}), {len(self.samples)} remaining")
 
     def filter(
         self,

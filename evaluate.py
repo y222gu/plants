@@ -18,6 +18,10 @@ import torch
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 from src.annotation_utils import load_sample_annotations
 from src.config import (
     CLASS_COLORS_RGB,
@@ -31,8 +35,8 @@ from src.evaluation import (
     PredictionResult,
     convert_multilabel_to_instances,
     convert_semantic_to_instances,
-    fill_prediction_holes,
 )
+from src.postprocessing import PostProcessor, STEPS
 from src.metrics import SegmentationMetrics
 from src.preprocessing import load_sample_normalized, to_uint8
 from src.splits import get_split, print_split_summary
@@ -193,10 +197,13 @@ def save_visualizations(
             pred_masks = pred.masks
 
         # Draw overlays
+        orig_vis = img_small.copy()
         gt_vis = draw_masks_overlay(img_small, gt_masks, gt["labels"])
         pred_vis = draw_masks_overlay(img_small, pred_masks, pred.labels)
 
         # Add titles using PIL
+        orig_vis = _pil_text(orig_vis, "Original", (10, 8), title_font,
+                             fill=(255, 255, 255), outline=(0, 0, 0))
         gt_vis = _pil_text(gt_vis, "Ground Truth", (10, 8), title_font,
                            fill=(255, 255, 255), outline=(0, 0, 0))
         pred_vis = _pil_text(pred_vis, "Prediction", (10, 8), title_font,
@@ -214,9 +221,11 @@ def save_visualizations(
                                  fill=color, outline=(0, 0, 0))
             y_offset += 20
 
-        # Side-by-side
+        # Side-by-side: Original | Ground Truth | Prediction
         divider = np.full((new_h, 3, 3), 255, dtype=np.uint8)
-        combined = np.concatenate([gt_vis, divider, pred_vis], axis=1)
+        combined = np.concatenate(
+            [orig_vis, divider, gt_vis, divider, pred_vis], axis=1
+        )
 
         # Add legend bar at bottom using PIL
         legend_h = 32
@@ -240,6 +249,259 @@ def save_visualizations(
         cv2.imwrite(str(out_path), cv2.cvtColor(combined, cv2.COLOR_RGB2BGR))
 
     print(f"Saved {len(samples)} visualizations to {vis_dir}")
+
+
+def _setup_pub_style():
+    """Configure matplotlib for publication-quality figures."""
+    plt.rcParams.update({
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
+        "font.size": 8,
+        "axes.titlesize": 10,
+        "axes.labelsize": 9,
+        "xtick.labelsize": 8,
+        "ytick.labelsize": 8,
+        "legend.fontsize": 7,
+        "figure.dpi": 300,
+        "savefig.dpi": 300,
+        "savefig.bbox": "tight",
+        "savefig.pad_inches": 0.05,
+        "axes.linewidth": 0.6,
+        "xtick.major.width": 0.6,
+        "ytick.major.width": 0.6,
+        "xtick.major.size": 3,
+        "ytick.major.size": 3,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "pdf.fonttype": 42,  # editable text in PDF
+        "ps.fonttype": 42,
+    })
+
+
+# Color-blind-friendly palette (adapted from Wong 2011, Nature Methods)
+_PUB_CLASS_COLORS = {
+    "Whole Root":   "#0072B2",  # blue
+    "Aerenchyma":   "#E69F00",  # orange
+    "Endodermis":   "#009E73",  # green
+    "Vascular":     "#CC79A7",  # pink
+}
+_PUB_HATCHES = {
+    "Whole Root":   "",
+    "Aerenchyma":   "//",
+    "Endodermis":   "\\\\",
+    "Vascular":     "xx",
+}
+
+
+def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
+                                  per_sample_rows: list = None):
+    """Save publication-quality box plots comparing per-sample metrics.
+
+    Box plots use 5th/95th percentile whiskers and white diagonal hatching.
+    Falls back to loading per-sample CSV if per_sample_rows not provided.
+    """
+    _setup_pub_style()
+    plt.rcParams['hatch.color'] = 'white'
+    plt.rcParams['hatch.linewidth'] = 1.0
+
+    class_names = list(results["overall"]["per_class_IoU"].keys())
+
+    # Load per-sample CSV if not provided directly (e.g. --plot-only mode)
+    if per_sample_rows is None:
+        csv_path = out_dir / f"{model_tag}_per_sample.csv"
+        if csv_path.exists():
+            import csv as csv_mod
+            with open(csv_path) as f:
+                reader = csv_mod.DictReader(f)
+                per_sample_rows = []
+                for row in reader:
+                    parsed = {}
+                    for k, v in row.items():
+                        if k in ("sample_id", "species", "microscope", "experiment"):
+                            parsed[k] = v
+                        else:
+                            try:
+                                parsed[k] = float(v) if v != "" else float('nan')
+                            except ValueError:
+                                parsed[k] = float('nan')
+                    per_sample_rows.append(parsed)
+
+    if not per_sample_rows:
+        print("Warning: no per-sample data available for box plots, skipping")
+        return
+
+    # ── helpers ──
+
+    def _get_vals(rows, key):
+        """Extract finite float values for a column from sample rows."""
+        out = []
+        for r in rows:
+            v = r.get(key)
+            if v is None or v == "":
+                continue
+            try:
+                fv = float(v)
+                if not np.isnan(fv):
+                    out.append(fv)
+            except (ValueError, TypeError):
+                pass
+        return out
+
+    def _build_groups(rows, group_key):
+        """Return ordered dict: 'Overall' followed by sorted sub-groups."""
+        groups = {"Overall": rows}
+        if group_key:
+            sub = {}
+            for r in rows:
+                g = r.get(group_key, "")
+                if g:
+                    sub.setdefault(g, []).append(r)
+            for k in sorted(sub):
+                groups[k] = sub[k]
+        return groups
+
+    def _draw_boxes(ax, groups, metric_keys, colors, ylabel):
+        """Draw side-by-side box plots (5th/95th whiskers, white diagonal hatch)."""
+        group_names = list(groups.keys())
+        n_g = len(group_names)
+        n_m = len(metric_keys)
+        w = 0.72 / n_m
+
+        data, pos, cols = [], [], []
+        for gi, gn in enumerate(group_names):
+            rows = groups[gn]
+            for mi, mk in enumerate(metric_keys):
+                vals = _get_vals(rows, mk)
+                data.append(vals if vals else [0.0])
+                pos.append(gi + (mi - n_m / 2 + 0.5) * w)
+                cols.append(colors[mi])
+
+        bp = ax.boxplot(
+            data, positions=pos, widths=w * 0.80,
+            patch_artist=True, whis=[5, 95], showfliers=False,
+            medianprops=dict(color="black", linewidth=1.0),
+            whiskerprops=dict(color="#444444", linewidth=0.6),
+            capprops=dict(color="#444444", linewidth=0.6),
+        )
+        for patch, c in zip(bp["boxes"], cols):
+            patch.set_facecolor(c)
+            patch.set_edgecolor("#555555")
+            patch.set_hatch("///")
+            patch.set_linewidth(0.5)
+
+        ax.set_xticks(range(n_g))
+        ax.set_xticklabels([f"{g}\n($n$={len(groups[g])})" for g in group_names])
+        ax.set_ylabel(ylabel)
+        ax.set_ylim(0, 1.08)
+        ax.yaxis.set_major_locator(plt.MultipleLocator(0.2))
+        ax.yaxis.set_minor_locator(plt.MultipleLocator(0.1))
+        ax.tick_params(axis="x", length=0)
+        ax.grid(axis="y", which="major", linewidth=0.3, alpha=0.5)
+
+    # ── prepare data ──
+
+    # Compute per-sample mean_Dice (mean_IoU already present in rows)
+    for row in per_sample_rows:
+        dice_vals = []
+        for cls in class_names:
+            v = row.get(f"{cls}_Dice")
+            if v is not None and v != "":
+                try:
+                    fv = float(v)
+                    if not np.isnan(fv):
+                        dice_vals.append(fv)
+                except (ValueError, TypeError):
+                    pass
+        row["mean_Dice"] = round(np.mean(dice_vals), 4) if dice_vals else 0.0
+
+    species_groups = _build_groups(per_sample_rows, "species")
+    micro_groups = _build_groups(per_sample_rows, "microscope")
+
+    cls_iou_keys = [f"{c}_IoU" for c in class_names]
+    cls_dice_keys = [f"{c}_Dice" for c in class_names]
+    cls_colors = [_PUB_CLASS_COLORS.get(c, "#999999") for c in class_names]
+
+    from matplotlib.patches import Patch
+
+    # ── Figure 1: Per-class IoU & Dice by Species and Microscope (2x2) ──
+    fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.0))
+    _draw_boxes(axes[0, 0], species_groups, cls_iou_keys, cls_colors, "IoU")
+    _draw_boxes(axes[0, 1], micro_groups, cls_iou_keys, cls_colors, "IoU")
+    _draw_boxes(axes[1, 0], species_groups, cls_dice_keys, cls_colors, "Dice")
+    _draw_boxes(axes[1, 1], micro_groups, cls_dice_keys, cls_colors, "Dice")
+
+    axes[0, 0].set_title("By Species")
+    axes[0, 1].set_title("By Microscope")
+    axes[0, 0].annotate("IoU", xy=(-0.22, 0.5), xycoords="axes fraction",
+                         fontsize=10, fontweight="bold", ha="center", va="center",
+                         rotation=90)
+    axes[1, 0].annotate("Dice", xy=(-0.22, 0.5), xycoords="axes fraction",
+                         fontsize=10, fontweight="bold", ha="center", va="center",
+                         rotation=90)
+    handles = [Patch(facecolor=_PUB_CLASS_COLORS.get(c, "#999999"),
+                     edgecolor="#555555", hatch="///", label=c) for c in class_names]
+    fig.legend(handles=handles, loc="lower center", ncol=len(class_names),
+               frameon=False, bbox_to_anchor=(0.5, -0.02))
+    fig.tight_layout(rect=[0.03, 0.05, 1, 1])
+    fig.subplots_adjust(hspace=0.30, wspace=0.28)
+
+    for fmt in ("png", "pdf"):
+        fig.savefig(out_dir / f"{model_tag}_per_class_comparison.{fmt}")
+    plt.close(fig)
+    print(f"Per-class comparison saved to {out_dir / model_tag}_per_class_comparison.[png|pdf]")
+
+    # ── Figure 2: Summary (mean IoU, mean Dice) by Species and Microscope (1x2) ──
+    sum_keys = ["mean_IoU", "mean_Dice"]
+    sum_labels = ["Mean IoU", "Mean Dice"]
+    sum_colors = ["#009E73", "#CC79A7"]
+
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.8))
+    _draw_boxes(axes[0], species_groups, sum_keys, sum_colors, "Score")
+    _draw_boxes(axes[1], micro_groups, sum_keys, sum_colors, "Score")
+    axes[0].set_title("By Species")
+    axes[1].set_title("By Microscope")
+    handles = [Patch(facecolor=c, edgecolor="#555555", hatch="///", label=l)
+               for c, l in zip(sum_colors, sum_labels)]
+    fig.legend(handles=handles, loc="lower center", ncol=2,
+               frameon=False, bbox_to_anchor=(0.5, -0.06))
+    fig.tight_layout(rect=[0, 0.08, 1, 1])
+    fig.subplots_adjust(wspace=0.28)
+
+    for fmt in ("png", "pdf"):
+        fig.savefig(out_dir / f"{model_tag}_summary_comparison.{fmt}")
+    plt.close(fig)
+    print(f"Summary comparison saved to {out_dir / model_tag}_summary_comparison.[png|pdf]")
+
+    # ── Figure 3: Per-class IoU & Dice by Species+Microscope combo (2x1) ──
+    combo_sub = {}
+    for r in per_sample_rows:
+        sp, mic = r.get("species", ""), r.get("microscope", "")
+        if sp and mic:
+            combo_sub.setdefault(f"{sp}/{mic}", []).append(r)
+    if combo_sub:
+        combo_groups = {"Overall": per_sample_rows}
+        for k in sorted(combo_sub):
+            combo_groups[k] = combo_sub[k]
+
+        fig, axes = plt.subplots(2, 1, figsize=(7.2, 5.4))
+        _draw_boxes(axes[0], combo_groups, cls_iou_keys, cls_colors, "IoU")
+        _draw_boxes(axes[1], combo_groups, cls_dice_keys, cls_colors, "Dice")
+        axes[0].set_title("Per-class IoU by Species / Microscope")
+        axes[1].set_title("Per-class Dice by Species / Microscope")
+        for ax in axes:
+            ax.tick_params(axis="x", rotation=25)
+        handles = [Patch(facecolor=_PUB_CLASS_COLORS.get(c, "#999999"),
+                         edgecolor="#555555", hatch="///", label=c) for c in class_names]
+        fig.legend(handles=handles, loc="lower center", ncol=len(class_names),
+                   frameon=False, bbox_to_anchor=(0.5, -0.02))
+        fig.tight_layout(rect=[0, 0.04, 1, 1])
+        fig.subplots_adjust(hspace=0.45)
+
+        for fmt in ("png", "pdf"):
+            fig.savefig(out_dir / f"{model_tag}_species_microscope_comparison.{fmt}")
+        plt.close(fig)
+        print(f"Species+Microscope comparison saved to "
+              f"{out_dir / model_tag}_species_microscope_comparison.[png|pdf]")
 
 
 def predict_yolo(checkpoint: str, samples, img_size: int) -> dict:
@@ -363,11 +625,11 @@ def predict_maskrcnn(checkpoint: str, samples, img_size: int) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Unified model evaluation")
-    parser.add_argument("--model", required=True,
+    parser.add_argument("--model", default=None,
                         choices=["yolo", "maskrcnn", "unet"],
-                        help="Model type")
-    parser.add_argument("--checkpoint", required=True,
-                        help="Path to model checkpoint")
+                        help="Model type (required unless --plot-only)")
+    parser.add_argument("--checkpoint", default=None,
+                        help="Path to model checkpoint (required unless --plot-only)")
     parser.add_argument("--strategy", default=None,
                         choices=["strategy1", "strategy2", "strategy3"],
                         help="Splitting strategy. Auto-detected from checkpoint path if not set.")
@@ -385,7 +647,37 @@ def main():
                         help="Skip saving visualization overlay images")
     parser.add_argument("--vis-dir", type=str, default=None,
                         help="Directory for visualization PNGs (default: output/evaluation/vis_*)")
+    parser.add_argument("--plot-only", type=str, default=None,
+                        help="Skip inference; regenerate plots from an existing metrics JSON file")
+
+    # Post-processing toggles
+    step_names = [name for name, _, _ in STEPS]
+    parser.add_argument("--enable-pp", nargs="*", default=[], metavar="STEP",
+                        choices=step_names,
+                        help=f"Force-enable post-processing steps: {step_names}")
+    parser.add_argument("--disable-pp", nargs="*", default=[], metavar="STEP",
+                        choices=step_names,
+                        help=f"Force-disable post-processing steps: {step_names}")
+    parser.add_argument("--no-postprocess", action="store_true",
+                        help="Disable ALL post-processing steps")
     args = parser.parse_args()
+
+    # ── Plot-only mode: load existing JSON, regenerate plots, exit ──
+    if args.plot_only:
+        json_path = Path(args.plot_only)
+        if not json_path.exists():
+            print(f"Error: {json_path} not found")
+            return
+        with open(json_path) as f:
+            results = json.load(f)
+        out_dir = json_path.parent
+        plot_tag = json_path.stem  # e.g. "yolo_strategy1_test"
+        save_metric_comparison_plots(results, out_dir, plot_tag)
+        return
+
+    # Validate required args for full evaluation
+    if not args.model or not args.checkpoint:
+        parser.error("--model and --checkpoint are required unless --plot-only is used")
 
     # Auto-detect strategy from checkpoint path if not explicitly set
     if args.strategy is None:
@@ -415,10 +707,17 @@ def main():
         }[args.model]
         predictions = predict_fn(args.checkpoint, samples, args.img_size)
 
-    # Fill holes in all predicted masks (mask → outer contour → fill)
-    print("Filling mask holes...")
-    for uid in predictions:
-        predictions[uid] = fill_prediction_holes(predictions[uid])
+    # Post-processing pipeline
+    if args.no_postprocess:
+        disable = [name for name, _, _ in STEPS]
+    else:
+        disable = args.disable_pp
+    pp = PostProcessor(
+        model=args.model,
+        enable=args.enable_pp,
+        disable=disable,
+    )
+    predictions = pp.run_all(predictions)
 
     # Evaluate — load GT and compute metrics with progress
     print("Computing metrics...")
@@ -502,6 +801,11 @@ def main():
         print(f"\nWorst 10 samples by mean IoU:")
         for row in per_sample_rows[:10]:
             print(f"  {row['sample_id']:50s}  mean_IoU={row['mean_IoU']:.4f}")
+
+    # Save comparison plots by species and microscope
+    plot_tag = f"{model_tag}_{args.strategy}_{args.subset}"
+    save_metric_comparison_plots(results, out_dir, plot_tag,
+                                 per_sample_rows=per_sample_rows)
 
     # Save visualizations (default on, use --no-vis to skip)
     if not args.no_vis:

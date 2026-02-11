@@ -11,6 +11,7 @@ IMAGE_DIR = DATA_DIR / "image"
 ANNOTATION_DIR = DATA_DIR / "annotation"
 PREVIEW_DIR = BASE_DIR / "preview"
 OUTPUT_DIR = BASE_DIR / "output"  # training runs, exports, checkpoints
+EXCLUDE_FILE = DATA_DIR / "exclude_samples.txt"  # poor-quality samples to skip
 
 # ── Species & Microscopes ─────────────────────────────────────────────────────
 SPECIES = ["Millet", "Rice", "Sorghum"]
@@ -45,7 +46,7 @@ CLASS_COLORS_RGB = {
 
 # ── Training defaults ─────────────────────────────────────────────────────────
 DEFAULT_IMG_SIZE = 1024
-DEFAULT_BATCH_SIZE = 32
+DEFAULT_BATCH_SIZE = 16
 DEFAULT_EPOCHS = 200
 DEFAULT_PATIENCE = 15
 DEFAULT_LR = 1e-4

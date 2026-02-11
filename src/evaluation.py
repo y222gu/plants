@@ -23,39 +23,6 @@ class PredictionResult:
     scores: np.ndarray       # (N,) float32 confidence scores
 
 
-def _fill_mask_holes(mask: np.ndarray) -> np.ndarray:
-    """Fill internal holes in a single binary mask.
-
-    Extracts outer contours and re-fills them, removing any internal holes.
-    Equivalent to: mask → polygon (outer boundary) → filled polygon.
-    """
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not contours:
-        return mask
-    filled = np.zeros_like(mask)
-    cv2.drawContours(filled, contours, -1, 1, thickness=cv2.FILLED)
-    return filled
-
-
-def fill_prediction_holes(pred: PredictionResult) -> PredictionResult:
-    """Fill holes in all predicted masks.
-
-    For each instance mask, extracts the outer contour and re-fills it,
-    producing solid polygon-like masks with no internal holes.
-    Works universally for any model (YOLO, U-Net, Mask R-CNN, SAM, Cellpose).
-    """
-    if len(pred.masks) == 0:
-        return pred
-    filled_masks = np.zeros_like(pred.masks)
-    for i in range(len(pred.masks)):
-        filled_masks[i] = _fill_mask_holes(pred.masks[i])
-    return PredictionResult(
-        masks=filled_masks,
-        labels=pred.labels,
-        scores=pred.scores,
-    )
-
-
 def convert_yolo_predictions(
     pred_path: Path,
     img_h: int,

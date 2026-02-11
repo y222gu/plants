@@ -88,7 +88,7 @@ GRID = [
             "--model", "yolo",
             "--strategy", "strategy1", "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/yolo/yolov8m-seg_strategy1/weights/best.pt",
+        "checkpoint_pattern": "output/runs/yolo/yolo11m-seg_strategy1/weights/best.pt",
     },
     {
         "id": 6,
@@ -102,7 +102,7 @@ GRID = [
             "--model", "yolo",
             "--strategy", "strategy2", "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/yolo/yolov8m-seg_strategy2/weights/best.pt",
+        "checkpoint_pattern": "output/runs/yolo/yolo11m-seg_strategy2/weights/best.pt",
     },
 ]
 

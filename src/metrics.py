@@ -220,17 +220,23 @@ class SegmentationMetrics:
 
         species_groups = defaultdict(list)
         micro_groups = defaultdict(list)
+        combo_groups = defaultdict(list)
         for r in self._records:
             if r["species"]:
                 species_groups[r["species"]].append(r)
             if r["microscope"]:
                 micro_groups[r["microscope"]].append(r)
+            if r["species"] and r["microscope"]:
+                combo_groups[f"{r['species']}/{r['microscope']}"].append(r)
 
         results["per_species"] = {
             sp: self._compute_group(recs) for sp, recs in sorted(species_groups.items())
         }
         results["per_microscope"] = {
             m: self._compute_group(recs) for m, recs in sorted(micro_groups.items())
+        }
+        results["per_species_microscope"] = {
+            k: self._compute_group(recs) for k, recs in sorted(combo_groups.items())
         }
         return results
 
@@ -332,7 +338,7 @@ class SegmentationMetrics:
         for cls, iou in overall["per_class_IoU"].items():
             print(f"    {cls}: {iou:.4f}")
 
-        for group_name in ["per_species", "per_microscope"]:
+        for group_name in ["per_species", "per_microscope", "per_species_microscope"]:
             if group_name in results:
                 print(f"\n{'─'*60}")
                 print(f"BY {group_name.upper().replace('PER_', '')}:")

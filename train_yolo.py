@@ -1,9 +1,9 @@
 """YOLOv8/v11-seg training script.
 
 Usage:
-    python train_yolo.py --model yolov8m-seg --strategy strategy1
+    python train_yolo.py --model yolo11m-seg --strategy strategy1
     python train_yolo.py --model yolo11m-seg --strategy strategy2 --img-size 640
-    python train_yolo.py --model yolov8l-seg --epochs 150 --batch-size 2
+    python train_yolo.py --model yolo11m-seg --epochs 150 --batch-size 2
 """
 
 import argparse
@@ -25,7 +25,7 @@ from src.splits import get_split, print_split_summary
 
 def main():
     parser = argparse.ArgumentParser(description="YOLO instance segmentation training")
-    parser.add_argument("--model", default="yolov8m-seg",
+    parser.add_argument("--model", default="yolo11m-seg",
                         help="YOLO model variant (e.g. yolov8m-seg, yolo11m-seg)")
     parser.add_argument("--strategy", default="strategy1",
                         choices=["strategy1", "strategy2", "strategy3"])
@@ -40,6 +40,8 @@ def main():
                         help="Path to checkpoint to resume from")
     parser.add_argument("--export-only", action="store_true",
                         help="Only export dataset, don't train")
+    parser.add_argument("--force-export", action="store_true",
+                        help="Force re-export even if dataset already exists")
     args = parser.parse_args()
 
     # Setup
@@ -49,12 +51,35 @@ def main():
     split = get_split(args.strategy, registry, seed=args.seed, species=args.species)
     print_split_summary(split)
 
-    # Export to YOLO format
+    # Export to YOLO format (skip if already exported with matching counts)
     run_name = f"{args.model}_{args.strategy}"
     if args.species:
         run_name += f"_{args.species}"
     export_dir = OUTPUT_DIR / "yolo_dataset" / run_name
-    yaml_path = export_yolo_dataset(split, export_dir, img_size=args.img_size)
+    yaml_path = export_dir / "data.yaml"
+
+    if not args.force_export and yaml_path.exists():
+        # Check if exported image counts match the split
+        counts_match = True
+        for subset, samples in split.items():
+            img_dir = export_dir / "images" / subset
+            if not img_dir.exists():
+                counts_match = False
+                break
+            exported_count = len(list(img_dir.glob("*.png")))
+            if exported_count != len(samples):
+                print(f"  {subset}: expected {len(samples)}, found {exported_count}")
+                counts_match = False
+                break
+
+        if counts_match:
+            print(f"YOLO dataset already exported at {export_dir} (counts match). Skipping export.")
+            print("  Use --force-export to re-export.")
+        else:
+            print("Existing export has mismatched counts. Re-exporting...")
+            yaml_path = export_yolo_dataset(split, export_dir, img_size=args.img_size)
+    else:
+        yaml_path = export_yolo_dataset(split, export_dir, img_size=args.img_size)
 
     if args.export_only:
         print("Export complete. Exiting.")
