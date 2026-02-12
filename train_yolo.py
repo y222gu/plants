@@ -104,7 +104,7 @@ def main():
         save_period=-1,  # only save best
         amp=True,
         seed=args.seed,
-        workers=4,
+        workers=8,
         exist_ok=True,
         plots=True,
         # Augmentation (most handled by Ultralytics, but disable hue)

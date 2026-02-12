@@ -4,7 +4,9 @@
 /data_not_annotated
 /output
 /preview
+/predictions
 /__pycache__
+*.pt
 # Ignore all .pyc files
 *.pyc
 *CLAUDE.md

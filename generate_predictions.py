@@ -77,6 +77,7 @@ def main():
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE, help="Inference image size")
     parser.add_argument("--save-overlays", action="store_true", help="Also save overlay images")
     parser.add_argument("--conf-thresh", type=float, default=0.25, help="Confidence threshold")
+    parser.add_argument("--batch-size", type=int, default=86, help="Inference batch size (higher = more GPU usage)")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -92,58 +93,68 @@ def main():
 
     # Load samples
     registry = SampleRegistry()
-    print(f"Processing {len(registry.samples)} samples...")
+    samples = registry.samples
+    print(f"Processing {len(samples)} samples...")
 
-    for sample in tqdm(registry.samples):
-        # Load image
-        img = load_sample_normalized(sample)
-        img_uint8 = to_uint8(img)
-        h, w = img.shape[:2]
-        img_bgr = cv2.cvtColor(img_uint8, cv2.COLOR_RGB2BGR)
+    # Process in batches for maximum GPU utilization
+    batch_size = args.batch_size
+    for batch_start in tqdm(range(0, len(samples), batch_size)):
+        batch_samples = samples[batch_start : batch_start + batch_size]
 
-        # Run inference
-        results = model(img_bgr, imgsz=args.img_size, conf=args.conf_thresh, verbose=False)[0]
+        # Preprocess entire batch on CPU
+        batch_imgs_bgr = []
+        batch_imgs_uint8 = []
+        batch_sizes = []
+        for sample in batch_samples:
+            img = load_sample_normalized(sample)
+            img_uint8 = to_uint8(img)
+            h, w = img.shape[:2]
+            batch_sizes.append((h, w))
+            batch_imgs_uint8.append(img_uint8)
+            batch_imgs_bgr.append(cv2.cvtColor(img_uint8, cv2.COLOR_RGB2BGR))
 
-        # Extract predictions
-        polygons = []
-        if results.masks is not None:
-            masks = results.masks.data.cpu().numpy().astype(np.uint8)
-            labels = results.boxes.cls.cpu().numpy().astype(np.int32)
+        # Run batched inference — single GPU call for the whole batch
+        batch_results = model(batch_imgs_bgr, imgsz=args.img_size, conf=args.conf_thresh, verbose=False)
 
-            # Resize masks to original size
-            for i in range(len(masks)):
-                # Resize mask
-                mask_resized = cv2.resize(masks[i], (w, h), interpolation=cv2.INTER_NEAREST)
+        # Post-process each result
+        for idx, result in enumerate(batch_results):
+            sample = batch_samples[idx]
+            h, w = batch_sizes[idx]
 
-                # Convert mask to polygon
-                polygon = mask_to_polygon(mask_resized)
-                if len(polygon) >= 3:
-                    polygons.append({
-                        "class_id": int(labels[i]),
-                        "polygon": polygon
-                    })
+            polygons = []
+            if result.masks is not None:
+                masks = result.masks.data.cpu().numpy().astype(np.uint8)
+                labels = result.boxes.cls.cpu().numpy().astype(np.int32)
 
-        # Save YOLO format txt file
-        txt_path = output_dir / f"{sample.uid}.txt"
-        with open(txt_path, "w") as f:
-            for poly_data in polygons:
-                class_id = poly_data["class_id"]
-                polygon = poly_data["polygon"]
+                for i in range(len(masks)):
+                    mask_resized = cv2.resize(masks[i], (w, h), interpolation=cv2.INTER_NEAREST)
+                    polygon = mask_to_polygon(mask_resized)
+                    if len(polygon) >= 3:
+                        polygons.append({
+                            "class_id": int(labels[i]),
+                            "polygon": polygon
+                        })
 
-                # Normalize coordinates
-                coords = []
-                for pt in polygon:
-                    coords.append(f"{pt[0] / w:.6f}")
-                    coords.append(f"{pt[1] / h:.6f}")
+            # Save YOLO format txt file
+            txt_path = output_dir / f"{sample.uid}.txt"
+            with open(txt_path, "w") as f:
+                for poly_data in polygons:
+                    class_id = poly_data["class_id"]
+                    polygon = poly_data["polygon"]
 
-                line = f"{class_id} " + " ".join(coords)
-                f.write(line + "\n")
+                    coords = []
+                    for pt in polygon:
+                        coords.append(f"{pt[0] / w:.6f}")
+                        coords.append(f"{pt[1] / h:.6f}")
 
-        # Save overlay image
-        if args.save_overlays:
-            overlay = draw_overlay(img_uint8, polygons)
-            overlay_bgr = cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(str(overlay_dir / f"{sample.uid}.png"), overlay_bgr)
+                    line = f"{class_id} " + " ".join(coords)
+                    f.write(line + "\n")
+
+            # Save overlay image
+            if args.save_overlays:
+                overlay = draw_overlay(batch_imgs_uint8[idx], polygons)
+                overlay_bgr = cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR)
+                cv2.imwrite(str(overlay_dir / f"{sample.uid}.png"), overlay_bgr)
 
     print(f"\nPredictions saved to: {output_dir}")
     print(f"Total samples processed: {len(registry.samples)}")
