@@ -7,3 +7,5 @@
 /__pycache__
 # Ignore all .pyc files
 *.pyc
+CLAUDE.md
+notes.txt
