@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import List, Optional
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-BASE_DIR = Path(r"C:\Users\Yifei\Documents\plants")
+# Auto-detect base directory (works on both Windows and macOS)
+_config_file = Path(__file__).resolve()
+BASE_DIR = _config_file.parent.parent  # plants/ directory
 DATA_DIR = BASE_DIR / "data"
 IMAGE_DIR = DATA_DIR / "image"
 ANNOTATION_DIR = DATA_DIR / "annotation"
