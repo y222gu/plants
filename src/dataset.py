@@ -14,9 +14,9 @@ class SampleRegistry:
     and provides filtering/grouping for splits and data loading.
     """
 
-    def __init__(self):
+    def __init__(self, include_excluded: bool = False):
         self.samples: List[SampleRecord] = []
-        self._discover()
+        self._discover(include_excluded=include_excluded)
 
     @staticmethod
     def _load_exclude_set() -> Set[str]:
@@ -30,9 +30,9 @@ class SampleRegistry:
                 excluded.add(line)
         return excluded
 
-    def _discover(self):
+    def _discover(self, include_excluded: bool = False):
         """Walk IMAGE_DIR to find all samples with matching annotations."""
-        excluded = self._load_exclude_set()
+        excluded = set() if include_excluded else self._load_exclude_set()
 
         annotation_files: Set[str] = set()
         if ANNOTATION_DIR.exists():
