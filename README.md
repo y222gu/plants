@@ -210,6 +210,55 @@ python analyze_downstream.py --plot-only output/downstream/comparison.csv
 
 ---
 
+### 4. `annotation_editor.py` — Interactive Annotation Editor
+
+GUI tool for visualizing, correcting, and creating YOLO polygon annotations.
+
+```bash
+# Launch with a data directory
+python annotation_editor.py --data-dir data/
+
+# Launch with generic (non-structured) data
+python annotation_editor.py --data-dir path/to/new_data/
+
+# Launch without arguments (use Browse button to select folder)
+python annotation_editor.py
+```
+
+**Modes** (select from the Mode dropdown):
+
+| Mode | Panels | Required folders | Description |
+|---|---|---|---|
+| Correct GT | 3 (Original, GT, Prediction) | `image/`, `annotation/`, `prediction/` | Edit ground truth with predictions as reference |
+| Correct Predictions | 2 (Original, Editable) | `image/`, `prediction/` | Edit predictions, save to `annotation/` |
+| Create GT | 2 (Original, Editable) | `image/` | Draw annotations from scratch, save to `annotation/` |
+
+**Controls:**
+
+| Key | Action |
+|---|---|
+| `A` / `Left` | Previous sample |
+| `D` / `Right` | Next sample |
+| `N` | Start drawing new polygon (click to add points) |
+| `E` | Enter vertex editing mode on selected polygon |
+| `Enter` | Confirm drawing or edits |
+| `Escape` | Cancel drawing or edits (reverts all changes) |
+| `Delete` / `Backspace` | Delete selected vertex (edit mode) or polygon |
+| `S` | Save annotations to file |
+| `Ctrl+C` | Copy selected reference polygon to editable panel |
+| `C` | Copy ALL reference polygons to editable panel |
+| `1`-`4` | Set class for new polygon |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / Redo |
+| Mouse wheel | Zoom in/out |
+| Middle/Right drag | Pan the image |
+| `H` | Reset zoom and center all panels |
+
+**Vertex editing:** Drag vertices to move them. Hover over an edge to see a green "+" marker; click to add a vertex. Select a vertex and press Delete to remove it.
+
+**Saving:** Press `S` to save. Annotations are saved in YOLO polygon format to `{data-dir}/annotation/` (created automatically if it does not exist).
+
+---
+
 ## Training
 
 Training scripts are in the `train/` folder. Each can be run directly:
