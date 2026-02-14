@@ -9,7 +9,7 @@ plants/
 ├── predict.py               # Inference + save predictions
 ├── evaluate.py              # Evaluation with GT comparison
 ├── analyze_downstream.py    # Downstream biological analysis
-├── annotation_editor.py     # Manual annotation review/correction
+├── polygon_editor.py     # Manual annotation review/correction
 ├── preview_annotations.py   # Generate annotation preview images
 ├── visualize_augmentations.py
 ├── train/                   # Training scripts
@@ -210,19 +210,19 @@ python analyze_downstream.py --plot-only output/downstream/comparison.csv
 
 ---
 
-### 4. `annotation_editor.py` — Interactive Annotation Editor
+### 4. `polygon_editor.py` — Interactive Annotation Editor
 
 GUI tool for visualizing, correcting, and creating YOLO polygon annotations.
 
 ```bash
 # Launch with a data directory
-python annotation_editor.py --data-dir data/
+python polygon_editor.py --data-dir data/
 
 # Launch with generic (non-structured) data
-python annotation_editor.py --data-dir path/to/new_data/
+python polygon_editor.py --data-dir path/to/new_data/
 
 # Launch without arguments (use Browse button to select folder)
-python annotation_editor.py
+python polygon_editor.py
 ```
 
 **Modes** (select from the Mode dropdown):
@@ -297,4 +297,7 @@ python analyze_downstream.py --data-dir data/ --source both
 # 5. Run on new unlabeled data
 python predict.py --data-dir path/to/new_data/ --checkpoint path/to/best.pt
 python analyze_downstream.py --data-dir path/to/new_data/ --source prediction
+
+# 6. Review and correct predictions
+python polygon_editor.py --data-dir path/to/new_data/
 ```
