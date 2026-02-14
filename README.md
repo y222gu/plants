@@ -75,6 +75,26 @@ my_data/
 
 Each sample must be in its own subfolder under `image/` containing three TIF files with `_TRITC`, `_FITC`, and `_DAPI` suffixes.
 
+## Training
+
+Training scripts are in the `train/` folder. Each can be run directly:
+
+```bash
+python train/train_yolo.py --strategy strategy1
+python train/train_unet.py --mode multilabel --strategy strategy1
+python train/train_maskrcnn.py --strategy strategy1
+python train/train_cellpose.py --version 2 --strategy strategy1
+python train/train_sam.py --strategy strategy1
+```
+
+To run all training combinations as a grid:
+
+```bash
+python train/run_grid_training.py
+python train/run_grid_training.py --only 1 3    # specific runs
+python train/run_grid_training.py --epochs 5    # quick test
+```
+
 ## Scripts
 
 ### 1. `predict.py` — Inference + Save Predictions
@@ -258,26 +278,6 @@ python polygon_editor.py
 **Saving:** Press `S` to save. Annotations are saved in YOLO polygon format to `{data-dir}/annotation/` (created automatically if it does not exist).
 
 ---
-
-## Training
-
-Training scripts are in the `train/` folder. Each can be run directly:
-
-```bash
-python train/train_yolo.py --strategy strategy1
-python train/train_unet.py --mode multilabel --strategy strategy1
-python train/train_maskrcnn.py --strategy strategy1
-python train/train_cellpose.py --version 2 --strategy strategy1
-python train/train_sam.py --strategy strategy1
-```
-
-To run all training combinations as a grid:
-
-```bash
-python train/run_grid_training.py
-python train/run_grid_training.py --only 1 3    # specific runs
-python train/run_grid_training.py --epochs 5    # quick test
-```
 
 ## Typical Workflow
 
