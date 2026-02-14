@@ -6,8 +6,11 @@ Usage:
     python train_yolo.py --model yolo11m-seg --epochs 150 --batch-size 2
 """
 
-import argparse
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import argparse
 
 from ultralytics import YOLO
 

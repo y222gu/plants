@@ -15,8 +15,12 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from src.config import OUTPUT_DIR
 
+_TRAIN_DIR = str(Path(__file__).resolve().parent)
+_PROJECT_DIR = str(Path(__file__).resolve().parent.parent)
 
 # Grid definition: (name, train_cmd, eval_cmd)
 GRID = [
@@ -24,11 +28,11 @@ GRID = [
         "id": 1,
         "name": "UNet Multilabel Strategy1",
         "train": [
-            sys.executable, "train_unet.py",
+            sys.executable, f"{_TRAIN_DIR}/train_unet.py",
             "--mode", "multilabel", "--strategy", "strategy1",
         ],
         "eval": [
-            sys.executable, "evaluate.py",
+            sys.executable, f"{_PROJECT_DIR}/evaluate.py",
             "--model", "unet", "--unet-mode", "multilabel",
             "--strategy", "strategy1", "--no-vis",
         ],
@@ -38,11 +42,11 @@ GRID = [
         "id": 2,
         "name": "UNet Multilabel Strategy2",
         "train": [
-            sys.executable, "train_unet.py",
+            sys.executable, f"{_TRAIN_DIR}/train_unet.py",
             "--mode", "multilabel", "--strategy", "strategy2",
         ],
         "eval": [
-            sys.executable, "evaluate.py",
+            sys.executable, f"{_PROJECT_DIR}/evaluate.py",
             "--model", "unet", "--unet-mode", "multilabel",
             "--strategy", "strategy2", "--no-vis",
         ],
@@ -52,11 +56,11 @@ GRID = [
         "id": 3,
         "name": "UNet Semantic Strategy1",
         "train": [
-            sys.executable, "train_unet.py",
+            sys.executable, f"{_TRAIN_DIR}/train_unet.py",
             "--mode", "semantic", "--strategy", "strategy1",
         ],
         "eval": [
-            sys.executable, "evaluate.py",
+            sys.executable, f"{_PROJECT_DIR}/evaluate.py",
             "--model", "unet", "--unet-mode", "semantic",
             "--strategy", "strategy1", "--no-vis",
         ],
@@ -66,11 +70,11 @@ GRID = [
         "id": 4,
         "name": "UNet Semantic Strategy2",
         "train": [
-            sys.executable, "train_unet.py",
+            sys.executable, f"{_TRAIN_DIR}/train_unet.py",
             "--mode", "semantic", "--strategy", "strategy2",
         ],
         "eval": [
-            sys.executable, "evaluate.py",
+            sys.executable, f"{_PROJECT_DIR}/evaluate.py",
             "--model", "unet", "--unet-mode", "semantic",
             "--strategy", "strategy2", "--no-vis",
         ],
@@ -80,11 +84,11 @@ GRID = [
         "id": 5,
         "name": "YOLO Strategy1",
         "train": [
-            sys.executable, "train_yolo.py",
+            sys.executable, f"{_TRAIN_DIR}/train_yolo.py",
             "--strategy", "strategy1",
         ],
         "eval": [
-            sys.executable, "evaluate.py",
+            sys.executable, f"{_PROJECT_DIR}/evaluate.py",
             "--model", "yolo",
             "--strategy", "strategy1", "--no-vis",
         ],
@@ -94,11 +98,11 @@ GRID = [
         "id": 6,
         "name": "YOLO Strategy2",
         "train": [
-            sys.executable, "train_yolo.py",
+            sys.executable, f"{_TRAIN_DIR}/train_yolo.py",
             "--strategy", "strategy2",
         ],
         "eval": [
-            sys.executable, "evaluate.py",
+            sys.executable, f"{_PROJECT_DIR}/evaluate.py",
             "--model", "yolo",
             "--strategy", "strategy2", "--no-vis",
         ],
@@ -110,7 +114,7 @@ GRID = [
 def find_checkpoint(pattern: str) -> str:
     """Find the best checkpoint file matching a glob pattern."""
     import glob
-    base = Path(__file__).parent
+    base = Path(__file__).parent.parent
     matches = sorted(glob.glob(str(base / pattern)))
     if not matches:
         # Also try "last.ckpt" for Lightning
@@ -134,7 +138,7 @@ def run_command(cmd, label, extra_args=None):
     try:
         result = subprocess.run(
             cmd,
-            cwd=str(Path(__file__).parent),
+            cwd=str(Path(__file__).parent.parent),
             timeout=86400,  # 24h max per run
         )
         elapsed = time.time() - start

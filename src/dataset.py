@@ -2,9 +2,9 @@
 
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
-from .config import IMAGE_DIR, ANNOTATION_DIR, EXCLUDE_FILE, SampleRecord
+from .config import IMAGE_DIR, ANNOTATION_DIR, SampleRecord
 
 
 class SampleRegistry:
@@ -14,38 +14,45 @@ class SampleRegistry:
     and provides filtering/grouping for splits and data loading.
     """
 
-    def __init__(self, include_excluded: bool = False):
+    def __init__(self, data_dir: Optional[Path] = None, require_annotations: bool = True):
+        """Discover samples under *data_dir* (default: project DATA_DIR).
+
+        Args:
+            data_dir: Root data folder containing ``image/`` (and optionally
+                ``annotation/``) sub-directories.
+            require_annotations: If True (default), only include samples that
+                have a matching annotation file.  Set to False to discover
+                image-only samples.
+        """
         self.samples: List[SampleRecord] = []
-        self._discover(include_excluded=include_excluded)
+        self._data_dir = Path(data_dir) if data_dir is not None else None
+        self._require_annotations = require_annotations
+        self._discover()
 
-    @staticmethod
-    def _load_exclude_set() -> Set[str]:
-        """Load UIDs to exclude from data/exclude_samples.txt."""
-        if not EXCLUDE_FILE.exists():
-            return set()
-        excluded = set()
-        for line in EXCLUDE_FILE.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                excluded.add(line)
-        return excluded
+    def _discover(self):
+        """Walk image dir to find all samples, optionally matching annotations."""
+        if self._data_dir is not None:
+            image_dir = self._data_dir / "image"
+            annotation_dir = self._data_dir / "annotation"
+        else:
+            image_dir = IMAGE_DIR
+            annotation_dir = ANNOTATION_DIR
 
-    def _discover(self, include_excluded: bool = False):
-        """Walk IMAGE_DIR to find all samples with matching annotations."""
-        excluded = set() if include_excluded else self._load_exclude_set()
+        if not image_dir.exists():
+            return
 
-        annotation_files: Set[str] = set()
-        if ANNOTATION_DIR.exists():
-            annotation_files = {f.name for f in ANNOTATION_DIR.iterdir() if f.is_file()}
+        annotation_files: set = set()
+        if annotation_dir.exists():
+            annotation_files = {f.name for f in annotation_dir.iterdir() if f.is_file()}
 
-        for root, dirs, files in os.walk(IMAGE_DIR):
+        for root, dirs, files in os.walk(image_dir):
             if not dirs and files:  # leaf directory
                 tif_files = [f for f in files if f.lower().endswith((".tif", ".tiff"))]
                 if not tif_files:
                     continue
 
                 full_path = Path(root)
-                rel_path = full_path.relative_to(IMAGE_DIR)
+                rel_path = full_path.relative_to(image_dir)
                 parts = rel_path.parts  # (Species, Microscope, Experiment, SampleName)
 
                 if len(parts) != 4:
@@ -54,11 +61,9 @@ class SampleRegistry:
                 species, microscope, experiment, sample_name = parts
                 annotation_name = "_".join(parts) + ".txt"
 
-                if annotation_name not in annotation_files:
-                    continue
+                has_annotation = annotation_name in annotation_files
 
-                uid = "_".join(parts)
-                if uid in excluded:
+                if self._require_annotations and not has_annotation:
                     continue
 
                 self.samples.append(SampleRecord(
@@ -67,14 +72,11 @@ class SampleRegistry:
                     experiment=experiment,
                     sample_name=sample_name,
                     image_dir=full_path,
-                    annotation_path=ANNOTATION_DIR / annotation_name,
+                    annotation_path=annotation_dir / annotation_name if has_annotation else None,
                 ))
 
         # Sort for deterministic ordering
         self.samples.sort(key=lambda s: s.uid)
-        if excluded:
-            print(f"SampleRegistry: excluded {len(excluded)} samples "
-                  f"(from {EXCLUDE_FILE.name}), {len(self.samples)} remaining")
 
     def filter(
         self,

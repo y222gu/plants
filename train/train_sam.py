@@ -8,9 +8,12 @@ Usage:
     python train_sam.py --strategy strategy1 --unfreeze-prompt-encoder --epochs 50
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import argparse
 import json
-from pathlib import Path
 
 import numpy as np
 import torch

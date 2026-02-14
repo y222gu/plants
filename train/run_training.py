@@ -13,17 +13,22 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Force PyTorch to use the NVIDIA GPU (not integrated AMD)
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
+_TRAIN_DIR = str(Path(__file__).resolve().parent)
+
 JOBS = [
-#    ("Cellpose v3 - Strategy 2", [sys.executable, "train_cellpose.py", "--version", "3", "--strategy", "strategy2", "--all-classes"]),
-#     ("Cellpose v3 - Strategy 1", [sys.executable, "train_cellpose.py", "--version", "3", "--strategy", "strategy1", "--all-classes"]),
-    ("SAM - Strategy 2",         [sys.executable, "train_sam.py", "--strategy", "strategy2"]),
-    ("SAM - Strategy 1",         [sys.executable, "train_sam.py", "--strategy", "strategy1"]),
-    ("Cellpose v2 - Strategy 2", [sys.executable, "train_cellpose.py", "--version", "2", "--strategy", "strategy2", "--all-classes"]),
-    ("Cellpose v2 - Strategy 1", [sys.executable, "train_cellpose.py", "--version", "2", "--strategy", "strategy1", "--all-classes"]),
+#    ("Cellpose v3 - Strategy 2", [sys.executable, f"{_TRAIN_DIR}/train_cellpose.py", "--version", "3", "--strategy", "strategy2", "--all-classes"]),
+#     ("Cellpose v3 - Strategy 1", [sys.executable, f"{_TRAIN_DIR}/train_cellpose.py", "--version", "3", "--strategy", "strategy1", "--all-classes"]),
+    ("SAM - Strategy 2",         [sys.executable, f"{_TRAIN_DIR}/train_sam.py", "--strategy", "strategy2"]),
+    ("SAM - Strategy 1",         [sys.executable, f"{_TRAIN_DIR}/train_sam.py", "--strategy", "strategy1"]),
+    ("Cellpose v2 - Strategy 2", [sys.executable, f"{_TRAIN_DIR}/train_cellpose.py", "--version", "2", "--strategy", "strategy2", "--all-classes"]),
+    ("Cellpose v2 - Strategy 1", [sys.executable, f"{_TRAIN_DIR}/train_cellpose.py", "--version", "2", "--strategy", "strategy1", "--all-classes"]),
 ]
 
 

@@ -41,7 +41,7 @@ def region_channel_intensity(
     """Compute average intensity per channel in a masked region.
 
     Args:
-        image: (H, W, 3) float32 image (R=TRITC, G=FITC, B=DAPI).
+        image: (H, W, 3) float32 raw image (R=TRITC, G=FITC, B=DAPI).
         mask: (H, W) binary mask.
 
     Returns:
@@ -101,7 +101,7 @@ def analyze_sample(
     """Run all downstream analyses for a single sample.
 
     Args:
-        image: (H, W, 3) float32 normalized image.
+        image: (H, W, 3) float32 raw image (no normalization).
         masks: (N, H, W) binary instance masks.
         labels: (N,) target class labels.
         sample_id: Optional identifier.

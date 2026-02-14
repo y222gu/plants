@@ -1,61 +1,47 @@
-"""Run YOLO prediction on images without ground truth and visualize results.
+"""Run YOLO inference, save predictions as YOLO .txt files, and optionally visualize.
 
-Accepts either:
-  - A single sample directory containing {Sample}_DAPI.tif, _FITC.tif, _TRITC.tif
-  - A parent directory to walk (finds all leaf dirs with 3 channel TIFs)
+Merges the functionality of the old predict.py (generic directory discovery,
+visualization) and generate_predictions.py (batched inference, YOLO txt output).
 
 Usage:
-    # Single sample folder
-    python predict.py --input data/image/Rice/Olympus/Exp1/Sample1
+    # Run on the main data directory (uses SampleRegistry)
+    python predict.py --data-dir data/ --checkpoint best.pt
 
-    # Walk a directory tree
-    python predict.py --input data/image/Rice/Olympus/Exp1
+    # Run on arbitrary directory of TIF triplets
+    python predict.py --data-dir path/to/images --checkpoint best.pt
 
-    # Specify output directory and checkpoint
-    python predict.py --input path/to/images --output output/predictions \
-        --checkpoint output/runs/yolo/yolo11m-seg_strategy1/weights/best.pt
+    # Skip visualization
+    python predict.py --data-dir data/ --checkpoint best.pt --no-vis
 """
 
 import argparse
+import os
 from pathlib import Path
 
 import cv2
 import numpy as np
 import tifffile
-from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
-from src.config import CLASS_COLORS_RGB, DEFAULT_IMG_SIZE, OUTPUT_DIR, TARGET_CLASSES
+from src.config import CLASS_COLORS_RGB, DEFAULT_IMG_SIZE, TARGET_CLASSES
 from src.preprocessing import normalize_percentile, to_uint8
+from src.visualization import (
+    draw_masks_overlay,
+    downscale_for_vis,
+    load_font,
+    make_legend_bar,
+    pil_text,
+)
 
 
-def _load_font(size: int) -> ImageFont.FreeTypeFont:
-    for name in ["arial.ttf", "Arial.ttf", "DejaVuSans.ttf", "LiberationSans-Regular.ttf"]:
-        try:
-            return ImageFont.truetype(name, size)
-        except OSError:
-            continue
-    return ImageFont.load_default()
+# ── Sample discovery ──────────────────────────────────────────────────────────
 
-
-def _pil_text(img, text, xy, font, fill, outline=None):
-    pil_img = Image.fromarray(img)
-    draw = ImageDraw.Draw(pil_img)
-    if outline:
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
-                if dx != 0 or dy != 0:
-                    draw.text((xy[0] + dx, xy[1] + dy), text, font=font, fill=outline)
-    draw.text(xy, text, font=font, fill=fill)
-    return np.array(pil_img)
-
-
-def discover_samples(input_dir: Path) -> list:
+def discover_samples_generic(input_dir: Path) -> list:
     """Find all leaf directories containing 3-channel TIF files.
 
     Returns list of dicts with 'name', 'dir', and channel paths.
+    Works on any directory structure (no SampleRegistry needed).
     """
-    import os
     samples = []
 
     # Check if input_dir itself is a sample directory
@@ -96,8 +82,8 @@ def discover_samples(input_dir: Path) -> list:
     return samples
 
 
-def load_image(sample: dict) -> np.ndarray:
-    """Load 3-channel image as (H, W, 3) float32 normalized to [0,1]."""
+def _load_image_generic(sample: dict) -> np.ndarray:
+    """Load 3-channel image from a generic sample dict as (H, W, 3) float32 [0,1]."""
     channels = []
     for ch_name in ["TRITC", "FITC", "DAPI"]:  # RGB order
         img = tifffile.imread(str(sample[ch_name]))
@@ -108,121 +94,141 @@ def load_image(sample: dict) -> np.ndarray:
     return normalize_percentile(raw)
 
 
-def draw_masks_overlay(img_uint8, masks, labels, scores=None, alpha=0.45):
-    """Draw instance masks with semi-transparent fill + contours."""
-    result = img_uint8.copy()
-    if len(masks) == 0:
-        return result
+# ── Mask-to-polygon conversion ───────────────────────────────────────────────
 
-    areas = [m.sum() for m in masks]
-    order = np.argsort(areas)[::-1]
+def mask_to_polygon(mask: np.ndarray, simplify_epsilon: float = 2.0) -> np.ndarray:
+    """Convert binary mask to polygon points.
 
-    overlay = result.copy()
-    for idx in order:
-        mask = masks[idx]
-        cls_id = int(labels[idx])
-        color = CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
-        overlay[mask > 0] = color
-
-    result = cv2.addWeighted(result, 1 - alpha, overlay, alpha, 0)
-
-    for idx in order:
-        mask = masks[idx]
-        cls_id = int(labels[idx])
-        color = CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        cv2.drawContours(result, contours, -1, color, 2)
-
-    return result
+    Returns (N, 2) array of polygon points, or empty array if no contour found.
+    """
+    contours, _ = cv2.findContours(
+        mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
+    if not contours:
+        return np.array([])
+    contour = max(contours, key=cv2.contourArea)
+    simplified = cv2.approxPolyDP(contour, simplify_epsilon, True)
+    return simplified.reshape(-1, 2).astype(np.float32)
 
 
-def run_yolo(checkpoint, samples, img_size):
-    """Run YOLO inference on discovered samples."""
+# ── Main logic ────────────────────────────────────────────────────────────────
+
+def run_inference(checkpoint: str, samples, img_size: int, conf_thresh: float,
+                  batch_size: int, use_registry: bool):
+    """Run batched YOLO inference on samples.
+
+    Returns dict: sample_name -> {img, masks, labels, scores, h, w}.
+    """
     from ultralytics import YOLO
+    from src.preprocessing import load_sample_normalized
+
     model = YOLO(checkpoint)
     results = {}
 
-    for sample in tqdm(samples, desc="YOLO inference"):
-        img = load_image(sample)
-        h, w = img.shape[:2]
-        img_uint8 = to_uint8(img)
-        img_bgr = cv2.cvtColor(img_uint8, cv2.COLOR_RGB2BGR)
+    for batch_start in tqdm(range(0, len(samples), batch_size), desc="YOLO inference"):
+        batch = samples[batch_start:batch_start + batch_size]
 
-        preds = model(img_bgr, imgsz=img_size, verbose=False)[0]
+        # Preprocess batch
+        batch_imgs_bgr = []
+        batch_imgs = []
+        batch_sizes = []
+        batch_names = []
 
-        if preds.masks is not None:
-            masks = preds.masks.data.cpu().numpy().astype(np.uint8)
-            labels = preds.boxes.cls.cpu().numpy().astype(np.int32)
-            scores = preds.boxes.conf.cpu().numpy().astype(np.float32)
-            resized = np.zeros((len(masks), h, w), dtype=np.uint8)
-            for i in range(len(masks)):
-                smooth = cv2.resize(masks[i].astype(np.float32), (w, h),
-                                    interpolation=cv2.INTER_LINEAR)
-                resized[i] = (smooth > 0.5).astype(np.uint8)
-            masks = resized
-        else:
-            masks = np.zeros((0, h, w), dtype=np.uint8)
-            labels = np.zeros(0, dtype=np.int32)
-            scores = np.zeros(0, dtype=np.float32)
+        for sample in batch:
+            if use_registry:
+                img = load_sample_normalized(sample)
+                name = sample.uid
+            else:
+                img = _load_image_generic(sample)
+                name = sample["name"]
 
-        results[sample["name"]] = {
-            "img": img,
-            "masks": masks,
-            "labels": labels,
-            "scores": scores,
-        }
+            img_uint8 = to_uint8(img)
+            h, w = img.shape[:2]
+            batch_imgs.append(img)
+            batch_sizes.append((h, w))
+            batch_names.append(name)
+            batch_imgs_bgr.append(cv2.cvtColor(img_uint8, cv2.COLOR_RGB2BGR))
+
+        # Batched GPU inference
+        batch_results = model(batch_imgs_bgr, imgsz=img_size, conf=conf_thresh, verbose=False)
+
+        for idx, result in enumerate(batch_results):
+            h, w = batch_sizes[idx]
+            name = batch_names[idx]
+
+            if result.masks is not None:
+                masks = result.masks.data.cpu().numpy().astype(np.uint8)
+                labels = result.boxes.cls.cpu().numpy().astype(np.int32)
+                scores = result.boxes.conf.cpu().numpy().astype(np.float32)
+                resized = np.zeros((len(masks), h, w), dtype=np.uint8)
+                for i in range(len(masks)):
+                    smooth = cv2.resize(masks[i].astype(np.float32), (w, h),
+                                        interpolation=cv2.INTER_LINEAR)
+                    resized[i] = (smooth > 0.5).astype(np.uint8)
+                masks = resized
+            else:
+                masks = np.zeros((0, h, w), dtype=np.uint8)
+                labels = np.zeros(0, dtype=np.int32)
+                scores = np.zeros(0, dtype=np.float32)
+
+            results[name] = {
+                "img": batch_imgs[idx],
+                "masks": masks,
+                "labels": labels,
+                "scores": scores,
+            }
 
     return results
 
 
-def save_visualizations(samples, predictions, out_dir, max_dim=800):
-    """Save side-by-side Original | Prediction overlay images."""
+def save_predictions_txt(predictions: dict, out_dir: Path):
+    """Save predictions as YOLO-format .txt files (one per sample)."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for name, pred in predictions.items():
+        masks = pred["masks"]
+        labels = pred["labels"]
+        h, w = masks.shape[1], masks.shape[2] if len(masks) > 0 else (0, 0)
+
+        txt_path = out_dir / f"{name}.txt"
+        with open(txt_path, "w") as f:
+            for i in range(len(masks)):
+                polygon = mask_to_polygon(masks[i])
+                if len(polygon) < 3:
+                    continue
+                cls_id = int(labels[i])
+                coords = []
+                for pt in polygon:
+                    coords.append(f"{pt[0] / w:.6f}")
+                    coords.append(f"{pt[1] / h:.6f}")
+                f.write(f"{cls_id} " + " ".join(coords) + "\n")
+
+    print(f"Saved {len(predictions)} prediction .txt files to {out_dir}")
+
+
+def save_visualizations(predictions: dict, out_dir: Path, max_dim: int = 800):
+    """Save 2-panel (Original | Prediction) overlay images."""
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    title_font = _load_font(22)
-    metric_font = _load_font(15)
-    legend_font = _load_font(14)
+    title_font = load_font(22)
+    metric_font = load_font(15)
 
-    for sample in tqdm(samples, desc="Saving visualizations"):
-        name = sample["name"]
-        if name not in predictions:
-            continue
-        pred = predictions[name]
+    for name, pred in tqdm(predictions.items(), desc="Saving visualizations"):
         img = pred["img"]
         masks = pred["masks"]
         labels = pred["labels"]
         scores = pred["scores"]
-        h, w = img.shape[:2]
         img_uint8 = to_uint8(img)
 
-        # Downscale for reasonable file sizes
-        scale = min(1.0, max_dim / max(h, w))
-        if scale < 1.0:
-            new_h, new_w = int(h * scale), int(w * scale)
-            img_small = cv2.resize(img_uint8, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-            if len(masks) > 0:
-                masks_small = np.zeros((len(masks), new_h, new_w), dtype=np.uint8)
-                for i in range(len(masks)):
-                    masks_small[i] = cv2.resize(masks[i], (new_w, new_h),
-                                                interpolation=cv2.INTER_NEAREST)
-            else:
-                masks_small = masks
-        else:
-            img_small = img_uint8
-            new_h, new_w = h, w
-            masks_small = masks
+        img_small, masks_small, new_h, new_w = downscale_for_vis(img_uint8, masks, max_dim)
 
-        # Draw overlays
-        orig_vis = img_small.copy()
+        # Draw panels
+        orig_vis = pil_text(img_small.copy(), "Original", (10, 8), title_font,
+                            fill=(255, 255, 255), outline=(0, 0, 0))
         pred_vis = draw_masks_overlay(img_small, masks_small, labels, scores)
+        pred_vis = pil_text(pred_vis, "Prediction", (10, 8), title_font,
+                            fill=(255, 255, 255), outline=(0, 0, 0))
 
-        # Add titles
-        orig_vis = _pil_text(orig_vis, "Original", (10, 8), title_font,
-                             fill=(255, 255, 255), outline=(0, 0, 0))
-        pred_vis = _pil_text(pred_vis, "Prediction", (10, 8), title_font,
-                             fill=(255, 255, 255), outline=(0, 0, 0))
-
-        # Add per-class instance counts + confidence on prediction panel
+        # Per-class instance counts + confidence
         y_offset = 40
         for cls_id, cls_name in TARGET_CLASSES.items():
             cls_mask = labels == cls_id
@@ -233,74 +239,81 @@ def save_visualizations(samples, predictions, out_dir, max_dim=800):
             cls_scores = scores[cls_mask]
             conf_str = f"conf={cls_scores.mean():.2f}" if len(cls_scores) > 0 else ""
             text = f"{cls_name}: {n_inst} inst  {conf_str}"
-            pred_vis = _pil_text(pred_vis, text, (10, y_offset), metric_font,
-                                 fill=color, outline=(0, 0, 0))
+            pred_vis = pil_text(pred_vis, text, (10, y_offset), metric_font,
+                                fill=color, outline=(0, 0, 0))
             y_offset += 20
 
-        # Side-by-side: Original | Prediction
+        # Combine: Original | Prediction + legend
         divider = np.full((new_h, 3, 3), 255, dtype=np.uint8)
         combined = np.concatenate([orig_vis, divider, pred_vis], axis=1)
-
-        # Legend bar at bottom
-        legend_h = 32
-        legend = np.zeros((legend_h, combined.shape[1], 3), dtype=np.uint8)
-        pil_legend = Image.fromarray(legend)
-        draw = ImageDraw.Draw(pil_legend)
-        x_offset = 10
-        for cls_id, cls_name in TARGET_CLASSES.items():
-            color = CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
-            draw.rectangle([x_offset, 6, x_offset + 20, 26], fill=color)
-            draw.text((x_offset + 25, 8), cls_name, font=legend_font, fill=(255, 255, 255))
-            bbox = legend_font.getbbox(cls_name)
-            text_w = bbox[2] - bbox[0]
-            x_offset += 25 + text_w + 20
-        legend = np.array(pil_legend)
-
+        legend = make_legend_bar(combined.shape[1])
         combined = np.concatenate([combined, legend], axis=0)
 
         out_path = out_dir / f"{name}.png"
         cv2.imwrite(str(out_path), cv2.cvtColor(combined, cv2.COLOR_RGB2BGR))
 
-    print(f"Saved {len(samples)} visualizations to {out_dir}")
+    print(f"Saved {len(predictions)} visualizations to {out_dir}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run YOLO prediction on unlabeled images and visualize results")
-    parser.add_argument("--input", required=True,
-                        help="Directory containing sample folders with DAPI/FITC/TRITC TIFs")
-    parser.add_argument("--checkpoint",
-                        default="output/runs/yolo/yolo11m-seg_strategy1/weights/best.pt",
-                        help="YOLO checkpoint path")
-    parser.add_argument("--output", default=None,
-                        help="Output directory for visualizations (default: output/predictions/)")
+        description="Run YOLO inference, save prediction .txt files and visualizations")
+    parser.add_argument("--data-dir", required=True,
+                        help="Data directory (supports SampleRegistry structure or generic TIF dirs)")
+    parser.add_argument("--checkpoint", required=True, help="YOLO checkpoint path")
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
-    parser.add_argument("--max-dim", type=int, default=800,
-                        help="Max dimension for visualization images")
+    parser.add_argument("--conf-thresh", type=float, default=0.25)
+    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--no-vis", action="store_true", help="Skip visualization")
+    parser.add_argument("--max-dim", type=int, default=800, help="Max dimension for vis images")
     args = parser.parse_args()
 
-    input_dir = Path(args.input)
-    if not input_dir.exists():
-        print(f"Error: {input_dir} does not exist")
+    data_dir = Path(args.data_dir)
+    if not data_dir.exists():
+        print(f"Error: {data_dir} does not exist")
         return
 
-    # Discover samples
-    samples = discover_samples(input_dir)
-    if not samples:
-        print(f"No samples found in {input_dir}")
-        print("Expected directories containing *_DAPI.tif, *_FITC.tif, *_TRITC.tif")
+    image_dir = data_dir / "image"
+    if not image_dir.exists():
+        print(f"Error: {image_dir} does not exist")
+        print("Images must be placed in a subfolder called 'image/' inside the data directory.")
         return
-    print(f"Found {len(samples)} samples in {input_dir}")
+
+    # Try SampleRegistry first (structured: image/{Sp}/{Mic}/{Exp}/{Sample}/)
+    use_registry = False
+    try:
+        from src.dataset import SampleRegistry
+        registry = SampleRegistry(data_dir=data_dir, require_annotations=False)
+        samples = registry.samples
+        if samples:
+            use_registry = True
+            print(f"Found {len(samples)} samples via SampleRegistry")
+    except Exception:
+        pass
+
+    if not use_registry:
+        # Fall back to generic directory discovery inside image/
+        samples = discover_samples_generic(image_dir)
+        if not samples:
+            print(f"No samples found in {image_dir}")
+            print("Expected directories containing *_DAPI.tif, *_FITC.tif, *_TRITC.tif")
+            return
+        print(f"Found {len(samples)} samples via directory scan")
 
     # Run inference
-    predictions = run_yolo(args.checkpoint, samples, args.img_size)
+    predictions = run_inference(
+        args.checkpoint, samples, args.img_size, args.conf_thresh,
+        args.batch_size, use_registry,
+    )
+
+    # Save YOLO .txt predictions
+    pred_dir = data_dir / "prediction"
+    save_predictions_txt(predictions, pred_dir)
 
     # Save visualizations
-    if args.output:
-        out_dir = Path(args.output)
-    else:
-        out_dir = OUTPUT_DIR / "predictions"
-    save_visualizations(samples, predictions, out_dir, max_dim=args.max_dim)
+    if not args.no_vis:
+        vis_dir = pred_dir / "vis"
+        save_visualizations(predictions, vis_dir, max_dim=args.max_dim)
 
 
 if __name__ == "__main__":

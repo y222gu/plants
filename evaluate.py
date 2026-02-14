@@ -1,10 +1,13 @@
 """Unified evaluation entry point.
 
-Run any trained model on a test set and produce metrics CSV/JSON.
+Run any trained model on a test set and produce metrics CSV/JSON,
+visualizations, and comparison plots.
 
 Usage:
     python evaluate.py --model yolo --checkpoint output/runs/yolo/run/weights/best.pt
     python evaluate.py --model unet --checkpoint output/runs/unet/run/checkpoints/best.ckpt
+    python evaluate.py --model yolo --from-predictions data/prediction/ --strategy strategy1
+    python evaluate.py --plot-only output/evaluation/yolo_strategy1_test.json
 """
 
 import argparse
@@ -15,7 +18,6 @@ from pathlib import Path
 import cv2
 import numpy as np
 import torch
-from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
 import matplotlib
@@ -35,49 +37,20 @@ from src.evaluation import (
     PredictionResult,
     convert_multilabel_to_instances,
     convert_semantic_to_instances,
+    convert_yolo_predictions,
 )
 from src.postprocessing import PostProcessor, STEPS
 from src.metrics import SegmentationMetrics
 from src.preprocessing import load_sample_normalized, to_uint8
-from src.splits import get_split, print_split_summary
-
-
-def draw_masks_overlay(
-    img_uint8: np.ndarray,
-    masks: np.ndarray,
-    labels: np.ndarray,
-    alpha: float = 0.45,
-) -> np.ndarray:
-    """Draw instance masks on an image with semi-transparent fill + contours.
-
-    Draws largest masks first so smaller ones appear on top.
-    """
-    result = img_uint8.copy()
-    if len(masks) == 0:
-        return result
-
-    # Sort by mask area (largest first)
-    areas = [m.sum() for m in masks]
-    order = np.argsort(areas)[::-1]
-
-    overlay = result.copy()
-    for idx in order:
-        mask = masks[idx]
-        cls_id = int(labels[idx])
-        color = CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
-        overlay[mask > 0] = color
-
-    result = cv2.addWeighted(result, 1 - alpha, overlay, alpha, 0)
-
-    # Draw contours on top
-    for idx in order:
-        mask = masks[idx]
-        cls_id = int(labels[idx])
-        color = CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        cv2.drawContours(result, contours, -1, color, 2)
-
-    return result
+from src.visualization import (
+    draw_masks_overlay,
+    downscale_for_vis,
+    load_font,
+    make_legend_bar,
+    pil_text,
+    setup_pub_style,
+    PUB_CLASS_COLORS,
+)
 
 
 def _compute_sample_metrics(
@@ -89,7 +62,6 @@ def _compute_sample_metrics(
     """Compute per-class IoU and Dice for a single sample."""
     results = {}
     for cls_id, cls_name in TARGET_CLASSES.items():
-        # Merge all instance masks for this class into binary mask
         gt_idx = np.where(gt_labels == cls_id)[0]
         pred_idx = np.where(pred_labels == cls_id)[0]
         if len(gt_masks) > 0 and len(gt_idx) > 0:
@@ -112,36 +84,6 @@ def _compute_sample_metrics(
     return results
 
 
-def _load_font(size: int) -> ImageFont.FreeTypeFont:
-    """Load a standard TrueType font, falling back gracefully."""
-    for name in ["arial.ttf", "Arial.ttf", "DejaVuSans.ttf", "LiberationSans-Regular.ttf"]:
-        try:
-            return ImageFont.truetype(name, size)
-        except OSError:
-            continue
-    return ImageFont.load_default()
-
-
-def _pil_text(
-    img: np.ndarray,
-    text: str,
-    xy: tuple,
-    font: ImageFont.FreeTypeFont,
-    fill: tuple,
-    outline: tuple = None,
-) -> np.ndarray:
-    """Draw text on a numpy RGB image using PIL for clean font rendering."""
-    pil_img = Image.fromarray(img)
-    draw = ImageDraw.Draw(pil_img)
-    if outline:
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
-                if dx != 0 or dy != 0:
-                    draw.text((xy[0] + dx, xy[1] + dy), text, font=font, fill=outline)
-    draw.text(xy, text, font=font, fill=fill)
-    return np.array(pil_img)
-
-
 def save_visualizations(
     samples,
     predictions: dict,
@@ -151,65 +93,38 @@ def save_visualizations(
     """Save side-by-side GT vs prediction overlay images with per-class metrics."""
     vis_dir.mkdir(parents=True, exist_ok=True)
 
-    title_font = _load_font(22)
-    metric_font = _load_font(15)
-    legend_font = _load_font(14)
+    title_font = load_font(22)
+    metric_font = load_font(15)
 
     for sample in tqdm(samples, desc="Saving visualizations"):
         if sample.uid not in predictions:
             continue
         pred = predictions[sample.uid]
 
-        # Load image
         img = load_sample_normalized(sample)
         h, w = img.shape[:2]
         img_uint8 = to_uint8(img)
 
-        # Load GT
         gt = load_sample_annotations(sample, h, w)
 
-        # Compute per-class metrics at original resolution
         sample_metrics = _compute_sample_metrics(
             pred.masks, pred.labels, gt["masks"], gt["labels"],
         )
 
-        # Downscale for reasonable file sizes
-        scale = min(1.0, max_dim / max(h, w))
-        if scale < 1.0:
-            new_h, new_w = int(h * scale), int(w * scale)
-            img_small = cv2.resize(img_uint8, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-
-            def resize_masks(masks):
-                if len(masks) == 0:
-                    return masks
-                out = np.zeros((len(masks), new_h, new_w), dtype=np.uint8)
-                for i in range(len(masks)):
-                    out[i] = cv2.resize(masks[i], (new_w, new_h),
-                                        interpolation=cv2.INTER_NEAREST)
-                return out
-
-            gt_masks = resize_masks(gt["masks"])
-            pred_masks = resize_masks(pred.masks)
-        else:
-            img_small = img_uint8
-            new_h, new_w = h, w
-            gt_masks = gt["masks"]
-            pred_masks = pred.masks
+        img_small, gt_masks, new_h, new_w = downscale_for_vis(img_uint8, gt["masks"], max_dim)
+        _, pred_masks, _, _ = downscale_for_vis(img_uint8, pred.masks, max_dim)
 
         # Draw overlays
-        orig_vis = img_small.copy()
+        orig_vis = pil_text(img_small.copy(), "Original", (10, 8), title_font,
+                            fill=(255, 255, 255), outline=(0, 0, 0))
         gt_vis = draw_masks_overlay(img_small, gt_masks, gt["labels"])
+        gt_vis = pil_text(gt_vis, "Ground Truth", (10, 8), title_font,
+                          fill=(255, 255, 255), outline=(0, 0, 0))
         pred_vis = draw_masks_overlay(img_small, pred_masks, pred.labels)
+        pred_vis = pil_text(pred_vis, "Prediction", (10, 8), title_font,
+                            fill=(255, 255, 255), outline=(0, 0, 0))
 
-        # Add titles using PIL
-        orig_vis = _pil_text(orig_vis, "Original", (10, 8), title_font,
-                             fill=(255, 255, 255), outline=(0, 0, 0))
-        gt_vis = _pil_text(gt_vis, "Ground Truth", (10, 8), title_font,
-                           fill=(255, 255, 255), outline=(0, 0, 0))
-        pred_vis = _pil_text(pred_vis, "Prediction", (10, 8), title_font,
-                             fill=(255, 255, 255), outline=(0, 0, 0))
-
-        # Add per-class metrics on the prediction panel
+        # Per-class metrics on prediction panel
         y_offset = 40
         for cls_id in sorted(sample_metrics.keys()):
             m = sample_metrics[cls_id]
@@ -217,90 +132,28 @@ def save_visualizations(
             iou_str = f"{m['iou']:.2f}" if not np.isnan(m['iou']) else "N/A"
             dice_str = f"{m['dice']:.2f}" if not np.isnan(m['dice']) else "N/A"
             text = f"{m['name']}: IoU={iou_str}  Dice={dice_str}"
-            pred_vis = _pil_text(pred_vis, text, (10, y_offset), metric_font,
-                                 fill=color, outline=(0, 0, 0))
+            pred_vis = pil_text(pred_vis, text, (10, y_offset), metric_font,
+                                fill=color, outline=(0, 0, 0))
             y_offset += 20
 
-        # Side-by-side: Original | Ground Truth | Prediction
+        # Side-by-side: Original | GT | Prediction + legend
         divider = np.full((new_h, 3, 3), 255, dtype=np.uint8)
         combined = np.concatenate(
             [orig_vis, divider, gt_vis, divider, pred_vis], axis=1
         )
-
-        # Add legend bar at bottom using PIL
-        legend_h = 32
-        legend = np.zeros((legend_h, combined.shape[1], 3), dtype=np.uint8)
-        pil_legend = Image.fromarray(legend)
-        draw = ImageDraw.Draw(pil_legend)
-        x_offset = 10
-        for cls_id, cls_name in TARGET_CLASSES.items():
-            color = CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
-            draw.rectangle([x_offset, 6, x_offset + 20, 26], fill=color)
-            draw.text((x_offset + 25, 8), cls_name, font=legend_font, fill=(255, 255, 255))
-            bbox = legend_font.getbbox(cls_name)
-            text_w = bbox[2] - bbox[0]
-            x_offset += 25 + text_w + 20
-        legend = np.array(pil_legend)
-
+        legend = make_legend_bar(combined.shape[1])
         combined = np.concatenate([combined, legend], axis=0)
 
-        # Save
         out_path = vis_dir / f"{sample.uid}.png"
         cv2.imwrite(str(out_path), cv2.cvtColor(combined, cv2.COLOR_RGB2BGR))
 
     print(f"Saved {len(samples)} visualizations to {vis_dir}")
 
 
-def _setup_pub_style():
-    """Configure matplotlib for publication-quality figures."""
-    plt.rcParams.update({
-        "font.family": "sans-serif",
-        "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
-        "font.size": 8,
-        "axes.titlesize": 10,
-        "axes.labelsize": 9,
-        "xtick.labelsize": 8,
-        "ytick.labelsize": 8,
-        "legend.fontsize": 7,
-        "figure.dpi": 300,
-        "savefig.dpi": 300,
-        "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.05,
-        "axes.linewidth": 0.6,
-        "xtick.major.width": 0.6,
-        "ytick.major.width": 0.6,
-        "xtick.major.size": 3,
-        "ytick.major.size": 3,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "pdf.fonttype": 42,  # editable text in PDF
-        "ps.fonttype": 42,
-    })
-
-
-# Color-blind-friendly palette (adapted from Wong 2011, Nature Methods)
-_PUB_CLASS_COLORS = {
-    "Whole Root":   "#0072B2",  # blue
-    "Aerenchyma":   "#E69F00",  # orange
-    "Endodermis":   "#009E73",  # green
-    "Vascular":     "#CC79A7",  # pink
-}
-_PUB_HATCHES = {
-    "Whole Root":   "",
-    "Aerenchyma":   "//",
-    "Endodermis":   "\\\\",
-    "Vascular":     "xx",
-}
-
-
 def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
                                   per_sample_rows: list = None):
-    """Save publication-quality box plots comparing per-sample metrics.
-
-    Box plots use 5th/95th percentile whiskers and white diagonal hatching.
-    Falls back to loading per-sample CSV if per_sample_rows not provided.
-    """
-    _setup_pub_style()
+    """Save publication-quality box plots comparing per-sample metrics."""
+    setup_pub_style()
     plt.rcParams['hatch.color'] = 'white'
     plt.rcParams['hatch.linewidth'] = 1.0
 
@@ -333,7 +186,6 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
     # ── helpers ──
 
     def _get_vals(rows, key):
-        """Extract finite float values for a column from sample rows."""
         out = []
         for r in rows:
             v = r.get(key)
@@ -348,7 +200,6 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
         return out
 
     def _build_groups(rows, group_key):
-        """Return ordered dict: 'Overall' followed by sorted sub-groups."""
         groups = {"Overall": rows}
         if group_key:
             sub = {}
@@ -361,7 +212,6 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
         return groups
 
     def _draw_boxes(ax, groups, metric_keys, colors, ylabel):
-        """Draw side-by-side box plots (5th/95th whiskers, white diagonal hatch)."""
         group_names = list(groups.keys())
         n_g = len(group_names)
         n_m = len(metric_keys)
@@ -400,7 +250,6 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
 
     # ── prepare data ──
 
-    # Compute per-sample mean_Dice (mean_IoU already present in rows)
     for row in per_sample_rows:
         dice_vals = []
         for cls in class_names:
@@ -419,7 +268,7 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
 
     cls_iou_keys = [f"{c}_IoU" for c in class_names]
     cls_dice_keys = [f"{c}_Dice" for c in class_names]
-    cls_colors = [_PUB_CLASS_COLORS.get(c, "#999999") for c in class_names]
+    cls_colors = [PUB_CLASS_COLORS.get(c, "#999999") for c in class_names]
 
     from matplotlib.patches import Patch
 
@@ -438,7 +287,7 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
     axes[1, 0].annotate("Dice", xy=(-0.22, 0.5), xycoords="axes fraction",
                          fontsize=10, fontweight="bold", ha="center", va="center",
                          rotation=90)
-    handles = [Patch(facecolor=_PUB_CLASS_COLORS.get(c, "#999999"),
+    handles = [Patch(facecolor=PUB_CLASS_COLORS.get(c, "#999999"),
                      edgecolor="#555555", hatch="///", label=c) for c in class_names]
     fig.legend(handles=handles, loc="lower center", ncol=len(class_names),
                frameon=False, bbox_to_anchor=(0.5, -0.02))
@@ -490,7 +339,7 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
         axes[1].set_title("Per-class Dice by Species / Microscope")
         for ax in axes:
             ax.tick_params(axis="x", rotation=25)
-        handles = [Patch(facecolor=_PUB_CLASS_COLORS.get(c, "#999999"),
+        handles = [Patch(facecolor=PUB_CLASS_COLORS.get(c, "#999999"),
                          edgecolor="#555555", hatch="///", label=c) for c in class_names]
         fig.legend(handles=handles, loc="lower center", ncol=len(class_names),
                    frameon=False, bbox_to_anchor=(0.5, -0.02))
@@ -503,6 +352,8 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
         print(f"Species+Microscope comparison saved to "
               f"{out_dir / model_tag}_species_microscope_comparison.[png|pdf]")
 
+
+# ── Inference functions ───────────────────────────────────────────────────────
 
 def predict_yolo(checkpoint: str, samples, img_size: int) -> dict:
     """Run YOLO inference and return predictions."""
@@ -523,8 +374,6 @@ def predict_yolo(checkpoint: str, samples, img_size: int) -> dict:
             labels = results.boxes.cls.cpu().numpy().astype(np.int32)
             scores = results.boxes.conf.cpu().numpy().astype(np.float32)
 
-            # Resize masks to original image size with bilinear + threshold
-            # for smooth edges (INTER_NEAREST creates blocky artifacts)
             h, w = img.shape[:2]
             resized = np.zeros((len(masks), h, w), dtype=np.uint8)
             for i in range(len(masks)):
@@ -547,16 +396,12 @@ def predict_yolo(checkpoint: str, samples, img_size: int) -> dict:
 
 def predict_unet(checkpoint: str, samples, img_size: int,
                   unet_mode: str = "semantic") -> dict:
-    """Run U-Net inference and return predictions.
-
-    Args:
-        unet_mode: "semantic" (softmax/argmax) or "multilabel" (sigmoid/threshold).
-    """
+    """Run U-Net inference and return predictions."""
     if unet_mode == "multilabel":
-        from train_unet import MultiLabelSegmentationModule
+        from train.train_unet import MultiLabelSegmentationModule
         model = MultiLabelSegmentationModule.load_from_checkpoint(checkpoint)
     else:
-        from train_unet import SegmentationModule
+        from train.train_unet import SegmentationModule
         model = SegmentationModule.load_from_checkpoint(checkpoint)
     model.eval()
     model.cuda()
@@ -572,9 +417,7 @@ def predict_unet(checkpoint: str, samples, img_size: int,
             logits = model(tensor)
 
         if unet_mode == "multilabel":
-            # Sigmoid → (4, H, W) probabilities
-            probs = torch.sigmoid(logits).squeeze(0).cpu().numpy()  # (4, img_size, img_size)
-            # Resize each channel back to original size
+            probs = torch.sigmoid(logits).squeeze(0).cpu().numpy()
             ml_mask = np.zeros((4, h, w), dtype=np.float32)
             for c in range(4):
                 ml_mask[c] = cv2.resize(probs[c], (w, h), interpolation=cv2.INTER_LINEAR)
@@ -623,30 +466,51 @@ def predict_maskrcnn(checkpoint: str, samples, img_size: int) -> dict:
     return predictions
 
 
+def load_predictions_from_dir(pred_dir: Path, samples) -> dict:
+    """Load saved YOLO .txt prediction files into PredictionResult dict."""
+    predictions = {}
+    missing = 0
+    for sample in samples:
+        txt_path = pred_dir / f"{sample.uid}.txt"
+        if not txt_path.exists():
+            missing += 1
+            continue
+        img = load_sample_normalized(sample)
+        h, w = img.shape[:2]
+        pred = convert_yolo_predictions(txt_path, h, w)
+        predictions[sample.uid] = pred
+
+    if missing:
+        print(f"Warning: {missing} samples missing prediction files in {pred_dir}")
+    print(f"Loaded {len(predictions)} predictions from {pred_dir}")
+    return predictions
+
+
 def main():
     parser = argparse.ArgumentParser(description="Unified model evaluation")
+    parser.add_argument("--data-dir", default="data/",
+                        help="Data directory with image/ and annotation/ subfolders")
     parser.add_argument("--model", default=None,
-                        choices=["yolo", "maskrcnn", "unet"],
-                        help="Model type (required unless --plot-only)")
+                        choices=["yolo", "unet"],
+                        help="Model type (required unless --plot-only or --from-predictions)")
     parser.add_argument("--checkpoint", default=None,
-                        help="Path to model checkpoint (required unless --plot-only)")
-    parser.add_argument("--strategy", default=None,
-                        choices=["strategy1", "strategy2", "strategy3"],
-                        help="Splitting strategy. Auto-detected from checkpoint path if not set.")
-    parser.add_argument("--species", default=None)
-    parser.add_argument("--subset", default="test",
-                        help="Which split to evaluate on")
+                        help="Path to model checkpoint")
+    parser.add_argument("--from-predictions", default=None,
+                        help="Load saved YOLO .txt predictions from this directory (skip inference)")
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
     parser.add_argument("--output", type=str, default=None,
                         help="Output JSON path for metrics")
-    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--unet-mode", default="semantic",
                         choices=["semantic", "multilabel"],
                         help="U-Net mode: semantic (softmax) or multilabel (sigmoid)")
     parser.add_argument("--no-vis", action="store_true",
                         help="Skip saving visualization overlay images")
     parser.add_argument("--vis-dir", type=str, default=None,
-                        help="Directory for visualization PNGs (default: output/evaluation/vis_*)")
+                        help="Directory for visualization PNGs")
+    parser.add_argument("--no-metrics", action="store_true",
+                        help="Skip segmentation metric computation")
+    parser.add_argument("--no-plots", action="store_true",
+                        help="Skip metric plot generation")
     parser.add_argument("--plot-only", type=str, default=None,
                         help="Skip inference; regenerate plots from an existing metrics JSON file")
 
@@ -662,7 +526,7 @@ def main():
                         help="Disable ALL post-processing steps")
     args = parser.parse_args()
 
-    # ── Plot-only mode: load existing JSON, regenerate plots, exit ──
+    # ── Plot-only mode ──
     if args.plot_only:
         json_path = Path(args.plot_only)
         if not json_path.exists():
@@ -671,39 +535,43 @@ def main():
         with open(json_path) as f:
             results = json.load(f)
         out_dir = json_path.parent
-        plot_tag = json_path.stem  # e.g. "yolo_strategy1_test"
+        plot_tag = json_path.stem
         save_metric_comparison_plots(results, out_dir, plot_tag)
         return
 
-    # Validate required args for full evaluation
-    if not args.model or not args.checkpoint:
-        parser.error("--model and --checkpoint are required unless --plot-only is used")
+    # ── Determine model tag ──
+    if args.from_predictions:
+        model_tag = "yolo"
+        if not args.model:
+            args.model = "yolo"
+    else:
+        if not args.model or not args.checkpoint:
+            parser.error("--model and --checkpoint are required unless --plot-only or --from-predictions is used")
+        model_tag = args.model
+        if args.model == "unet":
+            model_tag = f"unet_{args.unet_mode}"
 
-    # Auto-detect strategy from checkpoint path if not explicitly set
-    if args.strategy is None:
-        ckpt_lower = args.checkpoint.lower()
-        if "strategy2" in ckpt_lower:
-            args.strategy = "strategy2"
-        elif "strategy3" in ckpt_lower:
-            args.strategy = "strategy3"
-        else:
-            args.strategy = "strategy1"
-        print(f"Auto-detected strategy: {args.strategy}")
+    # Discover all samples with annotations in data-dir
+    data_dir = Path(args.data_dir)
+    registry = SampleRegistry(data_dir=data_dir, require_annotations=True)
+    samples = registry.samples
+    if not samples:
+        print(f"No annotated samples found in {data_dir}")
+        print("Expected: {data-dir}/image/{Species}/{Microscope}/{Exp}/{Sample}/ "
+              "with matching annotation .txt files in {data-dir}/annotation/")
+        return
+    print(f"Evaluating {args.model} on {len(samples)} samples")
 
-    # Setup
-    registry = SampleRegistry()
-    split = get_split(args.strategy, registry, seed=args.seed, species=args.species)
-    samples = split[args.subset]
-    print(f"Evaluating {args.model} on {len(samples)} {args.subset} samples")
-
-    # Run inference
-    if args.model == "unet":
+    # ── Get predictions ──
+    if args.from_predictions:
+        pred_dir = Path(args.from_predictions)
+        predictions = load_predictions_from_dir(pred_dir, samples)
+    elif args.model == "unet":
         predictions = predict_unet(args.checkpoint, samples, args.img_size,
                                    unet_mode=args.unet_mode)
     else:
         predict_fn = {
             "yolo": predict_yolo,
-            "maskrcnn": predict_maskrcnn,
         }[args.model]
         predictions = predict_fn(args.checkpoint, samples, args.img_size)
 
@@ -719,100 +587,94 @@ def main():
     )
     predictions = pp.run_all(predictions)
 
-    # Evaluate — load GT and compute metrics with progress
-    print("Computing metrics...")
-    metrics = SegmentationMetrics(
-        num_classes=NUM_CLASSES,
-        class_names=TARGET_CLASSES,
-    )
-
-    per_sample_rows = []
-    for sample in tqdm(samples, desc="Loading GT & scoring"):
-        if sample.uid not in predictions:
-            continue
-        pred = predictions[sample.uid]
-
-        # Get image dimensions from prediction masks (avoid reloading TIFs)
-        if len(pred.masks) > 0:
-            h, w = pred.masks.shape[1], pred.masks.shape[2]
-        else:
-            # Fall back to loading image for dimension (rare: no predictions)
-            img = load_sample_normalized(sample)
-            h, w = img.shape[:2]
-
-        gt = load_sample_annotations(sample, h, w)
-
-        metrics.add_sample(
-            pred_masks=pred.masks,
-            pred_labels=pred.labels,
-            pred_scores=pred.scores,
-            gt_masks=gt["masks"],
-            gt_labels=gt["labels"],
-            species=sample.species,
-            microscope=sample.microscope,
-            sample_id=sample.uid,
-        )
-
-        # Collect per-sample metrics for CSV
-        sm = _compute_sample_metrics(pred.masks, pred.labels, gt["masks"], gt["labels"])
-        row = {
-            "sample_id": sample.uid,
-            "species": sample.species,
-            "microscope": sample.microscope,
-            "experiment": sample.experiment,
-        }
-        iou_vals = []
-        for cls_id in sorted(sm.keys()):
-            m = sm[cls_id]
-            row[f"{m['name']}_IoU"] = round(m["iou"], 4) if not np.isnan(m["iou"]) else ""
-            row[f"{m['name']}_Dice"] = round(m["dice"], 4) if not np.isnan(m["dice"]) else ""
-            if not np.isnan(m["iou"]):
-                iou_vals.append(m["iou"])
-        row["mean_IoU"] = round(np.mean(iou_vals), 4) if iou_vals else 0.0
-        per_sample_rows.append(row)
-
-    # Print and save (compute only once)
-    results = metrics.print_summary()
-
+    # ── Metrics ──
     out_dir = OUTPUT_DIR / "evaluation"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if args.output:
-        out_path = Path(args.output)
-    else:
-        model_tag = args.model
-        if args.model == "unet":
-            model_tag = f"unet_{args.unet_mode}"
-        out_path = out_dir / f"{model_tag}_{args.strategy}_{args.subset}.json"
+    per_sample_rows = []
+    results = None
 
-    metrics.save(out_path, _cached_results=results)
-    print(f"\nMetrics saved to {out_path}")
+    if not args.no_metrics:
+        print("Computing metrics...")
+        metrics = SegmentationMetrics(
+            num_classes=NUM_CLASSES,
+            class_names=TARGET_CLASSES,
+        )
 
-    # Save per-sample CSV sorted by mean_IoU (worst first)
-    per_sample_rows.sort(key=lambda r: r["mean_IoU"])
-    csv_path = out_dir / f"{model_tag}_{args.strategy}_{args.subset}_per_sample.csv"
-    if per_sample_rows:
-        with open(csv_path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=per_sample_rows[0].keys())
-            writer.writeheader()
-            writer.writerows(per_sample_rows)
-        print(f"Per-sample metrics saved to {csv_path} (sorted worst-first)")
-        # Print worst 10
-        print(f"\nWorst 10 samples by mean IoU:")
-        for row in per_sample_rows[:10]:
-            print(f"  {row['sample_id']:50s}  mean_IoU={row['mean_IoU']:.4f}")
+        for sample in tqdm(samples, desc="Loading GT & scoring"):
+            if sample.uid not in predictions:
+                continue
+            pred = predictions[sample.uid]
 
-    # Save comparison plots by species and microscope
-    plot_tag = f"{model_tag}_{args.strategy}_{args.subset}"
-    save_metric_comparison_plots(results, out_dir, plot_tag,
-                                 per_sample_rows=per_sample_rows)
+            if len(pred.masks) > 0:
+                h, w = pred.masks.shape[1], pred.masks.shape[2]
+            else:
+                img = load_sample_normalized(sample)
+                h, w = img.shape[:2]
 
-    # Save visualizations (default on, use --no-vis to skip)
+            gt = load_sample_annotations(sample, h, w)
+
+            metrics.add_sample(
+                pred_masks=pred.masks,
+                pred_labels=pred.labels,
+                pred_scores=pred.scores,
+                gt_masks=gt["masks"],
+                gt_labels=gt["labels"],
+                species=sample.species,
+                microscope=sample.microscope,
+                sample_id=sample.uid,
+            )
+
+            sm = _compute_sample_metrics(pred.masks, pred.labels, gt["masks"], gt["labels"])
+            row = {
+                "sample_id": sample.uid,
+                "species": sample.species,
+                "microscope": sample.microscope,
+                "experiment": sample.experiment,
+            }
+            iou_vals = []
+            for cls_id in sorted(sm.keys()):
+                m = sm[cls_id]
+                row[f"{m['name']}_IoU"] = round(m["iou"], 4) if not np.isnan(m["iou"]) else ""
+                row[f"{m['name']}_Dice"] = round(m["dice"], 4) if not np.isnan(m["dice"]) else ""
+                if not np.isnan(m["iou"]):
+                    iou_vals.append(m["iou"])
+            row["mean_IoU"] = round(np.mean(iou_vals), 4) if iou_vals else 0.0
+            per_sample_rows.append(row)
+
+        results = metrics.print_summary()
+
+        if args.output:
+            out_path = Path(args.output)
+        else:
+            out_path = out_dir / f"{model_tag}_metrics.json"
+        metrics.save(out_path, _cached_results=results)
+        print(f"\nMetrics saved to {out_path}")
+
+        # Per-sample CSV
+        per_sample_rows.sort(key=lambda r: r["mean_IoU"])
+        csv_path = out_dir / f"{model_tag}_per_sample.csv"
+        if per_sample_rows:
+            with open(csv_path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=per_sample_rows[0].keys())
+                writer.writeheader()
+                writer.writerows(per_sample_rows)
+            print(f"Per-sample metrics saved to {csv_path} (sorted worst-first)")
+            print(f"\nWorst 10 samples by mean IoU:")
+            for row in per_sample_rows[:10]:
+                print(f"  {row['sample_id']:50s}  mean_IoU={row['mean_IoU']:.4f}")
+
+    # ── Plots ──
+    if not args.no_plots and results is not None:
+        save_metric_comparison_plots(results, out_dir, model_tag,
+                                     per_sample_rows=per_sample_rows)
+
+    # ── Visualizations ──
     if not args.no_vis:
         if args.vis_dir:
             vis_dir = Path(args.vis_dir)
         else:
-            vis_dir = OUTPUT_DIR / "evaluation" / f"vis_{model_tag}_{args.strategy}_{args.subset}"
+            vis_dir = OUTPUT_DIR / "evaluation" / f"vis_{model_tag}"
         save_visualizations(samples, predictions, vis_dir)
 
 

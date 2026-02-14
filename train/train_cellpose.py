@@ -6,9 +6,12 @@ Usage:
     python train_cellpose.py --version 3 --strategy strategy1 --class-id 1
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import argparse
 import json
-from pathlib import Path
 from typing import Dict, List, Optional
 
 import numpy as np

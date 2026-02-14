@@ -5,9 +5,12 @@ Usage:
     python train_maskrcnn.py --strategy strategy2 --lr 0.0005 --epochs 50
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import argparse
 import os
-from pathlib import Path
 
 import torch
 

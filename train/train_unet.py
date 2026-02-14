@@ -10,8 +10,11 @@ Usage:
     python train_unet.py --arch unetplusplus --encoder resnet101 --epochs 150
 """
 
-import argparse
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import argparse
 
 import pytorch_lightning as pl
 import segmentation_models_pytorch as smp
