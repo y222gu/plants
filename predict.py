@@ -24,6 +24,8 @@ import tifffile
 from tqdm import tqdm
 
 from src.config import CLASS_COLORS_RGB, DEFAULT_IMG_SIZE, TARGET_CLASSES
+from src.evaluation import PredictionResult
+from src.postprocessing import PostProcessor
 from src.preprocessing import normalize_percentile, to_uint8
 from src.visualization import (
     draw_masks_overlay,
@@ -265,6 +267,8 @@ def main():
     parser.add_argument("--conf-thresh", type=float, default=0.25)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--no-vis", action="store_true", help="Skip visualization")
+    parser.add_argument("--no-postprocess", action="store_true",
+                        help="Disable post-processing (hole filling, aerenchyma clipping, etc.)")
     parser.add_argument("--max-dim", type=int, default=800, help="Max dimension for vis images")
     args = parser.parse_args()
 
@@ -305,6 +309,20 @@ def main():
         args.checkpoint, samples, args.img_size, args.conf_thresh,
         args.batch_size, use_registry,
     )
+
+    # Post-processing
+    if not args.no_postprocess:
+        pp = PostProcessor(model="yolo")
+        print(pp.summary())
+        for name in predictions:
+            p = predictions[name]
+            pred_result = PredictionResult(
+                masks=p["masks"], labels=p["labels"], scores=p["scores"],
+            )
+            pred_result = pp.run(pred_result)
+            predictions[name]["masks"] = pred_result.masks
+            predictions[name]["labels"] = pred_result.labels
+            predictions[name]["scores"] = pred_result.scores
 
     # Save YOLO .txt predictions
     pred_dir = data_dir / "prediction"

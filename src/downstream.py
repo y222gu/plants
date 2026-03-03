@@ -26,11 +26,13 @@ def aerenchyma_ratio(
     if len(root_idx) == 0:
         return 0.0
 
-    root_area = masks[root_idx].sum()
+    root_area = np.clip(masks[root_idx].sum(axis=0), 0, 1).sum()
     if root_area == 0:
         return 0.0
 
-    aer_area = masks[aer_idx].sum() if len(aer_idx) > 0 else 0
+    # Merge into a single binary mask to avoid double-counting overlapping instances
+    aer_area = (np.clip(masks[aer_idx].sum(axis=0), 0, 1).sum()
+                if len(aer_idx) > 0 else 0)
     return float(aer_area / root_area)
 
 

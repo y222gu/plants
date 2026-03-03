@@ -33,6 +33,7 @@ from src.config import (
     TARGET_CLASSES,
 )
 from src.dataset import SampleRegistry
+from src.splits import get_split
 from src.evaluation import (
     PredictionResult,
     convert_multilabel_to_instances,
@@ -524,6 +525,16 @@ def main():
                         help=f"Force-disable post-processing steps: {step_names}")
     parser.add_argument("--no-postprocess", action="store_true",
                         help="Disable ALL post-processing steps")
+
+    # Split filtering
+    parser.add_argument("--strategy", default=None,
+                        choices=["strategy1", "strategy2", "strategy3"],
+                        help="Dataset split strategy (use with --split)")
+    parser.add_argument("--split", default="test",
+                        choices=["train", "val", "test"],
+                        help="Which split to evaluate on (default: test)")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed for split generation (default: 42)")
     args = parser.parse_args()
 
     # ── Plot-only mode ──
@@ -560,7 +571,18 @@ def main():
         print("Expected: {data-dir}/image/{Species}/{Microscope}/{Exp}/{Sample}/ "
               "with matching annotation .txt files in {data-dir}/annotation/")
         return
-    print(f"Evaluating {args.model} on {len(samples)} samples")
+
+    # Filter to a specific split if strategy is provided
+    if args.strategy:
+        split = get_split(args.strategy, registry=registry, seed=args.seed)
+        samples = split.get(args.split, [])
+        if not samples:
+            print(f"No samples in {args.strategy} {args.split} split")
+            return
+        model_tag = f"{model_tag}_{args.strategy}_{args.split}"
+        print(f"Evaluating {args.model} on {len(samples)} {args.split} samples ({args.strategy})")
+    else:
+        print(f"Evaluating {args.model} on {len(samples)} samples (all)")
 
     # ── Get predictions ──
     if args.from_predictions:

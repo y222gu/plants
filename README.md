@@ -111,6 +111,9 @@ python predict.py --data-dir data/ --checkpoint path/to/best.pt --no-vis
 # Custom batch size and confidence threshold
 python predict.py --data-dir data/ --checkpoint path/to/best.pt \
     --batch-size 32 --conf-thresh 0.3
+
+# Skip post-processing (raw YOLO output)
+python predict.py --data-dir data/ --checkpoint path/to/best.pt --no-postprocess
 ```
 
 **Arguments:**
@@ -123,6 +126,7 @@ python predict.py --data-dir data/ --checkpoint path/to/best.pt \
 | `--conf-thresh` | 0.25 | Confidence threshold |
 | `--batch-size` | 16 | GPU batch size |
 | `--no-vis` | false | Skip visualization output |
+| `--no-postprocess` | false | Disable post-processing (hole filling, aerenchyma clipping, etc.) |
 | `--max-dim` | 800 | Max dimension for visualization images |
 
 **Output:**
@@ -139,12 +143,20 @@ Evaluate any trained model against ground truth annotations. Computes IoU/Dice m
 # Evaluate YOLO model on all annotated data
 python evaluate.py --data-dir data/ --model yolo --checkpoint path/to/best.pt
 
+# Evaluate on test split only (default split is "test")
+python evaluate.py --data-dir data/ --model yolo --checkpoint path/to/best.pt \
+    --strategy strategy1
+
+# Evaluate on validation split
+python evaluate.py --data-dir data/ --model yolo --checkpoint path/to/best.pt \
+    --strategy strategy1 --split val
+
 # Evaluate U-Net (multilabel mode)
 python evaluate.py --data-dir data/ --model unet --unet-mode multilabel \
     --checkpoint path/to/best.ckpt
 
 # Use saved predictions instead of running inference
-python evaluate.py --data-dir data/ --from-predictions data/prediction/
+python evaluate.py --data-dir data/ --from-predictions data/prediction/ --strategy strategy1
 
 # Skip visualizations, only compute metrics
 python evaluate.py --data-dir data/ --model yolo --checkpoint best.pt --no-vis
@@ -166,6 +178,9 @@ python evaluate.py --data-dir data/ --model yolo --checkpoint best.pt --no-postp
 | `--from-predictions` | — | Load saved YOLO `.txt` files (skip inference) |
 | `--img-size` | 1024 | Inference image size |
 | `--unet-mode` | `semantic` | U-Net mode: `semantic` or `multilabel` |
+| `--strategy` | — | Split strategy: `strategy1`, `strategy2`, `strategy3` |
+| `--split` | `test` | Which split to evaluate: `train`, `val`, `test` |
+| `--seed` | 42 | Random seed for split generation |
 | `--no-vis` | false | Skip visualization overlay images |
 | `--vis-dir` | auto | Custom visualization output directory |
 | `--no-metrics` | false | Skip metric computation |
@@ -285,11 +300,11 @@ python polygon_editor.py
 # 1. Train a model
 python train/train_yolo.py --strategy strategy1
 
-# 2. Generate predictions on all data
-python predict.py --data-dir path/to/new_images/ --checkpoint path/to/best.pt
+# 2. Generate predictions on all data (with post-processing)
+python predict.py --data-dir data/ --checkpoint path/to/best.pt
 
-# 3. Evaluate against ground truth
-python evaluate.py --data-dir data/ --from-predictions data/prediction/
+# 3. Evaluate on test split
+python evaluate.py --data-dir data/ --from-predictions data/prediction/ --strategy strategy1
 
 # 4. Run downstream analysis
 python analyze_downstream.py --data-dir data/ --source both
