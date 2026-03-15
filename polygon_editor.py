@@ -1,7 +1,7 @@
 """Interactive GUI for visualizing and correcting YOLO polygon annotations.
 
 Usage:
-    python annotation_editor.py [--data-dir /path/to/data]
+    python polygon_editor.py [--data-dir /path/to/data]
 
 Modes:
     1. Correct GT:    images + annotation/ + prediction/ — edit GT with predictions as reference
@@ -19,7 +19,7 @@ Controls:
     - S: Save current annotations to file
     - Ctrl+C: Copy selected prediction polygon to editable panel
     - C: Copy ALL predictions to editable panel
-    - 1-4: Set class for new polygon
+    - 0-5: Set class for new polygon
 """
 
 import argparse
@@ -953,8 +953,8 @@ class AnnotationEditor(QMainWindow):
         QShortcut(QKeySequence(Qt.Key_Escape), self, self.escape_action)
         QShortcut(QKeySequence(Qt.Key_Return), self, self.modal_confirm)
         QShortcut(QKeySequence(Qt.Key_Enter), self, self.modal_confirm)
-        for i in range(4):
-            QShortcut(QKeySequence(Qt.Key_1 + i), self, lambda idx=i: self.set_drawing_class(idx))
+        for i in range(6):
+            QShortcut(QKeySequence(Qt.Key_0 + i), self, lambda idx=i: self.set_drawing_class(idx))
         QShortcut(QKeySequence("Ctrl+C"), self, self.copy_selected_ref_to_edit)
         QShortcut(QKeySequence(Qt.Key_C), self, self.copy_all_ref_to_edit)
         QShortcut(QKeySequence(Qt.Key_H), self, self.home_view)

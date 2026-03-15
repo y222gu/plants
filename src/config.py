@@ -26,6 +26,8 @@ ANNOTATED_CLASSES = {
     1: "Aerenchyma",
     2: "Outer Endodermis",
     3: "Inner Endodermis",
+    4: "Outer Exodermis",
+    5: "Inner Exodermis",
 }
 
 # ── Target classes (semantic meaning for model training) ──────────────────────
@@ -42,8 +44,10 @@ NUM_CLASSES = len(TARGET_CLASSES)
 CLASS_COLORS_RGB = {
     0: (0, 0, 255),      # Whole Root — Blue
     1: (255, 255, 0),     # Aerenchyma — Yellow
-    2: (0, 255, 0),       # Endodermis — Green
-    3: (255, 0, 0),       # Vascular — Red
+    2: (0, 255, 0),       # Outer Endodermis — Green
+    3: (255, 0, 0),       # Inner Endodermis — Red
+    4: (255, 128, 0),     # Outer Exodermis — Orange
+    5: (128, 0, 255),     # Inner Exodermis — Purple
 }
 
 # ── Training defaults ─────────────────────────────────────────────────────────
