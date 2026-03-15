@@ -16,7 +16,7 @@ Usage:
     python analyze_downstream.py --data-dir data/ --source gt
 
     # Regenerate plots from existing CSV
-    python analyze_downstream.py --plot-only output/downstream/comparison_yolo_strategy1_test.csv
+    python analyze_downstream.py --plot-only output/downstream/comparison_yolo_A_test.csv
 """
 
 import argparse

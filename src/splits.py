@@ -57,33 +57,35 @@ def strategy1_standard(
                 break
         return picked_keys, picked_samples
 
-    # --- Millet/Olympus and Rice/Zeiss: use n<=3 logic (unchanged) ---
+    # --- Exclude Rice/Zeiss entirely (reserved for deployment) ---
+    # --- Millet/Olympus: few experiments, use n<=3 logic ---
     exp_groups = registry.get_experiment_groups()
-    for sm_key in ["Millet/Olympus", "Rice/Zeiss"]:
-        sm_groups = registry.get_species_microscope_groups()
-        experiments = sm_groups.get(sm_key, [])
-        exps_with_size = [(e, len(exp_groups[e])) for e in experiments]
-        exps_with_size.sort(key=lambda x: x[1])  # smallest first
+    sm_groups = registry.get_species_microscope_groups()
+    millet_oly = sm_groups.get("Millet/Olympus", [])
+    exps_with_size = [(e, len(exp_groups[e])) for e in millet_oly]
+    exps_with_size.sort(key=lambda x: x[1])  # smallest first
 
-        n = len(exps_with_size)
-        if n >= 3:
-            test_samples.extend(exp_groups[exps_with_size[0][0]])
-            val_samples.extend(exp_groups[exps_with_size[1][0]])
-            for e, _ in exps_with_size[2:]:
-                train_samples.extend(exp_groups[e])
-        elif n == 2:
-            test_samples.extend(exp_groups[exps_with_size[0][0]])
-            train_samples.extend(exp_groups[exps_with_size[1][0]])
-        elif n == 1:
-            train_samples.extend(exp_groups[exps_with_size[0][0]])
+    n = len(exps_with_size)
+    if n >= 3:
+        test_samples.extend(exp_groups[exps_with_size[0][0]])
+        val_samples.extend(exp_groups[exps_with_size[1][0]])
+        for e, _ in exps_with_size[2:]:
+            train_samples.extend(exp_groups[e])
+    elif n == 2:
+        test_samples.extend(exp_groups[exps_with_size[0][0]])
+        train_samples.extend(exp_groups[exps_with_size[1][0]])
+    elif n == 1:
+        train_samples.extend(exp_groups[exps_with_size[0][0]])
 
-    # --- Seen combos: same holdout logic as Strategy 2 ---
+    # --- Seen combos: hold out smallest experiments for test ---
     test_holdout_keys = set()
     test_min = [
         ("Rice", "C10", 10),
         ("Rice", "Olympus", 20),
         ("Sorghum", "C10", 10),
         ("Sorghum", "Olympus", 20),
+        ("Tomato", "C10", 10),
+        ("Tomato", "Olympus", 20),
     ]
     for sp, micro, min_n in test_min:
         keys, samples = _pick_experiments(sp, micro, min_n)
@@ -102,11 +104,12 @@ def strategy1_standard(
             val_samples.extend(sc10_exps[k])
             break
 
-    # Remaining experiments from the 4 combos: 10% to val, rest to train
+    # Remaining experiments from all seen combos: 10% to val, rest to train
     excluded = test_holdout_keys | val_holdout_keys
     remaining_exps = defaultdict(list)
     for sp, micro in [("Rice", "C10"), ("Rice", "Olympus"),
-                       ("Sorghum", "C10"), ("Sorghum", "Olympus")]:
+                       ("Sorghum", "C10"), ("Sorghum", "Olympus"),
+                       ("Tomato", "C10"), ("Tomato", "Olympus")]:
         for s in registry.filter(species=[sp], microscopes=[micro]):
             if s.group_key not in excluded:
                 remaining_exps[s.group_key].append(s)
@@ -293,6 +296,18 @@ def load_split(
     return result
 
 
+def _normalize_strategy(strategy: str) -> str:
+    """Accept both 'A'/'B'/'C' and legacy 'strategy1'/'strategy2'/'strategy3'."""
+    mapping = {
+        "A": "A", "B": "B", "C": "C",
+        "strategy1": "A", "strategy2": "B", "strategy3": "C",
+    }
+    normalized = mapping.get(strategy)
+    if normalized is None:
+        raise ValueError(f"Unknown strategy: {strategy!r}. Use 'A', 'B', or 'C'.")
+    return normalized
+
+
 def get_split(
     strategy: str,
     registry: Optional[SampleRegistry] = None,
@@ -303,15 +318,17 @@ def get_split(
     """Get or create a dataset split.
 
     Args:
-        strategy: "strategy1", "strategy2", or "strategy3".
+        strategy: "A", "B", or "C" (also accepts legacy "strategy1"/"strategy2"/"strategy3").
         registry: SampleRegistry (created if None).
         seed: Random seed.
-        species: Required for strategy3.
+        species: Required for strategy C.
         cache: If True, save/load from disk.
 
     Returns:
         Dict with "train", "val", "test" lists of SampleRecord.
     """
+    strategy = _normalize_strategy(strategy)
+
     if registry is None:
         registry = SampleRegistry()
 
@@ -322,13 +339,13 @@ def get_split(
     if cache and split_path.exists():
         return load_split(split_path, registry)
 
-    if strategy == "strategy1":
+    if strategy == "A":
         split = strategy1_standard(registry, seed=seed)
-    elif strategy == "strategy2":
+    elif strategy == "B":
         split = strategy2_generalizability(registry, seed=seed)
-    elif strategy == "strategy3":
+    elif strategy == "C":
         if species is None:
-            raise ValueError("species required for strategy3")
+            raise ValueError("species required for strategy C")
         split = strategy3_per_species(registry, species, seed=seed)
     else:
         raise ValueError(f"Unknown strategy: {strategy}")

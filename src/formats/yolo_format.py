@@ -16,6 +16,7 @@ def export_yolo_dataset(
     splits: Dict[str, List[SampleRecord]],
     output_dir: Path = None,
     img_size: int = 1024,
+    num_classes: int = 4,
 ) -> Path:
     """Export samples to YOLO directory structure.
 
@@ -26,13 +27,19 @@ def export_yolo_dataset(
             data.yaml
 
     YOLO keeps the original 4 annotation classes (endodermis subtraction
-    is done post-inference). Images are composited to uint8 RGB PNG.
+    is done post-inference). When num_classes=4, annotation lines with
+    class IDs 4 or 5 (exodermis) are filtered out. Images are composited
+    to uint8 RGB PNG.
 
     Returns:
         Path to data.yaml.
     """
     if output_dir is None:
         output_dir = OUTPUT_DIR / "yolo_dataset"
+
+    # YOLO uses the original annotated classes (0-3 for 4-class, 0-5 for keeping all)
+    # Filter out exodermis classes (4, 5) when num_classes == 4
+    filter_exo = (num_classes <= 4)
 
     # Create directory structure
     for subset in ["train", "val", "test"]:
@@ -53,18 +60,26 @@ def export_yolo_dataset(
             img_path = output_dir / "images" / subset / f"{uid}.png"
             cv2.imwrite(str(img_path), cv2.cvtColor(img_uint8, cv2.COLOR_RGB2BGR))
 
-            # Copy annotation file (keep original 4 classes)
+            # Copy annotation file, filtering exodermis classes if needed
             label_path = output_dir / "labels" / subset / f"{uid}.txt"
-            shutil.copy2(sample.annotation_path, label_path)
+            if filter_exo:
+                with open(sample.annotation_path) as fin, open(label_path, "w") as fout:
+                    for line in fin:
+                        parts = line.strip().split()
+                        if len(parts) >= 7 and int(parts[0]) not in (4, 5):
+                            fout.write(line)
+            else:
+                shutil.copy2(sample.annotation_path, label_path)
 
-    # Create data.yaml
+    # Create data.yaml — YOLO uses the original annotated classes (0-3)
+    yolo_classes = {k: v for k, v in ANNOTATED_CLASSES.items() if k <= 3}
     data_yaml = {
         "path": str(output_dir.resolve()),
         "train": "images/train",
         "val": "images/val",
         "test": "images/test",
-        "nc": len(ANNOTATED_CLASSES),
-        "names": {k: v for k, v in ANNOTATED_CLASSES.items()},
+        "nc": len(yolo_classes),
+        "names": yolo_classes,
     }
 
     yaml_path = output_dir / "data.yaml"

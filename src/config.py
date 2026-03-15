@@ -16,7 +16,7 @@ OUTPUT_DIR = BASE_DIR / "output"  # training runs, exports, checkpoints
 
 
 # ── Species & Microscopes ─────────────────────────────────────────────────────
-SPECIES = ["Millet", "Rice", "Sorghum"]
+SPECIES = ["Millet", "Rice", "Sorghum", "Tomato"]
 MICROSCOPES = ["C10", "Olympus", "Zeiss"]
 CHANNELS = ["DAPI", "FITC", "TRITC"]  # Blue, Green, Red
 
@@ -38,9 +38,34 @@ TARGET_CLASSES = {
     3: "Vascular",     # area inside inner endodermis
 }
 
+TARGET_CLASSES_5 = {
+    0: "Whole Root",
+    1: "Aerenchyma",
+    2: "Endodermis",   # ring: outer - inner
+    3: "Vascular",     # area inside inner endodermis
+    4: "Exodermis",    # ring: outer - inner (tomato only)
+}
+
 NUM_CLASSES = len(TARGET_CLASSES)
+NUM_CLASSES_5 = len(TARGET_CLASSES_5)
+
+
+def get_target_classes(num_classes: int = 4) -> dict:
+    """Return target class dict for the given number of classes (4 or 5)."""
+    return TARGET_CLASSES_5 if num_classes >= 5 else TARGET_CLASSES
+
+
+# Which target classes are valid (annotated) per species.
+# Cereals lack exodermis (4); tomato lacks aerenchyma (1).
+SPECIES_VALID_CLASSES = {
+    "Millet":  {0, 1, 2, 3},
+    "Rice":    {0, 1, 2, 3},
+    "Sorghum": {0, 1, 2, 3},
+    "Tomato":  {0, 2, 3, 4},
+}
 
 # ── Visualization colors (BGR for OpenCV, RGB for matplotlib) ─────────────────
+# Colors for *annotated* classes (as stored in .txt files)
 CLASS_COLORS_RGB = {
     0: (0, 0, 255),      # Whole Root — Blue
     1: (255, 255, 0),     # Aerenchyma — Yellow
@@ -48,6 +73,15 @@ CLASS_COLORS_RGB = {
     3: (255, 0, 0),       # Inner Endodermis — Red
     4: (255, 128, 0),     # Outer Exodermis — Orange
     5: (128, 0, 255),     # Inner Exodermis — Purple
+}
+
+# Colors for *target* classes (derived semantic regions for model training)
+TARGET_CLASS_COLORS_RGB = {
+    0: (0, 0, 255),      # Whole Root — Blue
+    1: (255, 255, 0),     # Aerenchyma — Yellow
+    2: (0, 255, 0),       # Endodermis — Green
+    3: (255, 0, 0),       # Vascular — Red
+    4: (0, 255, 255),     # Exodermis — Cyan
 }
 
 # ── Training defaults ─────────────────────────────────────────────────────────

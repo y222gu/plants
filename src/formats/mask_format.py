@@ -21,6 +21,7 @@ def export_mask_dataset(
     img_size: int = 1024,
     include_semantic: bool = True,
     include_instance: bool = True,
+    num_classes: int = 4,
 ) -> Path:
     """Export samples as images + NPZ mask files.
 
@@ -64,14 +65,14 @@ def export_mask_dataset(
 
             if include_semantic:
                 anns = parse_yolo_annotations(sample.annotation_path, orig_w, orig_h)
-                sem = polygons_to_semantic_mask(anns, orig_h, orig_w)
+                sem = polygons_to_semantic_mask(anns, orig_h, orig_w, num_classes=num_classes)
                 if img_size is not None:
                     sem = cv2.resize(sem.astype(np.uint8), (img_size, img_size),
                                      interpolation=cv2.INTER_NEAREST).astype(np.int32)
                 npz_data["semantic_mask"] = sem
 
             if include_instance:
-                ann_data = load_sample_annotations(sample, orig_h, orig_w)
+                ann_data = load_sample_annotations(sample, orig_h, orig_w, num_classes=num_classes)
                 masks = ann_data["masks"]
                 labels = ann_data["labels"]
                 if img_size is not None and len(masks) > 0:

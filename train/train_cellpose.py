@@ -1,9 +1,9 @@
 """Cellpose training script — compare v2 and v3 models.
 
 Usage:
-    python train_cellpose.py --strategy strategy1 --class-id 1
-    python train_cellpose.py --strategy strategy1 --all-classes
-    python train_cellpose.py --version 3 --strategy strategy1 --class-id 1
+    python train_cellpose.py --strategy A --class-id 1
+    python train_cellpose.py --strategy A --all-classes
+    python train_cellpose.py --version 3 --strategy A --class-id 1
 """
 
 import sys
@@ -17,7 +17,7 @@ from typing import Dict, List, Optional
 import numpy as np
 from cellpose import models, train
 
-from src.config import DEFAULT_IMG_SIZE, NUM_CLASSES, OUTPUT_DIR, TARGET_CLASSES
+from src.config import DEFAULT_IMG_SIZE, OUTPUT_DIR, get_target_classes
 from src.dataset import SampleRegistry
 from src.models.cellpose_utils import prepare_cellpose_data
 from src.splits import get_split, print_split_summary
@@ -151,11 +151,13 @@ def evaluate_cellpose(
 
 def main():
     parser = argparse.ArgumentParser(description="Cellpose training")
-    parser.add_argument("--strategy", default="strategy1",
-                        choices=["strategy1", "strategy2", "strategy3"])
+    parser.add_argument("--strategy", default="A",
+                        choices=["A", "B", "C"])
     parser.add_argument("--species", default=None)
+    parser.add_argument("--num-classes", type=int, default=4, choices=[4, 5],
+                        help="Number of target classes (4=standard, 5=with exodermis)")
     parser.add_argument("--class-id", type=int, default=None,
-                        help="Target class ID (0-3). If None, train on all classes.")
+                        help="Target class ID (0-3 or 0-4). If None, train on all classes.")
     parser.add_argument("--all-classes", action="store_true",
                         help="Train separate models for each class")
     parser.add_argument("--version", type=int, default=2, choices=[2, 3],
@@ -175,27 +177,31 @@ def main():
     print_split_summary(split)
 
     # Determine classes to train
+    target_classes = get_target_classes(args.num_classes)
     if args.all_classes:
-        class_ids = list(range(NUM_CLASSES))
+        class_ids = list(range(args.num_classes))
     elif args.class_id is not None:
         class_ids = [args.class_id]
     else:
         class_ids = [None]  # all classes combined
 
     for class_id in class_ids:
-        class_name = TARGET_CLASSES.get(class_id, "all") if class_id is not None else "all"
+        class_name = target_classes.get(class_id, "all") if class_id is not None else "all"
         print(f"\n{'='*60}")
         print(f"Training Cellpose v{args.version} for class: {class_name}")
 
         # Prepare data
         train_imgs, train_lbls = prepare_cellpose_data(
             split["train"], img_size=args.img_size, target_class=class_id,
+            num_classes=args.num_classes,
         )
         val_imgs, val_lbls = prepare_cellpose_data(
             split["val"], img_size=args.img_size, target_class=class_id,
+            num_classes=args.num_classes,
         )
         test_imgs, test_lbls = prepare_cellpose_data(
             split["test"], img_size=args.img_size, target_class=class_id,
+            num_classes=args.num_classes,
         )
 
         # Filter out samples with no instances
@@ -217,7 +223,7 @@ def main():
         print(f"  Train: {len(train_imgs)}, Val: {len(val_imgs)}, Test: {len(test_imgs)}")
 
         # Train
-        run_name = f"cellpose_v{args.version}_{class_name}_{args.strategy}"
+        run_name = f"cellpose_v{args.version}_{class_name}_{args.strategy}_c{args.num_classes}"
         model_dir = OUTPUT_DIR / "runs" / "cellpose" / run_name
 
         model_path = train_cellpose_model(

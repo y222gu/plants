@@ -9,15 +9,16 @@ import numpy as np
 from tqdm import tqdm
 
 from ..annotation_utils import load_sample_annotations
-from ..config import OUTPUT_DIR, TARGET_CLASSES, SampleRecord
+from ..config import OUTPUT_DIR, SampleRecord
 from ..preprocessing import load_sample_normalized
 
 
-def _load_one_sample(sample: 'SampleRecord', img_size: int, target_class: Optional[int]):
+def _load_one_sample(sample: 'SampleRecord', img_size: int, target_class: Optional[int],
+                     num_classes: int = 4):
     """Load and process a single sample (for parallel loading)."""
     img = load_sample_normalized(sample)
     h, w = img.shape[:2]
-    ann = load_sample_annotations(sample, h, w)
+    ann = load_sample_annotations(sample, h, w, num_classes=num_classes)
     masks = ann["masks"]
     cls_labels = ann["labels"]
 
@@ -43,6 +44,7 @@ def prepare_cellpose_data(
     img_size: int = 1024,
     target_class: Optional[int] = None,
     num_workers: int = 8,
+    num_classes: int = 4,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Prepare images and label masks for Cellpose training.
 
@@ -56,6 +58,7 @@ def prepare_cellpose_data(
         target_class: If specified, only include instances of this class.
             If None, include all classes (each instance gets unique ID).
         num_workers: Number of threads for parallel loading.
+        num_classes: Number of target classes (4 or 5).
 
     Returns:
         (images, labels) where images are (H,W,C) uint8 and labels are (H,W) int32.
@@ -64,7 +67,7 @@ def prepare_cellpose_data(
     labels = []
 
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        futures = [executor.submit(_load_one_sample, s, img_size, target_class)
+        futures = [executor.submit(_load_one_sample, s, img_size, target_class, num_classes)
                    for s in samples]
         for f in tqdm(futures, desc="Loading data", total=len(futures)):
             img_uint8, label_mask = f.result()

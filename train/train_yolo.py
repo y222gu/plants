@@ -1,8 +1,8 @@
 """YOLOv8/v11-seg training script.
 
 Usage:
-    python train_yolo.py --model yolo11m-seg --strategy strategy1
-    python train_yolo.py --model yolo11m-seg --strategy strategy2 --img-size 640
+    python train_yolo.py --model yolo11m-seg --strategy A
+    python train_yolo.py --model yolo11m-seg --strategy B --img-size 640
     python train_yolo.py --model yolo11m-seg --epochs 150 --batch-size 2
 """
 
@@ -30,14 +30,18 @@ def main():
     parser = argparse.ArgumentParser(description="YOLO instance segmentation training")
     parser.add_argument("--model", default="yolo11m-seg",
                         help="YOLO model variant (e.g. yolov8m-seg, yolo11m-seg)")
-    parser.add_argument("--strategy", default="strategy1",
-                        choices=["strategy1", "strategy2", "strategy3"])
+    parser.add_argument("--strategy", default="A",
+                        choices=["A", "B", "C"])
     parser.add_argument("--species", default=None,
                         help="Species for strategy3")
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
     parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument("--patience", type=int, default=DEFAULT_PATIENCE)
+    parser.add_argument("--num-classes", type=int, default=4, choices=[4],
+                        help="Number of target classes (YOLO supports 4 only)")
+    parser.add_argument("--save-every", type=int, default=50,
+                        help="Save periodic checkpoint every N epochs (-1 to disable)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--resume", type=str, default=None,
                         help="Path to checkpoint to resume from")
@@ -80,9 +84,11 @@ def main():
             print("  Use --force-export to re-export.")
         else:
             print("Existing export has mismatched counts. Re-exporting...")
-            yaml_path = export_yolo_dataset(split, export_dir, img_size=args.img_size)
+            yaml_path = export_yolo_dataset(split, export_dir, img_size=args.img_size,
+                                            num_classes=args.num_classes)
     else:
-        yaml_path = export_yolo_dataset(split, export_dir, img_size=args.img_size)
+        yaml_path = export_yolo_dataset(split, export_dir, img_size=args.img_size,
+                                        num_classes=args.num_classes)
 
     if args.export_only:
         print("Export complete. Exiting.")
@@ -104,7 +110,7 @@ def main():
         project=str(project_dir),
         name=run_name,
         save=True,
-        save_period=-1,  # only save best
+        save_period=args.save_every,  # save checkpoint periodically (-1=best only)
         amp=True,
         seed=args.seed,
         workers=8,

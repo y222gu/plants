@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 from PIL import Image, ImageDraw, ImageFont
 
-from .config import CLASS_COLORS_RGB, TARGET_CLASSES
+from .config import TARGET_CLASS_COLORS_RGB, get_target_classes
 
 import matplotlib
 matplotlib.use("Agg")
@@ -58,7 +58,7 @@ def draw_masks_overlay(img_uint8: np.ndarray, masks: np.ndarray,
     for idx in order:
         mask = masks[idx]
         cls_id = int(labels[idx])
-        color = CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
+        color = TARGET_CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
         overlay[mask > 0] = color
 
     result = cv2.addWeighted(result, 1 - alpha, overlay, alpha, 0)
@@ -66,7 +66,7 @@ def draw_masks_overlay(img_uint8: np.ndarray, masks: np.ndarray,
     for idx in order:
         mask = masks[idx]
         cls_id = int(labels[idx])
-        color = CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
+        color = TARGET_CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cv2.drawContours(result, contours, -1, color, 2)
 
@@ -75,15 +75,16 @@ def draw_masks_overlay(img_uint8: np.ndarray, masks: np.ndarray,
 
 # ── Legend bar ────────────────────────────────────────────────────────────────
 
-def make_legend_bar(width: int, height: int = 32) -> np.ndarray:
+def make_legend_bar(width: int, height: int = 32, num_classes: int = 4) -> np.ndarray:
     """Create a class-legend bar image (RGB uint8)."""
     legend_font = load_font(14)
     legend = np.zeros((height, width, 3), dtype=np.uint8)
     pil_legend = Image.fromarray(legend)
     draw = ImageDraw.Draw(pil_legend)
     x_offset = 10
-    for cls_id, cls_name in TARGET_CLASSES.items():
-        color = CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
+    classes = get_target_classes(num_classes)
+    for cls_id, cls_name in classes.items():
+        color = TARGET_CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
         draw.rectangle([x_offset, 6, x_offset + 20, 26], fill=color)
         draw.text((x_offset + 25, 8), cls_name, font=legend_font, fill=(255, 255, 255))
         bbox = legend_font.getbbox(cls_name)
@@ -127,12 +128,14 @@ PUB_CLASS_COLORS = {
     "Aerenchyma":   "#E69F00",
     "Endodermis":   "#009E73",
     "Vascular":     "#CC79A7",
+    "Exodermis":    "#56B4E9",
 }
 PUB_HATCHES = {
     "Whole Root":   "",
     "Aerenchyma":   "//",
     "Endodermis":   "\\\\",
     "Vascular":     "xx",
+    "Exodermis":    "..",
 }
 
 

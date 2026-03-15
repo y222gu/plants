@@ -6,8 +6,8 @@ visualizations, and comparison plots.
 Usage:
     python evaluate.py --model yolo --checkpoint output/runs/yolo/run/weights/best.pt
     python evaluate.py --model unet --checkpoint output/runs/unet/run/checkpoints/best.ckpt
-    python evaluate.py --model yolo --from-predictions data/prediction/ --strategy strategy1
-    python evaluate.py --plot-only output/evaluation/yolo_strategy1_test.json
+    python evaluate.py --model yolo --from-predictions data/prediction/ --strategy A
+    python evaluate.py --plot-only output/evaluation/yolo_A_test.json
 """
 
 import argparse
@@ -26,11 +26,10 @@ import matplotlib.pyplot as plt
 
 from src.annotation_utils import load_sample_annotations
 from src.config import (
-    CLASS_COLORS_RGB,
     DEFAULT_IMG_SIZE,
-    NUM_CLASSES,
     OUTPUT_DIR,
-    TARGET_CLASSES,
+    TARGET_CLASS_COLORS_RGB,
+    get_target_classes,
 )
 from src.dataset import SampleRegistry
 from src.splits import get_split
@@ -59,10 +58,12 @@ def _compute_sample_metrics(
     pred_labels: np.ndarray,
     gt_masks: np.ndarray,
     gt_labels: np.ndarray,
+    num_classes: int = 4,
 ) -> dict:
     """Compute per-class IoU and Dice for a single sample."""
     results = {}
-    for cls_id, cls_name in TARGET_CLASSES.items():
+    target_classes = get_target_classes(num_classes)
+    for cls_id, cls_name in target_classes.items():
         gt_idx = np.where(gt_labels == cls_id)[0]
         pred_idx = np.where(pred_labels == cls_id)[0]
         if len(gt_masks) > 0 and len(gt_idx) > 0:
@@ -90,6 +91,7 @@ def save_visualizations(
     predictions: dict,
     vis_dir: Path,
     max_dim: int = 800,
+    num_classes: int = 4,
 ):
     """Save side-by-side GT vs prediction overlay images with per-class metrics."""
     vis_dir.mkdir(parents=True, exist_ok=True)
@@ -106,10 +108,10 @@ def save_visualizations(
         h, w = img.shape[:2]
         img_uint8 = to_uint8(img)
 
-        gt = load_sample_annotations(sample, h, w)
+        gt = load_sample_annotations(sample, h, w, num_classes=num_classes)
 
         sample_metrics = _compute_sample_metrics(
-            pred.masks, pred.labels, gt["masks"], gt["labels"],
+            pred.masks, pred.labels, gt["masks"], gt["labels"], num_classes=num_classes,
         )
 
         img_small, gt_masks, new_h, new_w = downscale_for_vis(img_uint8, gt["masks"], max_dim)
@@ -129,7 +131,7 @@ def save_visualizations(
         y_offset = 40
         for cls_id in sorted(sample_metrics.keys()):
             m = sample_metrics[cls_id]
-            color = CLASS_COLORS_RGB.get(cls_id, (255, 255, 255))
+            color = TARGET_CLASS_COLORS_RGB.get(cls_id, (255, 255, 255))
             iou_str = f"{m['iou']:.2f}" if not np.isnan(m['iou']) else "N/A"
             dice_str = f"{m['dice']:.2f}" if not np.isnan(m['dice']) else "N/A"
             text = f"{m['name']}: IoU={iou_str}  Dice={dice_str}"
@@ -419,8 +421,9 @@ def predict_unet(checkpoint: str, samples, img_size: int,
 
         if unet_mode == "multilabel":
             probs = torch.sigmoid(logits).squeeze(0).cpu().numpy()
-            ml_mask = np.zeros((4, h, w), dtype=np.float32)
-            for c in range(4):
+            nc = probs.shape[0]
+            ml_mask = np.zeros((nc, h, w), dtype=np.float32)
+            for c in range(nc):
                 ml_mask[c] = cv2.resize(probs[c], (w, h), interpolation=cv2.INTER_LINEAR)
             pred = convert_multilabel_to_instances(ml_mask)
         else:
@@ -434,35 +437,189 @@ def predict_unet(checkpoint: str, samples, img_size: int,
     return predictions
 
 
-def predict_maskrcnn(checkpoint: str, samples, img_size: int) -> dict:
-    """Run Mask R-CNN inference."""
-    from detectron2.config import get_cfg
-    from detectron2.engine import DefaultPredictor
-    from detectron2 import model_zoo
-    from src.evaluation import convert_detectron2_instances
+def predict_sam(checkpoint: str, samples, img_size: int,
+                sam_type: str = "vit_b", num_classes: int = 4) -> dict:
+    """Run SAM inference with GT-derived prompts and return predictions.
 
-    cfg = get_cfg()
-    cfg.merge_from_file(model_zoo.get_config_file(
-        "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-    cfg.MODEL.WEIGHTS = checkpoint
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = NUM_CLASSES
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
-    cfg.INPUT.MIN_SIZE_TEST = img_size
-    cfg.INPUT.MAX_SIZE_TEST = img_size
+    Uses oracle bounding boxes from GT as prompts (standard SAM evaluation).
+    """
+    from segment_anything import sam_model_registry
 
-    predictor = DefaultPredictor(cfg)
+    model = sam_model_registry[sam_type](checkpoint=checkpoint)
+    model.eval()
+    model.cuda()
+
     predictions = {}
-
-    for sample in tqdm(samples, desc="Mask R-CNN inference"):
+    for sample in tqdm(samples, desc="SAM inference"):
         img = load_sample_normalized(sample)
         h, w = img.shape[:2]
-        img_uint8 = to_uint8(img)
-        img_bgr = cv2.cvtColor(img_uint8, cv2.COLOR_RGB2BGR)
+        gt = load_sample_annotations(sample, h, w, num_classes=num_classes)
+        gt_masks = gt["masks"]
+        gt_labels = gt["labels"]
 
-        outputs = predictor(img_bgr)
-        instances = outputs["instances"].to("cpu")
-        pred = convert_detectron2_instances(instances, h, w)
-        predictions[sample.uid] = pred
+        if len(gt_masks) == 0:
+            predictions[sample.uid] = PredictionResult(
+                masks=np.zeros((0, h, w), dtype=np.uint8),
+                labels=np.zeros(0, dtype=np.int32),
+                scores=np.zeros(0, dtype=np.float32),
+            )
+            continue
+
+        # Resize image to SAM input size
+        img_resized = cv2.resize(img, (img_size, img_size), interpolation=cv2.INTER_LINEAR)
+        img_tensor = torch.from_numpy(img_resized).permute(2, 0, 1).float().unsqueeze(0).cuda()
+
+        scale_x = img_size / w
+        scale_y = img_size / h
+
+        # Pre-compute image embedding
+        with torch.no_grad():
+            embedding = model.image_encoder(img_tensor)
+
+        pred_masks_list = []
+        pred_labels_list = []
+        pred_scores_list = []
+
+        for i in range(len(gt_masks)):
+            mask = gt_masks[i]
+            # Resize mask to get prompt coordinates in SAM space
+            mask_resized = cv2.resize(mask, (img_size, img_size),
+                                      interpolation=cv2.INTER_NEAREST)
+            ys, xs = np.where(mask_resized > 0)
+            if len(xs) == 0:
+                continue
+
+            # Box prompt from GT
+            x1, y1, x2, y2 = float(xs.min()), float(ys.min()), float(xs.max()), float(ys.max())
+            box = torch.tensor([[x1, y1, x2, y2]], dtype=torch.float32, device="cuda")
+
+            # Point prompts (3 foreground points)
+            n_pts = min(3, len(xs))
+            indices = np.random.choice(len(xs), n_pts, replace=False)
+            points = np.stack([xs[indices], ys[indices]], axis=-1)
+            point_coords = torch.from_numpy(points).float().unsqueeze(0).cuda()
+            point_labels = torch.ones(1, n_pts, dtype=torch.float32, device="cuda")
+
+            with torch.no_grad():
+                sparse_emb, dense_emb = model.prompt_encoder(
+                    points=(point_coords, point_labels),
+                    boxes=box[:, None, :],
+                    masks=None,
+                )
+                low_res_masks, iou_pred = model.mask_decoder(
+                    image_embeddings=embedding,
+                    image_pe=model.prompt_encoder.get_dense_pe(),
+                    sparse_prompt_embeddings=sparse_emb,
+                    dense_prompt_embeddings=dense_emb,
+                    multimask_output=False,
+                )
+
+            # Resize prediction back to original image size
+            pred_mask = torch.nn.functional.interpolate(
+                low_res_masks, size=(img_size, img_size),
+                mode="bilinear", align_corners=False,
+            ).squeeze().cpu().numpy()
+            pred_mask = (pred_mask > 0).astype(np.uint8)
+            # Resize to original image dimensions
+            pred_mask = cv2.resize(pred_mask, (w, h), interpolation=cv2.INTER_NEAREST)
+
+            pred_masks_list.append(pred_mask)
+            pred_labels_list.append(int(gt_labels[i]))
+            pred_scores_list.append(float(iou_pred.cpu().squeeze()))
+
+        if pred_masks_list:
+            predictions[sample.uid] = PredictionResult(
+                masks=np.array(pred_masks_list, dtype=np.uint8),
+                labels=np.array(pred_labels_list, dtype=np.int32),
+                scores=np.array(pred_scores_list, dtype=np.float32),
+            )
+        else:
+            predictions[sample.uid] = PredictionResult(
+                masks=np.zeros((0, h, w), dtype=np.uint8),
+                labels=np.zeros(0, dtype=np.int32),
+                scores=np.zeros(0, dtype=np.float32),
+            )
+
+    return predictions
+
+
+def predict_cellpose(checkpoint_dir: str, samples, img_size: int,
+                     num_classes: int = 4) -> dict:
+    """Run Cellpose per-class inference and merge predictions.
+
+    Expects per-class models in checkpoint_dir with naming pattern:
+    cellpose_v*_{ClassName}_*/ containing the trained model file.
+    """
+    from cellpose import models
+
+    checkpoint_dir = Path(checkpoint_dir)
+    target_classes = get_target_classes(num_classes)
+
+    # Find per-class model paths
+    class_models = {}
+    for cls_id, cls_name in target_classes.items():
+        # Search for model directories matching this class
+        pattern = f"cellpose_*_{cls_name}_*"
+        matches = sorted(checkpoint_dir.parent.glob(pattern))
+        if not matches:
+            print(f"  Warning: No Cellpose model found for class {cls_id} ({cls_name})")
+            continue
+        model_dir = matches[-1]  # Use latest
+        # Find the model file (Cellpose saves as models/*)
+        model_files = sorted(model_dir.glob("models/*")) + sorted(model_dir.glob("*.npy"))
+        if not model_files:
+            # Try the directory itself for Cellpose model files
+            model_files = [f for f in model_dir.iterdir()
+                          if f.suffix not in ('.json', '.png', '.csv')]
+        if model_files:
+            class_models[cls_id] = str(model_files[-1])
+            print(f"  Class {cls_id} ({cls_name}): {model_files[-1]}")
+
+    if not class_models:
+        print("Error: No Cellpose models found")
+        return {}
+
+    predictions = {}
+    # Process each sample
+    for sample in tqdm(samples, desc="Cellpose inference"):
+        img = load_sample_normalized(sample)
+        h, w = img.shape[:2]
+        img_resized = cv2.resize(img, (img_size, img_size), interpolation=cv2.INTER_LINEAR)
+        img_uint8 = (np.clip(img_resized, 0, 1) * 255).astype(np.uint8)
+
+        all_masks = []
+        all_labels = []
+        all_scores = []
+
+        for cls_id, model_path in class_models.items():
+            model = models.CellposeModel(gpu=True, pretrained_model=model_path)
+            pred_mask = model.eval([img_uint8], channels=[0, 0], diameter=None)[0][0]
+
+            # Convert instance mask to individual binary masks
+            instance_ids = np.unique(pred_mask)
+            instance_ids = instance_ids[instance_ids > 0]
+
+            for iid in instance_ids:
+                binary_mask = (pred_mask == iid).astype(np.uint8)
+                # Resize back to original dimensions
+                binary_mask = cv2.resize(binary_mask, (w, h),
+                                        interpolation=cv2.INTER_NEAREST)
+                all_masks.append(binary_mask)
+                all_labels.append(cls_id)
+                all_scores.append(1.0)  # Cellpose doesn't provide confidence scores
+
+        if all_masks:
+            predictions[sample.uid] = PredictionResult(
+                masks=np.array(all_masks, dtype=np.uint8),
+                labels=np.array(all_labels, dtype=np.int32),
+                scores=np.array(all_scores, dtype=np.float32),
+            )
+        else:
+            predictions[sample.uid] = PredictionResult(
+                masks=np.zeros((0, h, w), dtype=np.uint8),
+                labels=np.zeros(0, dtype=np.int32),
+                scores=np.zeros(0, dtype=np.float32),
+            )
 
     return predictions
 
@@ -492,7 +649,7 @@ def main():
     parser.add_argument("--data-dir", default="data/",
                         help="Data directory with image/ and annotation/ subfolders")
     parser.add_argument("--model", default=None,
-                        choices=["yolo", "unet"],
+                        choices=["yolo", "unet", "sam", "cellpose"],
                         help="Model type (required unless --plot-only or --from-predictions)")
     parser.add_argument("--checkpoint", default=None,
                         help="Path to model checkpoint")
@@ -504,6 +661,9 @@ def main():
     parser.add_argument("--unet-mode", default="semantic",
                         choices=["semantic", "multilabel"],
                         help="U-Net mode: semantic (softmax) or multilabel (sigmoid)")
+    parser.add_argument("--sam-type", default="vit_b",
+                        choices=["vit_b", "vit_l", "vit_h"],
+                        help="SAM model type (only used with --model sam)")
     parser.add_argument("--no-vis", action="store_true",
                         help="Skip saving visualization overlay images")
     parser.add_argument("--vis-dir", type=str, default=None,
@@ -512,6 +672,8 @@ def main():
                         help="Skip segmentation metric computation")
     parser.add_argument("--no-plots", action="store_true",
                         help="Skip metric plot generation")
+    parser.add_argument("--num-classes", type=int, default=4, choices=[4, 5],
+                        help="Number of target classes (4=standard, 5=with exodermis)")
     parser.add_argument("--plot-only", type=str, default=None,
                         help="Skip inference; regenerate plots from an existing metrics JSON file")
 
@@ -528,7 +690,7 @@ def main():
 
     # Split filtering
     parser.add_argument("--strategy", default=None,
-                        choices=["strategy1", "strategy2", "strategy3"],
+                        choices=["A", "B", "C"],
                         help="Dataset split strategy (use with --split)")
     parser.add_argument("--split", default="test",
                         choices=["train", "val", "test"],
@@ -591,11 +753,14 @@ def main():
     elif args.model == "unet":
         predictions = predict_unet(args.checkpoint, samples, args.img_size,
                                    unet_mode=args.unet_mode)
+    elif args.model == "sam":
+        predictions = predict_sam(args.checkpoint, samples, args.img_size,
+                                  sam_type=args.sam_type, num_classes=args.num_classes)
+    elif args.model == "cellpose":
+        predictions = predict_cellpose(args.checkpoint, samples, args.img_size,
+                                       num_classes=args.num_classes)
     else:
-        predict_fn = {
-            "yolo": predict_yolo,
-        }[args.model]
-        predictions = predict_fn(args.checkpoint, samples, args.img_size)
+        predictions = predict_yolo(args.checkpoint, samples, args.img_size)
 
     # Post-processing pipeline
     if args.no_postprocess:
@@ -618,9 +783,10 @@ def main():
 
     if not args.no_metrics:
         print("Computing metrics...")
+        target_classes = get_target_classes(args.num_classes)
         metrics = SegmentationMetrics(
-            num_classes=NUM_CLASSES,
-            class_names=TARGET_CLASSES,
+            num_classes=args.num_classes,
+            class_names=target_classes,
         )
 
         for sample in tqdm(samples, desc="Loading GT & scoring"):
@@ -634,7 +800,7 @@ def main():
                 img = load_sample_normalized(sample)
                 h, w = img.shape[:2]
 
-            gt = load_sample_annotations(sample, h, w)
+            gt = load_sample_annotations(sample, h, w, num_classes=args.num_classes)
 
             metrics.add_sample(
                 pred_masks=pred.masks,
@@ -647,7 +813,8 @@ def main():
                 sample_id=sample.uid,
             )
 
-            sm = _compute_sample_metrics(pred.masks, pred.labels, gt["masks"], gt["labels"])
+            sm = _compute_sample_metrics(pred.masks, pred.labels, gt["masks"], gt["labels"],
+                                        num_classes=args.num_classes)
             row = {
                 "sample_id": sample.uid,
                 "species": sample.species,
@@ -697,7 +864,7 @@ def main():
             vis_dir = Path(args.vis_dir)
         else:
             vis_dir = OUTPUT_DIR / "evaluation" / f"vis_{model_tag}"
-        save_visualizations(samples, predictions, vis_dir)
+        save_visualizations(samples, predictions, vis_dir, num_classes=args.num_classes)
 
 
 if __name__ == "__main__":

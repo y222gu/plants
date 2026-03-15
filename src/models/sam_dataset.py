@@ -53,12 +53,14 @@ class SAMDataset(Dataset):
         use_box_prompt: bool = True,
         use_point_prompt: bool = True,
         cache_size: int = 64,
+        num_classes: int = 4,
     ):
         self.samples = samples
         self.img_size = img_size
         self.points_per_mask = points_per_mask
         self.use_box_prompt = use_box_prompt
         self.use_point_prompt = use_point_prompt
+        self.num_classes = num_classes
         self._cache = _LRUCache(maxsize=cache_size)
 
         # Build index by parsing annotation text files only (no image loading)
@@ -67,9 +69,15 @@ class SAMDataset(Dataset):
             anns = parse_yolo_annotations(sample.annotation_path, 1, 1)
             # Count instances: class 0 and 1 directly, plus endodermis ring + vascular
             n_direct = sum(1 for a in anns if a["class_id"] in (0, 1))
-            has_outer = any(a["class_id"] == 2 for a in anns)
-            has_inner = any(a["class_id"] == 3 for a in anns)
-            n_derived = (1 if (has_outer and has_inner) else 0) + (1 if has_inner else 0)
+            has_outer_endo = any(a["class_id"] == 2 for a in anns)
+            has_inner_endo = any(a["class_id"] == 3 for a in anns)
+            n_derived = (1 if (has_outer_endo and has_inner_endo) else 0) + (1 if has_inner_endo else 0)
+            # Exodermis ring instance when 5-class mode
+            if num_classes >= 5:
+                has_outer_exo = any(a["class_id"] == 4 for a in anns)
+                has_inner_exo = any(a["class_id"] == 5 for a in anns)
+                if has_outer_exo and has_inner_exo:
+                    n_derived += 1
             n_instances = n_direct + n_derived
             for ii in range(n_instances):
                 self._index.append((si, ii))
@@ -81,7 +89,7 @@ class SAMDataset(Dataset):
         sample = self.samples[sample_idx]
         img = load_sample_normalized(sample)
         h, w = img.shape[:2]
-        ann = load_sample_annotations(sample, h, w)
+        ann = load_sample_annotations(sample, h, w, num_classes=self.num_classes)
         self._cache.put(sample_idx, (img, ann))
         return img, ann
 

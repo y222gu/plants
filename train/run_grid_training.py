@@ -1,11 +1,45 @@
-"""Grid training: run all model/mode/strategy combinations sequentially.
+"""Grid training: Strategy A benchmark runs (1-5) sequentially.
 
 Each run trains a model and then evaluates on the test set.
 
+Hyperparameter Table (Runs 1-5, Strategy A Benchmark):
+┌─────┬────────────────────────┬────────┬────┬─────┬──────┬─────────┬──────────┬─────┬────────┬─────────┬────────┬───────────┐
+│ Run │ Model                  │ Arch   │ NC │ MLos│ ImgSz│ Epochs  │ Patience │ BS  │ LR     │ Backbone│ WD     │ Params    │
+├─────┼────────────────────────┼────────┼────┼─────┼──────┼─────────┼──────────┼─────┼────────┼─────────┼────────┼───────────┤
+│ 1   │ YOLO11m-seg            │ —      │  4 │ —   │ 1024 │ 300     │ 15       │ 16  │ (auto) │ (auto)  │ 5e-4   │ 22.4M     │
+│ 2   │ U-Net++ multilabel     │ res34  │  4 │ No  │ 1024 │ 300     │ 15       │ 16  │ 1e-4   │ 1e-5    │ 1e-4   │ 24.4M     │
+│ 3   │ U-Net++ multilabel     │ res34  │  5 │ Yes │ 1024 │ 300     │ 15       │ 16  │ 1e-4   │ 1e-5    │ 1e-4   │ 24.4M     │
+│ 4   │ SAM vit_b              │ —      │  5 │ —   │ 1024 │ 300     │ 15       │ 8   │ 1e-4   │ frozen  │ 1e-4   │ 4.1M/93.7M│
+│ 5   │ Cellpose v3 per-class  │ cyto3  │  5 │ —   │ 1024 │ 150     │ —        │ 8   │ 0.1    │ —       │ 1e-4   │ ~13M      │
+└─────┴────────────────────────┴────────┴────┴─────┴──────┴─────────┴──────────┴─────┴────────┴─────────┴────────┴───────────┘
+
+NC = num_classes, MLos = masked loss, BS = batch size, WD = weight decay, res34 = resnet34
+Params = trainable parameters (SAM: trainable/total). YOLO and U-Net++ are fully fine-tuned.
+U-Net++ BCE pos_weight: [1, 2, 5, 1] (4c) or [1, 2, 5, 1, 5] (5c). BCE:Dice ratio = 1:1.
+SAM image encoder is frozen; only mask decoder (+ optionally prompt encoder) is trained.
+
+Training Config (Optimizer, Scheduler, Checkpointing, Outputs):
+┌─────┬───────┬──────────────────┬──────────┬──────────────────┬─────────┬──────────────────────────────────┐
+│ Run │ Optim │ Scheduler        │ Loss     │ Early Stop       │ SaveEvr │ Output Files                     │
+├─────┼───────┼──────────────────┼──────────┼──────────────────┼─────────┼──────────────────────────────────┤
+│ 1   │ SGD   │ (auto/YOLO)      │ YOLO     │ mAP (Ultralytics)│ 50 ep   │ confusion_matrix, PR curves,     │
+│     │       │                  │          │                  │         │ loss curves, label plots (auto)  │
+│ 2-3 │ AdamW │ Cosine (1e-7)    │ BCE+Dice │ val_loss (PL)    │ 50 ep   │ metrics.csv, loss_curve.png      │
+│     │       │                  │          │                  │         │ best + last + periodic ckpts     │
+│ 4   │ AdamW │ Cosine (1e-7)    │ BCE+Dice │ val_loss (manual)│ 50 ep   │ training_history.json,           │
+│     │       │                  │          │                  │         │ loss_curve.png, best + periodic  │
+│ 5   │ AdamW │ (auto/Cellpose)  │ Flow     │ None (fixed ep.) │ (auto)  │ training_history.json,           │
+│     │       │                  │          │                  │         │ loss_curve.png, test_results.json│
+└─────┴───────┴──────────────────┴──────────┴──────────────────┴─────────┴──────────────────────────────────┘
+
+evaluate.py outputs (per run): metrics.json, per_sample.csv, per_class_comparison.[png|pdf],
+summary_comparison.[png|pdf], species_microscope_comparison.[png|pdf], vis/ overlay PNGs.
+PL = PyTorch Lightning. Cosine = CosineAnnealingLR. SaveEvr = --save-every (periodic checkpoints).
+
 Usage:
-    python run_grid_training.py                     # Run all 6 combinations
+    python run_grid_training.py                     # Run all 5 benchmark runs
     python run_grid_training.py --only 1 3          # Run only runs #1 and #3
-    python run_grid_training.py --skip 5 6          # Skip YOLO runs
+    python run_grid_training.py --skip 4 5          # Skip SAM and Cellpose
     python run_grid_training.py --epochs 5          # Quick test with 5 epochs
 """
 
@@ -17,105 +51,155 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import OUTPUT_DIR
-
 _TRAIN_DIR = str(Path(__file__).resolve().parent)
 _PROJECT_DIR = str(Path(__file__).resolve().parent.parent)
 
-# Grid definition: (name, train_cmd, eval_cmd)
+# ── Strategy A Benchmark Grid (Runs 1-5) ─────────────────────────────────────
+
 GRID = [
     {
         "id": 1,
-        "name": "UNet Multilabel Strategy1",
+        "name": "YOLO11m-seg (4-class)",
         "train": [
-            sys.executable, f"{_TRAIN_DIR}/train_unet.py",
-            "--mode", "multilabel", "--strategy", "strategy1",
+            sys.executable, f"{_TRAIN_DIR}/train_yolo.py",
+            "--strategy", "A",
+            "--model", "yolo11m-seg",
+            "--num-classes", "4",
+            "--img-size", "1024",
+            "--batch-size", "16",
+            "--epochs", "300",
+            "--patience", "15",
+            "--save-every", "50",
         ],
         "eval": [
             sys.executable, f"{_PROJECT_DIR}/evaluate.py",
-            "--model", "unet", "--unet-mode", "multilabel",
-            "--strategy", "strategy1", "--no-vis",
+            "--model", "yolo",
+            "--strategy", "A",
+            "--num-classes", "4",
+            "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/unet/unet_resnet34_strategy1_multilabel/checkpoints/best-*.ckpt",
+        "checkpoint_pattern": "output/runs/yolo/yolo11m-seg_A/weights/best.pt",
     },
     {
         "id": 2,
-        "name": "UNet Multilabel Strategy2",
+        "name": "U-Net++ multilabel 4-class",
         "train": [
             sys.executable, f"{_TRAIN_DIR}/train_unet.py",
-            "--mode", "multilabel", "--strategy", "strategy2",
+            "--mode", "multilabel",
+            "--arch", "unetplusplus",
+            "--encoder", "resnet34",
+            "--strategy", "A",
+            "--num-classes", "4",
+            "--img-size", "1024",
+            "--batch-size", "16",
+            "--epochs", "300",
+            "--lr", "1e-4",
+            "--backbone-lr", "1e-5",
+            "--weight-decay", "1e-4",
+            "--patience", "15",
+            "--save-every", "50",
         ],
         "eval": [
             sys.executable, f"{_PROJECT_DIR}/evaluate.py",
             "--model", "unet", "--unet-mode", "multilabel",
-            "--strategy", "strategy2", "--no-vis",
+            "--strategy", "A",
+            "--num-classes", "4",
+            "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/unet/unet_resnet34_strategy2_multilabel/checkpoints/best-*.ckpt",
+        "checkpoint_pattern": "output/runs/unet/unetplusplus_resnet34_A_multilabel_c4/checkpoints/best-*.ckpt",
     },
     {
         "id": 3,
-        "name": "UNet Semantic Strategy1",
+        "name": "U-Net++ multilabel 5-class masked",
         "train": [
             sys.executable, f"{_TRAIN_DIR}/train_unet.py",
-            "--mode", "semantic", "--strategy", "strategy1",
+            "--mode", "multilabel",
+            "--arch", "unetplusplus",
+            "--encoder", "resnet34",
+            "--strategy", "A",
+            "--num-classes", "5",
+            "--mask-missing",
+            "--img-size", "1024",
+            "--batch-size", "16",
+            "--epochs", "300",
+            "--lr", "1e-4",
+            "--backbone-lr", "1e-5",
+            "--weight-decay", "1e-4",
+            "--patience", "15",
+            "--save-every", "50",
         ],
         "eval": [
             sys.executable, f"{_PROJECT_DIR}/evaluate.py",
-            "--model", "unet", "--unet-mode", "semantic",
-            "--strategy", "strategy1", "--no-vis",
+            "--model", "unet", "--unet-mode", "multilabel",
+            "--strategy", "A",
+            "--num-classes", "5",
+            "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/unet/unet_resnet34_strategy1_semantic/checkpoints/best-*.ckpt",
+        "checkpoint_pattern": "output/runs/unet/unetplusplus_resnet34_A_multilabel_c5_masked/checkpoints/best-*.ckpt",
     },
     {
         "id": 4,
-        "name": "UNet Semantic Strategy2",
+        "name": "SAM vit_b (5-class)",
         "train": [
-            sys.executable, f"{_TRAIN_DIR}/train_unet.py",
-            "--mode", "semantic", "--strategy", "strategy2",
+            sys.executable, f"{_TRAIN_DIR}/train_sam.py",
+            "--strategy", "A",
+            "--sam-type", "vit_b",
+            "--num-classes", "5",
+            "--img-size", "1024",
+            "--batch-size", "8",
+            "--epochs", "300",
+            "--lr", "1e-4",
+            "--weight-decay", "1e-4",
+            "--patience", "15",
+            "--save-every", "50",
         ],
         "eval": [
             sys.executable, f"{_PROJECT_DIR}/evaluate.py",
-            "--model", "unet", "--unet-mode", "semantic",
-            "--strategy", "strategy2", "--no-vis",
+            "--model", "sam",
+            "--sam-type", "vit_b",
+            "--strategy", "A",
+            "--num-classes", "5",
+            "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/unet/unet_resnet34_strategy2_semantic/checkpoints/best-*.ckpt",
+        "checkpoint_pattern": "output/runs/sam/sam_vit_b_A_c5/best.pth",
     },
     {
         "id": 5,
-        "name": "YOLO Strategy1",
+        "name": "Cellpose v3 per-class (5-class)",
         "train": [
-            sys.executable, f"{_TRAIN_DIR}/train_yolo.py",
-            "--strategy", "strategy1",
+            sys.executable, f"{_TRAIN_DIR}/train_cellpose.py",
+            "--strategy", "A",
+            "--version", "3",
+            "--all-classes",
+            "--num-classes", "5",
+            "--img-size", "1024",
+            "--batch-size", "8",
+            "--epochs", "150",
+            "--lr", "0.1",
         ],
         "eval": [
             sys.executable, f"{_PROJECT_DIR}/evaluate.py",
-            "--model", "yolo",
-            "--strategy", "strategy1", "--no-vis",
+            "--model", "cellpose",
+            "--strategy", "A",
+            "--num-classes", "5",
+            "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/yolo/yolo11m-seg_strategy1/weights/best.pt",
-    },
-    {
-        "id": 6,
-        "name": "YOLO Strategy2",
-        "train": [
-            sys.executable, f"{_TRAIN_DIR}/train_yolo.py",
-            "--strategy", "strategy2",
-        ],
-        "eval": [
-            sys.executable, f"{_PROJECT_DIR}/evaluate.py",
-            "--model", "yolo",
-            "--strategy", "strategy2", "--no-vis",
-        ],
-        "checkpoint_pattern": "output/runs/yolo/yolo11m-seg_strategy2/weights/best.pt",
+        "checkpoint_pattern": "output/runs/cellpose/",
     },
 ]
 
 
 def find_checkpoint(pattern: str) -> str:
-    """Find the best checkpoint file matching a glob pattern."""
-    import glob
+    """Find the best checkpoint file or directory matching a glob pattern."""
+    if pattern is None:
+        return ""
     base = Path(__file__).parent.parent
-    matches = sorted(glob.glob(str(base / pattern)))
+    full_path = base / pattern
+    # If pattern points to a directory (e.g. Cellpose), return it directly
+    if full_path.is_dir():
+        return str(full_path)
+    import glob
+    matches = sorted(glob.glob(str(full_path)))
     if not matches:
         # Also try "last.ckpt" for Lightning
         last = Path(pattern).parent / "last.ckpt"
@@ -126,7 +210,7 @@ def find_checkpoint(pattern: str) -> str:
 
 
 def run_command(cmd, label, extra_args=None):
-    """Run a command and return (success, elapsed_seconds, output)."""
+    """Run a command and return (success, elapsed_seconds)."""
     if extra_args:
         cmd = cmd + extra_args
     print(f"\n{'=' * 70}")
@@ -163,9 +247,9 @@ def format_time(seconds):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Grid training for all model combinations")
+    parser = argparse.ArgumentParser(description="Grid training for Strategy A benchmark (runs 1-5)")
     parser.add_argument("--only", nargs="+", type=int, default=None,
-                        help="Only run these run IDs (1-6)")
+                        help="Only run these run IDs (1-5)")
     parser.add_argument("--skip", nargs="+", type=int, default=None,
                         help="Skip these run IDs")
     parser.add_argument("--epochs", type=int, default=None,
@@ -224,7 +308,7 @@ def main():
                 continue
 
         # Evaluation
-        if not args.train_only:
+        if not args.train_only and run["eval"] is not None:
             checkpoint = find_checkpoint(run["checkpoint_pattern"])
             if not checkpoint:
                 print(f"No checkpoint found for #{run['id']}: {run['name']}")
@@ -239,6 +323,8 @@ def main():
             )
             run_result["eval_ok"] = ok
             run_result["eval_time"] = elapsed
+        elif run["eval"] is None:
+            run_result["eval_ok"] = None  # No separate eval step
 
         results.append(run_result)
 
@@ -248,12 +334,12 @@ def main():
     print("\n" + "=" * 80)
     print("GRID TRAINING SUMMARY")
     print("=" * 80)
-    print(f"{'#':<3} {'Name':<30} {'Train':<8} {'T.Time':<10} {'Eval':<8} {'E.Time':<10}")
+    print(f"{'#':<3} {'Name':<38} {'Train':<8} {'T.Time':<10} {'Eval':<8} {'E.Time':<10}")
     print("-" * 80)
     for r in results:
         train_str = "OK" if r["train_ok"] else ("FAIL" if r["train_ok"] is False else "SKIP")
-        eval_str = "OK" if r["eval_ok"] else ("FAIL" if r["eval_ok"] is False else "SKIP")
-        print(f"{r['id']:<3} {r['name']:<30} {train_str:<8} "
+        eval_str = "OK" if r["eval_ok"] else ("FAIL" if r["eval_ok"] is False else ("N/A" if r["eval_ok"] is None else "SKIP"))
+        print(f"{r['id']:<3} {r['name']:<38} {train_str:<8} "
               f"{format_time(r['train_time']):<10} {eval_str:<8} "
               f"{format_time(r['eval_time']):<10}")
     print("-" * 80)

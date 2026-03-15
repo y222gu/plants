@@ -71,12 +71,16 @@ def polygons_to_instance_masks(
     annotations: List[Dict],
     h: int,
     w: int,
+    num_classes: int = 4,
 ) -> Dict[str, np.ndarray]:
     """Convert YOLO annotations to instance masks with target class mapping.
 
     Handles endodermis ring derivation:
     - Annotated class 2 (Outer Endo) + class 3 (Inner Endo) → target class 2 (ring)
     - Annotated class 3 (Inner Endo) → target class 3 (Vascular)
+
+    When num_classes >= 5, also derives exodermis ring:
+    - Annotated class 4 (Outer Exo) + class 5 (Inner Exo) → target class 4 (ring)
 
     Returns:
         Dict with:
@@ -90,6 +94,8 @@ def polygons_to_instance_masks(
     # Separate annotations by class
     outer_endo = None
     inner_endo = None
+    outer_exo = None
+    inner_exo = None
     others = []
 
     for ann in annotations:
@@ -98,6 +104,10 @@ def polygons_to_instance_masks(
             outer_endo = ann["polygon"]
         elif cid == 3:
             inner_endo = ann["polygon"]
+        elif cid == 4:
+            outer_exo = ann["polygon"]
+        elif cid == 5:
+            inner_exo = ann["polygon"]
         else:
             others.append(ann)
 
@@ -123,6 +133,15 @@ def polygons_to_instance_masks(
         if vasc_mask.sum() > 0:
             masks_list.append(vasc_mask)
             labels_list.append(3)  # Vascular
+
+    # Exodermis ring: outer - inner (target class 4), only when 5-class mode
+    if num_classes >= 5 and outer_exo is not None and inner_exo is not None:
+        outer_mask = polygon_to_mask(outer_exo, h, w)
+        inner_mask = polygon_to_mask(inner_exo, h, w)
+        ring_mask = np.clip(outer_mask.astype(np.int8) - inner_mask.astype(np.int8), 0, 1).astype(np.uint8)
+        if ring_mask.sum() > 0:
+            masks_list.append(ring_mask)
+            labels_list.append(4)  # Exodermis
 
     if not masks_list:
         return {
@@ -161,21 +180,24 @@ def polygons_to_semantic_mask(
     annotations: List[Dict],
     h: int,
     w: int,
+    num_classes: int = 4,
 ) -> np.ndarray:
     """Convert YOLO annotations to a semantic segmentation mask.
 
     Priority (painted in order, later overwrites): background(0) < whole root(1)
-    < aerenchyma(2) < endodermis(3) < vascular(4).
+    < aerenchyma(2) < endodermis(3) < vascular(4) [< exodermis(5) if num_classes>=5].
 
     Note: semantic mask uses 0=background, classes shifted by +1.
 
     Returns:
-        (H, W) int32 semantic mask. 0=background, 1-4=classes 0-3.
+        (H, W) int32 semantic mask. 0=background, 1-4 (or 1-5) = target classes.
     """
     sem = np.zeros((h, w), dtype=np.int32)
 
     outer_endo = None
     inner_endo = None
+    outer_exo = None
+    inner_exo = None
 
     # Paint in priority order
     # 1. Whole Root (class 0 → label 1)
@@ -184,7 +206,7 @@ def polygons_to_semantic_mask(
             mask = polygon_to_mask(ann["polygon"], h, w)
             sem[mask > 0] = 1
 
-    # 2. Aerenchyma (class 1 → label 2)
+    # 2. Aerenchyma (class 1 → label 2) + collect ring annotations
     for ann in annotations:
         if ann["class_id"] == 1:
             mask = polygon_to_mask(ann["polygon"], h, w)
@@ -193,6 +215,10 @@ def polygons_to_semantic_mask(
             outer_endo = ann["polygon"]
         elif ann["class_id"] == 3:
             inner_endo = ann["polygon"]
+        elif ann["class_id"] == 4:
+            outer_exo = ann["polygon"]
+        elif ann["class_id"] == 5:
+            inner_exo = ann["polygon"]
 
     # 3. Endodermis ring (→ label 3)
     if outer_endo is not None and inner_endo is not None:
@@ -206,6 +232,13 @@ def polygons_to_semantic_mask(
         vasc_m = polygon_to_mask(inner_endo, h, w)
         sem[vasc_m > 0] = 4
 
+    # 5. Exodermis ring (→ label 5), only when 5-class mode
+    if num_classes >= 5 and outer_exo is not None and inner_exo is not None:
+        outer_m = polygon_to_mask(outer_exo, h, w)
+        inner_m = polygon_to_mask(inner_exo, h, w)
+        ring = np.clip(outer_m.astype(np.int8) - inner_m.astype(np.int8), 0, 1)
+        sem[ring > 0] = 5
+
     return sem
 
 
@@ -213,25 +246,29 @@ def polygons_to_multilabel_mask(
     annotations: List[Dict],
     h: int,
     w: int,
+    num_classes: int = 4,
 ) -> np.ndarray:
     """Convert YOLO annotations to multi-label mask with independent channels.
 
     Each pixel can belong to multiple classes (e.g., aerenchyma is also inside
-    the whole root). Returns 4 binary channels with sigmoid-compatible targets.
+    the whole root). Returns binary channels with sigmoid-compatible targets.
 
     Channel mapping:
         0: Whole Root (entire root area)
         1: Aerenchyma (air spaces — also marked in ch0)
         2: Endodermis ring (outer - inner endo — also marked in ch0)
         3: Vascular (inner endo area — also marked in ch0)
+        4: Exodermis ring (outer - inner exo — only when num_classes >= 5)
 
     Returns:
-        (4, H, W) float32 mask with values 0.0 or 1.0.
+        (num_classes, H, W) float32 mask with values 0.0 or 1.0.
     """
-    multilabel = np.zeros((4, h, w), dtype=np.float32)
+    multilabel = np.zeros((num_classes, h, w), dtype=np.float32)
 
     outer_endo = None
     inner_endo = None
+    outer_exo = None
+    inner_exo = None
 
     for ann in annotations:
         cid = ann["class_id"]
@@ -247,6 +284,10 @@ def polygons_to_multilabel_mask(
             outer_endo = ann["polygon"]
         elif cid == 3:
             inner_endo = ann["polygon"]
+        elif cid == 4:
+            outer_exo = ann["polygon"]
+        elif cid == 5:
+            inner_exo = ann["polygon"]
 
     # Endodermis ring: outer - inner (channel 2)
     if outer_endo is not None and inner_endo is not None:
@@ -264,6 +305,15 @@ def polygons_to_multilabel_mask(
         # Vascular is inside whole root
         multilabel[0][vasc_mask > 0] = 1.0
 
+    # Exodermis ring: outer - inner (channel 4), only when 5-class mode
+    if num_classes >= 5 and outer_exo is not None and inner_exo is not None:
+        outer_mask = polygon_to_mask(outer_exo, h, w)
+        inner_mask = polygon_to_mask(inner_exo, h, w)
+        ring = np.clip(outer_mask.astype(np.int8) - inner_mask.astype(np.int8), 0, 1)
+        multilabel[4][ring > 0] = 1.0
+        # Exodermis is inside whole root
+        multilabel[0][ring > 0] = 1.0
+
     return multilabel
 
 
@@ -271,15 +321,17 @@ def load_sample_annotations(
     sample: SampleRecord,
     img_h: int,
     img_w: int,
+    num_classes: int = 4,
 ) -> Dict[str, np.ndarray]:
     """Load and convert annotations for a sample to instance masks.
 
     Args:
         sample: SampleRecord with annotation_path.
         img_h, img_w: Image dimensions.
+        num_classes: Number of target classes (4 or 5).
 
     Returns:
         Dict with masks, labels, boxes arrays.
     """
     anns = parse_yolo_annotations(sample.annotation_path, img_w, img_h)
-    return polygons_to_instance_masks(anns, img_h, img_w)
+    return polygons_to_instance_masks(anns, img_h, img_w, num_classes=num_classes)

@@ -4,8 +4,8 @@ Freezes the image encoder, pre-computes embeddings, fine-tunes mask decoder
 (and optionally prompt encoder). Uses point and box prompts from GT masks.
 
 Usage:
-    python train_sam.py --strategy strategy1
-    python train_sam.py --strategy strategy1 --unfreeze-prompt-encoder --epochs 50
+    python train_sam.py --strategy A
+    python train_sam.py --strategy A --unfreeze-prompt-encoder --epochs 50
 """
 
 import sys
@@ -109,7 +109,8 @@ def precompute_embeddings(model, dataset, device, batch_size=4):
     return EmbeddingDataset(embeddings, gt_masks, point_coords, point_labels, boxes)
 
 
-def train_one_epoch(model, dataloader, optimizer, device, dice_loss_fn, scaler):
+def train_one_epoch(model, dataloader, optimizer, device, dice_loss_fn, scaler,
+                    bce_weight=1.0, dice_weight=1.0):
     model.train()
     # Keep image encoder in eval mode (frozen)
     model.image_encoder.eval()
@@ -150,7 +151,7 @@ def train_one_epoch(model, dataloader, optimizer, device, dice_loss_fn, scaler):
                 target = gt_masks[i:i+1]
                 bce = F.binary_cross_entropy_with_logits(pred_mask, target)
                 dice = dice_loss_fn(pred_mask, target)
-                losses.append(bce + dice)
+                losses.append(bce_weight * bce + dice_weight * dice)
 
             batch_loss = torch.stack(losses).mean()
 
@@ -166,7 +167,7 @@ def train_one_epoch(model, dataloader, optimizer, device, dice_loss_fn, scaler):
 
 
 @torch.no_grad()
-def validate(model, dataloader, device, dice_loss_fn):
+def validate(model, dataloader, device, dice_loss_fn, bce_weight=1.0, dice_weight=1.0):
     model.eval()
     total_loss = 0.0
     n_batches = 0
@@ -204,7 +205,7 @@ def validate(model, dataloader, device, dice_loss_fn):
                 target = gt_masks[i:i+1]
                 bce = F.binary_cross_entropy_with_logits(pred_mask, target)
                 dice = dice_loss_fn(pred_mask, target)
-                total_loss += (bce + dice).item()
+                total_loss += (bce_weight * bce + dice_weight * dice).item()
                 n_batches += 1
 
     return total_loss / max(n_batches, 1)
@@ -212,8 +213,8 @@ def validate(model, dataloader, device, dice_loss_fn):
 
 def main():
     parser = argparse.ArgumentParser(description="SAM fine-tuning")
-    parser.add_argument("--strategy", default="strategy1",
-                        choices=["strategy1", "strategy2", "strategy3"])
+    parser.add_argument("--strategy", default="A",
+                        choices=["A", "B", "C"])
     parser.add_argument("--species", default=None)
     parser.add_argument("--sam-type", default="vit_b",
                         choices=["vit_b", "vit_l", "vit_h"])
@@ -226,7 +227,20 @@ def main():
                         help="Batch size (embeddings are small, can use larger batches)")
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--patience", type=int, default=DEFAULT_PATIENCE)
+    parser.add_argument("--weight-decay", type=float, default=1e-4)
+    parser.add_argument("--optimizer", default="adamw", choices=["adamw", "adam", "sgd"])
+    parser.add_argument("--scheduler", default="cosine", choices=["cosine", "step", "plateau"])
+    parser.add_argument("--eta-min", type=float, default=1e-7,
+                        help="Minimum LR for cosine scheduler")
+    parser.add_argument("--bce-weight", type=float, default=1.0,
+                        help="Weight for BCE loss term")
+    parser.add_argument("--dice-weight", type=float, default=1.0,
+                        help="Weight for Dice loss term")
+    parser.add_argument("--num-classes", type=int, default=4, choices=[4, 5],
+                        help="Number of target classes (4=standard, 5=with exodermis)")
     parser.add_argument("--unfreeze-prompt-encoder", action="store_true")
+    parser.add_argument("--save-every", type=int, default=50,
+                        help="Save periodic checkpoint every N epochs (0 to disable)")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -281,8 +295,8 @@ def main():
     split = get_split(args.strategy, registry, seed=args.seed, species=args.species)
     print_split_summary(split)
 
-    train_ds = SAMDataset(split["train"], img_size=args.img_size)
-    val_ds = SAMDataset(split["val"], img_size=args.img_size)
+    train_ds = SAMDataset(split["train"], img_size=args.img_size, num_classes=args.num_classes)
+    val_ds = SAMDataset(split["val"], img_size=args.img_size, num_classes=args.num_classes)
 
     # Pre-compute image embeddings (one-time cost, skips encoder during training)
     train_emb_ds = precompute_embeddings(model, train_ds, device, batch_size=4)
@@ -294,15 +308,27 @@ def main():
                         num_workers=0, pin_memory=True)
 
     # Optimizer
-    optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=args.epochs, eta_min=1e-7,
-    )
+    if args.optimizer == "adamw":
+        optimizer = torch.optim.AdamW(trainable_params, lr=args.lr, weight_decay=args.weight_decay)
+    elif args.optimizer == "adam":
+        optimizer = torch.optim.Adam(trainable_params, lr=args.lr, weight_decay=args.weight_decay)
+    elif args.optimizer == "sgd":
+        optimizer = torch.optim.SGD(trainable_params, lr=args.lr, weight_decay=args.weight_decay,
+                                    momentum=0.9)
+    if args.scheduler == "cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=args.epochs, eta_min=args.eta_min)
+    elif args.scheduler == "step":
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size=max(args.epochs // 3, 1), gamma=0.1)
+    elif args.scheduler == "plateau":
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode="min", factor=0.5, patience=10)
     dice_loss_fn = DiceLoss()
     scaler = torch.amp.GradScaler("cuda")
 
     # Training loop
-    run_name = f"sam_{args.sam_type}_{args.strategy}"
+    run_name = f"sam_{args.sam_type}_{args.strategy}_c{args.num_classes}"
     if args.species:
         run_name += f"_{args.species}"
     run_dir = OUTPUT_DIR / "runs" / "sam" / run_name
@@ -315,9 +341,14 @@ def main():
     for epoch in range(args.epochs):
         print(f"\nEpoch {epoch+1}/{args.epochs}")
 
-        train_loss = train_one_epoch(model, train_dl, optimizer, device, dice_loss_fn, scaler)
-        val_loss = validate(model, val_dl, device, dice_loss_fn)
-        scheduler.step()
+        train_loss = train_one_epoch(model, train_dl, optimizer, device, dice_loss_fn, scaler,
+                                     bce_weight=args.bce_weight, dice_weight=args.dice_weight)
+        val_loss = validate(model, val_dl, device, dice_loss_fn,
+                            bce_weight=args.bce_weight, dice_weight=args.dice_weight)
+        if args.scheduler == "plateau":
+            scheduler.step(val_loss)
+        else:
+            scheduler.step()
 
         history["train_loss"].append(train_loss)
         history["val_loss"].append(val_loss)
@@ -335,6 +366,11 @@ def main():
             if patience_counter >= args.patience:
                 print(f"\nEarly stopping at epoch {epoch+1}")
                 break
+
+        # Periodic checkpoint
+        if args.save_every > 0 and (epoch + 1) % args.save_every == 0:
+            torch.save(model.state_dict(), run_dir / f"epoch_{epoch+1}.pth")
+            print(f"  Saved periodic checkpoint (epoch {epoch+1})")
 
     # Save training history
     with open(run_dir / "training_history.json", "w") as f:

@@ -9,7 +9,7 @@ import numpy as np
 from pycocotools import mask as mask_util
 
 from ..annotation_utils import load_sample_annotations
-from ..config import OUTPUT_DIR, TARGET_CLASSES, SampleRecord
+from ..config import OUTPUT_DIR, SampleRecord, get_target_classes
 from ..preprocessing import load_sample_normalized, to_uint8
 
 
@@ -25,6 +25,7 @@ def export_coco_dataset(
     splits: Dict[str, List[SampleRecord]],
     output_dir: Path = None,
     img_size: int = 1024,
+    num_classes: int = 4,
 ) -> Dict[str, Path]:
     """Export samples to COCO format with images + annotation JSON.
 
@@ -38,9 +39,10 @@ def export_coco_dataset(
         output_dir = OUTPUT_DIR / "coco_dataset"
 
     # COCO categories (1-indexed)
+    target_classes = get_target_classes(num_classes)
     categories = [
         {"id": cls_id + 1, "name": name}
-        for cls_id, name in TARGET_CLASSES.items()
+        for cls_id, name in target_classes.items()
     ]
 
     json_paths = {}
@@ -78,7 +80,7 @@ def export_coco_dataset(
             })
 
             # Get instance masks (with endodermis subtraction)
-            ann_data = load_sample_annotations(sample, orig_h, orig_w)
+            ann_data = load_sample_annotations(sample, orig_h, orig_w, num_classes=num_classes)
             masks = ann_data["masks"]
             labels = ann_data["labels"]
             boxes = ann_data["boxes"]

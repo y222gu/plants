@@ -64,7 +64,8 @@ def convert_semantic_to_instances(
 ) -> PredictionResult:
     """Convert semantic mask to instance predictions.
 
-    Semantic mask: 0=bg, 1=whole root, 2=aerenchyma, 3=endodermis, 4=vascular.
+    Semantic mask: 0=bg, 1=whole root, 2=aerenchyma, 3=endodermis, 4=vascular
+    [, 5=exodermis].
     Connected components used for aerenchyma (class 1) which has multiple instances.
     """
     masks_list = []
@@ -72,8 +73,6 @@ def convert_semantic_to_instances(
     scores_list = []
 
     # Class 0 (Whole Root) — union of all non-background pixels
-    # In semantic segmentation, sem_mask==1 is just the cortex portion;
-    # the full root boundary includes aerenchyma, endo, and vascular too.
     wr = (sem_mask >= 1).astype(np.uint8)
     if wr.sum() > 0:
         masks_list.append(wr)
@@ -85,19 +84,14 @@ def convert_semantic_to_instances(
     vasc = (sem_mask == 4).astype(np.uint8)
 
     # Class 1 (Aerenchyma) — multiple instances (semantic label 2)
-    # Post-processing: morphological cleanup + anatomical constraints
     aer = (sem_mask == 2).astype(np.uint8)
     if aer.sum() > 0:
-        # Morphological closing (fill holes) + opening (remove fragments)
-        kern_size = max(5, int(min(sem_mask.shape) * 0.005) | 1)  # ensure odd
+        kern_size = max(5, int(min(sem_mask.shape) * 0.005) | 1)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
         aer = cv2.morphologyEx(aer, cv2.MORPH_CLOSE, kernel, iterations=2)
         aer = cv2.morphologyEx(aer, cv2.MORPH_OPEN, kernel, iterations=1)
-
-        # Clip: aerenchyma must be inside whole root, outside endodermis/vascular
         aer = aer & wr & (~endo.astype(bool)).astype(np.uint8) & (~vasc.astype(bool)).astype(np.uint8)
 
-        # Minimum area: filter components smaller than 0.01% of image area
         min_area = max(50, int(sem_mask.shape[0] * sem_mask.shape[1] * 0.0001))
         n_components, component_map = cv2.connectedComponents(aer)
         for comp_id in range(1, n_components):
@@ -108,15 +102,11 @@ def convert_semantic_to_instances(
                 scores_list.append(score)
 
     # Class 2 (Endodermis) — single ring instance (semantic label 3)
-    # Morphological closing connects fragmented endodermis pixels into a ring,
-    # then subtract the vascular interior to preserve the ring shape.
     if endo.sum() > 0:
-        kern_size = max(7, int(min(sem_mask.shape) * 0.01) | 1)  # larger kernel for ring
+        kern_size = max(7, int(min(sem_mask.shape) * 0.01) | 1)
         endo_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
         endo = cv2.morphologyEx(endo, cv2.MORPH_CLOSE, endo_kernel, iterations=3)
-        # Remove small isolated fragments
         endo = cv2.morphologyEx(endo, cv2.MORPH_OPEN, endo_kernel, iterations=1)
-        # Clip to inside root, outside vascular
         endo = endo & wr & (~vasc.astype(bool)).astype(np.uint8)
         if endo.sum() > 0:
             masks_list.append(endo)
@@ -128,6 +118,20 @@ def convert_semantic_to_instances(
         masks_list.append(vasc)
         labels_list.append(3)
         scores_list.append(score)
+
+    # Class 4 (Exodermis) — single ring instance (semantic label 5)
+    exo = (sem_mask == 5).astype(np.uint8)
+    if exo.sum() > 0:
+        kern_size = max(7, int(min(sem_mask.shape) * 0.01) | 1)
+        exo_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
+        exo = cv2.morphologyEx(exo, cv2.MORPH_CLOSE, exo_kernel, iterations=3)
+        exo = cv2.morphologyEx(exo, cv2.MORPH_OPEN, exo_kernel, iterations=1)
+        if wr.sum() > 0:
+            exo = exo & wr
+        if exo.sum() > 0:
+            masks_list.append(exo)
+            labels_list.append(4)
+            scores_list.append(score)
 
     if not masks_list:
         h, w = sem_mask.shape
@@ -148,9 +152,9 @@ def convert_multilabel_to_instances(
     ml_mask: np.ndarray,
     score: float = 1.0,
 ) -> PredictionResult:
-    """Convert multilabel mask (4, H, W) to instance predictions.
+    """Convert multilabel mask (C, H, W) to instance predictions.
 
-    Channels: 0=whole_root, 1=aerenchyma, 2=endodermis, 3=vascular.
+    Channels: 0=whole_root, 1=aerenchyma, 2=endodermis, 3=vascular [, 4=exodermis].
     Each channel is thresholded at 0.5 and converted to instances.
     Aerenchyma uses connected components; others are single instances.
     """
@@ -158,6 +162,7 @@ def convert_multilabel_to_instances(
     labels_list = []
     scores_list = []
 
+    num_channels = ml_mask.shape[0]
     h, w = ml_mask.shape[1], ml_mask.shape[2]
 
     # Channel 0: Whole Root (single instance)
@@ -176,17 +181,14 @@ def convert_multilabel_to_instances(
     # Channel 1: Aerenchyma (multiple instances via connected components)
     aer = (ml_mask[1] > 0.5).astype(np.uint8)
     if aer.sum() > 0:
-        # Morphological cleanup
         kern_size = max(5, int(min(h, w) * 0.005) | 1)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
         aer = cv2.morphologyEx(aer, cv2.MORPH_CLOSE, kernel, iterations=2)
         aer = cv2.morphologyEx(aer, cv2.MORPH_OPEN, kernel, iterations=1)
 
-        # Clip: aerenchyma must be inside whole root, outside endo/vascular
         if wr.sum() > 0:
             aer = aer & wr & (~endo.astype(bool)).astype(np.uint8) & (~vasc.astype(bool)).astype(np.uint8)
 
-        # Connected components with minimum area filter
         min_area = max(50, int(h * w * 0.0001))
         n_components, component_map = cv2.connectedComponents(aer)
         for comp_id in range(1, n_components):
@@ -198,12 +200,10 @@ def convert_multilabel_to_instances(
 
     # Endodermis instance
     if endo.sum() > 0:
-        # Morphological cleanup for ring
         kern_size = max(7, int(min(h, w) * 0.01) | 1)
         endo_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
         endo = cv2.morphologyEx(endo, cv2.MORPH_CLOSE, endo_kernel, iterations=3)
         endo = cv2.morphologyEx(endo, cv2.MORPH_OPEN, endo_kernel, iterations=1)
-        # Clip to inside root, outside vascular
         if wr.sum() > 0:
             endo = endo & wr & (~vasc.astype(bool)).astype(np.uint8)
         if endo.sum() > 0:
@@ -216,6 +216,21 @@ def convert_multilabel_to_instances(
         masks_list.append(vasc)
         labels_list.append(3)
         scores_list.append(score)
+
+    # Channel 4: Exodermis (single ring instance), if present
+    if num_channels >= 5:
+        exo = (ml_mask[4] > 0.5).astype(np.uint8)
+        if exo.sum() > 0:
+            kern_size = max(7, int(min(h, w) * 0.01) | 1)
+            exo_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
+            exo = cv2.morphologyEx(exo, cv2.MORPH_CLOSE, exo_kernel, iterations=3)
+            exo = cv2.morphologyEx(exo, cv2.MORPH_OPEN, exo_kernel, iterations=1)
+            if wr.sum() > 0:
+                exo = exo & wr
+            if exo.sum() > 0:
+                masks_list.append(exo)
+                labels_list.append(4)
+                scores_list.append(score)
 
     if not masks_list:
         return PredictionResult(

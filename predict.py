@@ -23,7 +23,7 @@ import numpy as np
 import tifffile
 from tqdm import tqdm
 
-from src.config import CLASS_COLORS_RGB, DEFAULT_IMG_SIZE, TARGET_CLASSES
+from src.config import DEFAULT_IMG_SIZE, TARGET_CLASS_COLORS_RGB, get_target_classes
 from src.evaluation import PredictionResult
 from src.postprocessing import PostProcessor
 from src.preprocessing import normalize_percentile, to_uint8
@@ -232,12 +232,13 @@ def save_visualizations(predictions: dict, out_dir: Path, max_dim: int = 800):
 
         # Per-class instance counts + confidence
         y_offset = 40
-        for cls_id, cls_name in TARGET_CLASSES.items():
+        target_classes = get_target_classes(5)  # show all possible classes
+        for cls_id, cls_name in target_classes.items():
             cls_mask = labels == cls_id
             n_inst = int(cls_mask.sum())
             if n_inst == 0:
                 continue
-            color = CLASS_COLORS_RGB.get(cls_id, (255, 255, 255))
+            color = TARGET_CLASS_COLORS_RGB.get(cls_id, (255, 255, 255))
             cls_scores = scores[cls_mask]
             conf_str = f"conf={cls_scores.mean():.2f}" if len(cls_scores) > 0 else ""
             text = f"{cls_name}: {n_inst} inst  {conf_str}"

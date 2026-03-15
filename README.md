@@ -1,6 +1,6 @@
 # Plant Root Segmentation Pipeline
 
-Instance segmentation of cereal plant root cross-sections from fluorescence microscopy. Supports 3 species (Millet, Rice, Sorghum), 3 microscopes (C10, Olympus, Zeiss), and 4 annotation classes (Whole Root, Aerenchyma, Endodermis, Vascular).
+Instance segmentation of plant root cross-sections from fluorescence microscopy. Supports 4 species (Millet, Rice, Sorghum, Tomato), 3 microscopes (C10, Olympus, Zeiss), and 5 target classes (Whole Root, Aerenchyma, Endodermis, Vascular, Exodermis). Cereals (monocots) have aerenchyma; tomato (dicot) has exodermis instead. Models can train with 4 classes (standard) or 5 classes (with exodermis), using masked loss for missing annotations per species.
 
 ## Project Structure
 
@@ -15,11 +15,10 @@ plants/
 ├── train/                   # Training scripts
 │   ├── train_yolo.py
 │   ├── train_unet.py
-│   ├── train_maskrcnn.py
-│   ├── train_cellpose.py
 │   ├── train_sam.py
+│   ├── train_cellpose.py
 │   ├── run_training.py      # Sequential training runner
-│   └── run_grid_training.py # Grid search runner
+│   └── run_grid_training.py # Benchmark grid runner (runs 1-5)
 ├── src/                     # Shared library
 │   ├── config.py            # Paths, class defs, defaults
 │   ├── dataset.py           # SampleRegistry
@@ -80,26 +79,81 @@ Each sample must be in its own subfolder under `image/` containing three TIF fil
 Training scripts are in the `train/` folder. Each can be run directly:
 
 ```bash
-python train/train_yolo.py --strategy strategy1
-python train/train_unet.py --mode multilabel --strategy strategy1
-python train/train_maskrcnn.py --strategy strategy1
-python train/train_cellpose.py --version 2 --strategy strategy1
-python train/train_sam.py --strategy strategy1
+# YOLO (4-class only)
+python train/train_yolo.py --strategy A --num-classes 4
+
+# U-Net++ multilabel (4-class or 5-class with masked loss)
+python train/train_unet.py --mode multilabel --strategy A --num-classes 4
+python train/train_unet.py --mode multilabel --strategy A --num-classes 5 --mask-missing
+
+# SAM (4 or 5 classes)
+python train/train_sam.py --strategy A --num-classes 5
+
+# Cellpose (4 or 5 classes, per-class models)
+python train/train_cellpose.py --version 3 --all-classes --strategy A --num-classes 5
 ```
 
-To run all training combinations as a grid:
+### Strategy A Benchmark Grid (Runs 1-5)
+
+Run all 5 benchmark models sequentially with `run_grid_training.py`:
 
 ```bash
-python train/run_grid_training.py
-python train/run_grid_training.py --only 1 3    # specific runs
-python train/run_grid_training.py --epochs 5    # quick test
+python train/run_grid_training.py                  # Run all 5 benchmark runs
+python train/run_grid_training.py --only 1 3       # Run only runs #1 and #3
+python train/run_grid_training.py --skip 4 5       # Skip SAM and Cellpose
+python train/run_grid_training.py --epochs 5       # Quick test with 5 epochs
+python train/run_grid_training.py --eval-only      # Only evaluate existing checkpoints
+python train/run_grid_training.py --train-only     # Only train, skip evaluation
 ```
+
+| Run | Model                 | Classes | Epochs | Key Config                                    |
+|-----|-----------------------|---------|--------|-----------------------------------------------|
+| 1   | YOLO11m-seg           | 4       | 300    | SGD, patience 15                              |
+| 2   | U-Net++ multilabel    | 4       | 300    | AdamW, cosine LR, patience 15                 |
+| 3   | U-Net++ multilabel    | 5       | 300    | AdamW, cosine LR, masked loss, patience 15    |
+| 4   | SAM vit_b             | 5       | 300    | AdamW, cosine LR, frozen encoder, patience 15 |
+| 5   | Cellpose v3 per-class | 5       | 150    | AdamW, no early stopping                      |
+
+Each run trains the model and then evaluates on the test set via `evaluate.py`.
+
+### Strategy A Data Split
+
+All models share the same experiment-level split (seed=42). Samples from the same experiment always stay together. Rice/Zeiss (35 samples) is excluded — reserved for deployment evaluation.
+
+| Species  | Microscope | Train         | Val          | Test         | Total |
+|----------|------------|---------------|--------------|--------------|-------|
+| Millet   | Olympus    | 67 (1 exp)    | 29 (1 exp)   | 14 (1 exp)   | 110   |
+| Rice     | C10        | 38 (6 exps)   | —            | 12 (4 exps)  | 50    |
+| Rice     | Olympus    | 383 (12 exps) | 91 (2 exps)  | 29 (3 exps)  | 503   |
+| Sorghum  | C10        | —             | 25 (1 exp)   | 19 (4 exps)  | 44    |
+| Sorghum  | Olympus    | 366 (77 exps) | 43 (9 exps)  | 21 (13 exps) | 430   |
+| Tomato   | C10        | 54 (1 exp)    | —            | 11 (2 exps)  | 65    |
+| Tomato   | Olympus    | 432 (15 exps) | 23 (1 exp)   | 25 (4 exps)  | 480   |
+| **Total** |           | **1340**      | **211**      | **131**      | **1682** |
+
+### Configurable Training Parameters
+
+All training scripts support common flags:
+
+| Flag             | Description                                              |
+|------------------|----------------------------------------------------------|
+| `--epochs`       | Max training epochs                                      |
+| `--batch-size`   | Batch size                                               |
+| `--lr`           | Learning rate                                            |
+| `--weight-decay` | Weight decay                                             |
+| `--patience`     | Early stopping patience                                  |
+| `--optimizer`    | Optimizer: adamw, adam, sgd                              |
+| `--scheduler`    | LR scheduler: cosine, step, plateau                     |
+| `--num-classes`  | Target classes: 4 (standard) or 5 (with exodermis)      |
+| `--mask-missing` | Enable masked loss for missing annotations (U-Net++ only)|
+| `--save-every`   | Save periodic checkpoint every N epochs                  |
+| `--img-size`     | Input image size (default 1024)                          |
 
 ## Scripts
 
 ### 1. `predict.py` — Inference + Save Predictions
 
-Run YOLO inference on images, save predictions as YOLO `.txt` files, and optionally generate visualizations.
+Run model inference on images, save predictions as YOLO `.txt` files, and optionally generate visualizations.
 
 ```bash
 # Run on an arbitrary folder of TIF images
@@ -118,16 +172,16 @@ python predict.py --data-dir data/ --checkpoint path/to/best.pt --no-postprocess
 
 **Arguments:**
 
-| Argument | Default | Description |
-|---|---|---|
-| `--data-dir` | (required) | Directory containing an `image/` subfolder with TIF images (see Data Directory Layout) |
-| `--checkpoint` | (required) | YOLO model checkpoint (`.pt`) |
-| `--img-size` | 1024 | Inference image size |
-| `--conf-thresh` | 0.25 | Confidence threshold |
-| `--batch-size` | 16 | GPU batch size |
-| `--no-vis` | false | Skip visualization output |
-| `--no-postprocess` | false | Disable post-processing (hole filling, aerenchyma clipping, etc.) |
-| `--max-dim` | 800 | Max dimension for visualization images |
+| Argument          | Default    | Description                                                          |
+|-------------------|------------|----------------------------------------------------------------------|
+| `--data-dir`      | (required) | Directory containing an `image/` subfolder with TIF images           |
+| `--checkpoint`    | (required) | YOLO model checkpoint (`.pt`)                                        |
+| `--img-size`      | 1024       | Inference image size                                                 |
+| `--conf-thresh`   | 0.25       | Confidence threshold                                                 |
+| `--batch-size`    | 16         | GPU batch size                                                       |
+| `--no-vis`        | false      | Skip visualization output                                            |
+| `--no-postprocess`| false      | Disable post-processing (hole filling, aerenchyma clipping, etc.)    |
+| `--max-dim`       | 800        | Max dimension for visualization images                               |
 
 **Output:**
 - `{data-dir}/prediction/*.txt` — YOLO-format polygon predictions (one per sample)
@@ -137,58 +191,58 @@ python predict.py --data-dir data/ --checkpoint path/to/best.pt --no-postprocess
 
 ### 2. `evaluate.py` — Model Evaluation
 
-Evaluate any trained model against ground truth annotations. Computes IoU/Dice metrics, generates comparison plots, and saves visualizations.
+Evaluate any trained model against ground truth annotations. Supports all 4 model types: YOLO, U-Net++, SAM, and Cellpose. Computes IoU/Dice metrics, generates comparison plots, and saves visualizations.
 
 ```bash
-# Evaluate YOLO model on all annotated data
-python evaluate.py --data-dir data/ --model yolo --checkpoint path/to/best.pt
+# Evaluate YOLO model
+python evaluate.py --model yolo --checkpoint path/to/best.pt \
+    --strategy A --num-classes 4
 
-# Evaluate on test split only (default split is "test")
-python evaluate.py --data-dir data/ --model yolo --checkpoint path/to/best.pt \
-    --strategy strategy1
+# Evaluate U-Net++ (multilabel mode, 5-class)
+python evaluate.py --model unet --unet-mode multilabel \
+    --checkpoint path/to/best.ckpt --strategy A --num-classes 5
 
-# Evaluate on validation split
-python evaluate.py --data-dir data/ --model yolo --checkpoint path/to/best.pt \
-    --strategy strategy1 --split val
+# Evaluate SAM
+python evaluate.py --model sam --sam-type vit_b \
+    --checkpoint path/to/best.pth --strategy A --num-classes 5
 
-# Evaluate U-Net (multilabel mode)
-python evaluate.py --data-dir data/ --model unet --unet-mode multilabel \
-    --checkpoint path/to/best.ckpt
+# Evaluate Cellpose (loads per-class models from directory)
+python evaluate.py --model cellpose \
+    --checkpoint path/to/cellpose_run_dir/ --strategy A --num-classes 5
 
 # Use saved predictions instead of running inference
-python evaluate.py --data-dir data/ --from-predictions data/prediction/ --strategy strategy1
+python evaluate.py --from-predictions data/prediction/ --strategy A
 
 # Skip visualizations, only compute metrics
-python evaluate.py --data-dir data/ --model yolo --checkpoint best.pt --no-vis
+python evaluate.py --model yolo --checkpoint best.pt --no-vis
 
 # Regenerate plots from existing metrics JSON
 python evaluate.py --plot-only output/evaluation/yolo_metrics.json
-
-# Disable all post-processing
-python evaluate.py --data-dir data/ --model yolo --checkpoint best.pt --no-postprocess
 ```
 
 **Arguments:**
 
-| Argument | Default | Description |
-|---|---|---|
-| `--data-dir` | `data/` | Data directory with `image/` and `annotation/` subfolders |
-| `--model` | (required*) | Model type: `yolo`, `unet` |
-| `--checkpoint` | (required*) | Path to model checkpoint |
-| `--from-predictions` | — | Load saved YOLO `.txt` files (skip inference) |
-| `--img-size` | 1024 | Inference image size |
-| `--unet-mode` | `semantic` | U-Net mode: `semantic` or `multilabel` |
-| `--strategy` | — | Split strategy: `strategy1`, `strategy2`, `strategy3` |
-| `--split` | `test` | Which split to evaluate: `train`, `val`, `test` |
-| `--seed` | 42 | Random seed for split generation |
-| `--no-vis` | false | Skip visualization overlay images |
-| `--vis-dir` | auto | Custom visualization output directory |
-| `--no-metrics` | false | Skip metric computation |
-| `--no-plots` | false | Skip plot generation |
-| `--plot-only` | — | Regenerate plots from existing JSON |
-| `--enable-pp` | — | Force-enable post-processing steps |
-| `--disable-pp` | — | Force-disable post-processing steps |
-| `--no-postprocess` | false | Disable all post-processing |
+| Argument             | Default     | Description                                                |
+|----------------------|-------------|------------------------------------------------------------|
+| `--data-dir`         | `data/`     | Data directory with `image/` and `annotation/` subfolders  |
+| `--model`            | (required*) | Model type: `yolo`, `unet`, `sam`, `cellpose`              |
+| `--checkpoint`       | (required*) | Path to model checkpoint (file or dir for Cellpose)        |
+| `--num-classes`      | 4           | Number of target classes (4 or 5)                          |
+| `--from-predictions` | —           | Load saved YOLO `.txt` files (skip inference)              |
+| `--img-size`         | 1024        | Inference image size                                       |
+| `--unet-mode`        | `semantic`  | U-Net mode: `semantic` or `multilabel`                     |
+| `--sam-type`         | `vit_b`     | SAM model type: `vit_b`, `vit_l`, `vit_h`                 |
+| `--strategy`         | —           | Split strategy: `A`, `B`, `C`                              |
+| `--split`            | `test`      | Which split to evaluate: `train`, `val`, `test`            |
+| `--seed`             | 42          | Random seed for split generation                           |
+| `--no-vis`           | false       | Skip visualization overlay images                          |
+| `--vis-dir`          | auto        | Custom visualization output directory                      |
+| `--no-metrics`       | false       | Skip metric computation                                    |
+| `--no-plots`         | false       | Skip plot generation                                       |
+| `--plot-only`        | —           | Regenerate plots from existing JSON                        |
+| `--enable-pp`        | —           | Force-enable post-processing steps                         |
+| `--disable-pp`       | —           | Force-disable post-processing steps                        |
+| `--no-postprocess`   | false       | Disable all post-processing                                |
 
 *Not required when using `--plot-only` or `--from-predictions`.
 
@@ -224,14 +278,14 @@ python analyze_downstream.py --plot-only output/downstream/comparison.csv
 
 **Arguments:**
 
-| Argument | Default | Description |
-|---|---|---|
-| `--data-dir` | `data/` | Data folder |
-| `--source` | auto-detect | `gt`, `prediction`, or `both` |
-| `--checkpoint` | — | YOLO checkpoint (generates predictions if missing) |
-| `--output` | auto | Custom CSV output path |
-| `--no-plots` | false | Skip generating plots |
-| `--plot-only` | — | Regenerate plots from existing CSV |
+| Argument       | Default     | Description                                      |
+|----------------|-------------|--------------------------------------------------|
+| `--data-dir`   | `data/`     | Data folder                                      |
+| `--source`     | auto-detect | `gt`, `prediction`, or `both`                    |
+| `--checkpoint` | —           | YOLO checkpoint (generates predictions if missing)|
+| `--output`     | auto        | Custom CSV output path                           |
+| `--no-plots`   | false       | Skip generating plots                            |
+| `--plot-only`  | —           | Regenerate plots from existing CSV               |
 
 **Output:**
 - `{data-dir}/downstream/{source}.csv` — Per-sample downstream metrics
@@ -262,31 +316,31 @@ python polygon_editor.py
 
 **Modes** (select from the Mode dropdown):
 
-| Mode | Panels | Required folders | Description |
-|---|---|---|---|
-| Correct GT | 3 (Original, GT, Prediction) | `image/`, `annotation/`, `prediction/` | Edit ground truth with predictions as reference |
-| Correct Predictions | 2 (Original, Editable) | `image/`, `prediction/` | Edit predictions, save to `annotation/` |
-| Create GT | 2 (Original, Editable) | `image/` | Draw annotations from scratch, save to `annotation/` |
+| Mode                | Panels                       | Required folders                       | Description                                      |
+|---------------------|------------------------------|----------------------------------------|--------------------------------------------------|
+| Correct GT          | 3 (Original, GT, Prediction) | `image/`, `annotation/`, `prediction/` | Edit ground truth with predictions as reference   |
+| Correct Predictions | 2 (Original, Editable)       | `image/`, `prediction/`                | Edit predictions, save to `annotation/`           |
+| Create GT           | 2 (Original, Editable)       | `image/`                               | Draw annotations from scratch, save to `annotation/` |
 
 **Controls:**
 
-| Key | Action |
-|---|---|
-| `A` / `Left` | Previous sample |
-| `D` / `Right` | Next sample |
-| `N` | Start drawing new polygon (click to add points) |
-| `E` | Enter vertex editing mode on selected polygon |
-| `Enter` | Confirm drawing or edits |
-| `Escape` | Cancel drawing or edits (reverts all changes) |
-| `Delete` / `Backspace` | Delete selected vertex (edit mode) or polygon |
-| `S` | Save annotations to file |
-| `Ctrl+C` | Copy selected reference polygon to editable panel |
-| `C` | Copy ALL reference polygons to editable panel |
-| `1`-`4` | Set class for new polygon |
-| `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / Redo |
-| Mouse wheel | Zoom in/out |
-| Middle/Right drag | Pan the image |
-| `H` | Reset zoom and center all panels |
+| Key                        | Action                                           |
+|----------------------------|--------------------------------------------------|
+| `A` / `Left`              | Previous sample                                  |
+| `D` / `Right`             | Next sample                                      |
+| `N`                       | Start drawing new polygon (click to add points)  |
+| `E`                       | Enter vertex editing mode on selected polygon    |
+| `Enter`                   | Confirm drawing or edits                         |
+| `Escape`                  | Cancel drawing or edits (reverts all changes)    |
+| `Delete` / `Backspace`    | Delete selected vertex (edit mode) or polygon    |
+| `S`                       | Save annotations to file                         |
+| `Ctrl+C`                  | Copy selected reference polygon to editable panel|
+| `C`                       | Copy ALL reference polygons to editable panel    |
+| `1`-`4`                   | Set class for new polygon                        |
+| `Ctrl+Z` / `Ctrl+Shift+Z`| Undo / Redo                                      |
+| Mouse wheel               | Zoom in/out                                      |
+| Middle/Right drag         | Pan the image                                    |
+| `H`                       | Reset zoom and center all panels                 |
 
 **Vertex editing:** Drag vertices to move them. Hover over an edge to see a green "+" marker; click to add a vertex. Select a vertex and press Delete to remove it.
 
@@ -297,21 +351,21 @@ python polygon_editor.py
 ## Typical Workflow
 
 ```bash
-# 1. Train a model
-python train/train_yolo.py --strategy strategy1
+# 1. Run all Strategy A benchmark models (trains + evaluates all 5 runs)
+python train/run_grid_training.py
 
-# 2. Generate predictions on all data (with post-processing)
-python predict.py --data-dir data/ --checkpoint path/to/best.pt
+# 2. Or train a single model
+python train/train_unet.py --mode multilabel --strategy A --num-classes 5 --mask-missing
 
 # 3. Evaluate on test split
-python evaluate.py --data-dir data/ --from-predictions data/prediction/ --strategy strategy1
+python evaluate.py --model unet --unet-mode multilabel --checkpoint path/to/best.ckpt \
+    --strategy A --num-classes 5
 
-# 4. Run downstream analysis
-python analyze_downstream.py --data-dir data/ --source both
-
-# 5. Run on new unlabeled data
+# 4. Generate predictions on new data
 python predict.py --data-dir path/to/new_data/ --checkpoint path/to/best.pt
-python analyze_downstream.py --data-dir path/to/new_data/ --source prediction
+
+# 5. Run downstream analysis
+python analyze_downstream.py --data-dir data/ --source both
 
 # 6. Review and correct predictions
 python polygon_editor.py --data-dir path/to/new_data/
