@@ -146,7 +146,7 @@ GRID = [
             "--sam-type", "vit_b",
             "--num-classes", "5",
             "--img-size", "1024",
-            "--batch-size", "8",
+            "--batch-size", "16",
             "--epochs", "300",
             "--lr", "1e-4",
             "--weight-decay", "1e-4",
@@ -173,7 +173,7 @@ GRID = [
             "--all-classes",
             "--num-classes", "5",
             "--img-size", "1024",
-            "--batch-size", "8",
+            "--batch-size", "16",
             "--epochs", "150",
             "--lr", "0.1",
         ],
@@ -294,7 +294,6 @@ def main():
             "eval_time": 0,
         }
 
-        # Training
         if not args.eval_only:
             ok, elapsed = run_command(
                 run["train"], f"TRAIN #{run['id']}: {run['name']}",
@@ -307,7 +306,6 @@ def main():
                 results.append(run_result)
                 continue
 
-        # Evaluation
         if not args.train_only and run["eval"] is not None:
             checkpoint = find_checkpoint(run["checkpoint_pattern"])
             if not checkpoint:
@@ -324,7 +322,7 @@ def main():
             run_result["eval_ok"] = ok
             run_result["eval_time"] = elapsed
         elif run["eval"] is None:
-            run_result["eval_ok"] = None  # No separate eval step
+            run_result["eval_ok"] = None
 
         results.append(run_result)
 

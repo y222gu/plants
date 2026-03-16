@@ -369,6 +369,8 @@ def main():
                         help="Number of target classes (4=standard, 5=with exodermis)")
     parser.add_argument("--mask-missing", action="store_true",
                         help="Use validity masking for missing classes (e.g. no aerenchyma in tomato)")
+    parser.add_argument("--gpus", type=int, default=1,
+                        help="Number of GPUs (uses DDP strategy when > 1)")
     parser.add_argument("--save-every", type=int, default=50,
                         help="Save periodic checkpoint every N epochs (0 to disable)")
     parser.add_argument("--seed", type=int, default=42)
@@ -470,7 +472,8 @@ def main():
     trainer = pl.Trainer(
         max_epochs=args.epochs,
         accelerator="gpu",
-        devices=1,
+        devices=args.gpus,
+        strategy="ddp" if args.gpus > 1 else "auto",
         precision="16-mixed",
         callbacks=callbacks,
         logger=logger,

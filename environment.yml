@@ -1,0 +1,21 @@
+name: plants
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.11
+  # Core scientific
+  - numpy<2.0
+  - scipy
+  - pandas
+  - scikit-image
+  - matplotlib
+  # Image I/O
+  - tifffile
+  - py-opencv
+  - pillow
+  # Utilities
+  - tqdm
+  - pyyaml
+  - pip

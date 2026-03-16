@@ -42,6 +42,8 @@ def main():
                         help="Number of target classes (YOLO supports 4 only)")
     parser.add_argument("--save-every", type=int, default=50,
                         help="Save periodic checkpoint every N epochs (-1 to disable)")
+    parser.add_argument("--gpus", type=int, default=1,
+                        help="Number of GPUs (Ultralytics handles DDP internally)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--resume", type=str, default=None,
                         help="Path to checkpoint to resume from")
@@ -101,12 +103,16 @@ def main():
     if args.resume:
         model = YOLO(args.resume)
 
+    # Multi-GPU: pass list of device IDs for DDP, single int for single GPU
+    device = list(range(args.gpus)) if args.gpus > 1 else 0
+
     results = model.train(
         data=str(yaml_path),
         epochs=args.epochs,
         imgsz=args.img_size,
         batch=args.batch_size,
         patience=args.patience,
+        device=device,
         project=str(project_dir),
         name=run_name,
         save=True,
