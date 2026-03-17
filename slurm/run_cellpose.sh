@@ -65,7 +65,10 @@ stdbuf -oL python train/train_cellpose.py \
     --img-size 512 \
     --batch-size 16 \
     --epochs 150 \
-    --lr 0.1 \
+    --lr 0.01 \
+    --weight-decay 0.01 \
+    --rescale \
+    --scale-range 0.5 \
     2>&1 | tee "logs/cellpose_class${CLASS_ID}_\${SLURM_JOB_ID}.log"
 
 echo ""

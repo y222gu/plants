@@ -169,11 +169,19 @@ class SegmentationMetrics:
                     iou_matrix, pred_labels, pred_scores, gt_labels, iou_t,
                 )
 
+        # Determine spatial dimensions from whichever mask set is non-empty
+        if len(gt_masks) > 0:
+            spatial_shape = gt_masks.shape[1:]
+        elif len(pred_masks) > 0:
+            spatial_shape = pred_masks.shape[1:]
+        else:
+            spatial_shape = (1, 1)
+
         # Precompute per-class pixel stats (at original resolution)
         pixel_stats = {}
         for cls_id in range(self.num_classes):
-            gt_cls = self._class_mask(gt_masks, gt_labels, cls_id)
-            pred_cls = self._class_mask(pred_masks, pred_labels, cls_id)
+            gt_cls = self._class_mask(gt_masks, gt_labels, cls_id, shape=spatial_shape)
+            pred_cls = self._class_mask(pred_masks, pred_labels, cls_id, shape=spatial_shape)
             pixel_stats[cls_id] = {
                 "intersection": int(np.logical_and(gt_cls, pred_cls).sum()),
                 "union": int(np.logical_or(gt_cls, pred_cls).sum()),
@@ -187,8 +195,8 @@ class SegmentationMetrics:
             gt_sem = np.zeros((h, w), dtype=np.int32)
             pred_sem = np.zeros((h, w), dtype=np.int32)
             for cls_id in range(self.num_classes):
-                gt_cls = self._class_mask(gt_masks, gt_labels, cls_id)
-                pred_cls = self._class_mask(pred_masks, pred_labels, cls_id)
+                gt_cls = self._class_mask(gt_masks, gt_labels, cls_id, shape=(h, w))
+                pred_cls = self._class_mask(pred_masks, pred_labels, cls_id, shape=(h, w))
                 gt_sem[gt_cls > 0] = cls_id + 1
                 pred_sem[pred_cls > 0] = cls_id + 1
             pa_correct = int((gt_sem == pred_sem).sum())
@@ -304,9 +312,13 @@ class SegmentationMetrics:
         }
 
     @staticmethod
-    def _class_mask(masks: np.ndarray, labels: np.ndarray, cls_id: int) -> np.ndarray:
+    @staticmethod
+    def _class_mask(masks: np.ndarray, labels: np.ndarray, cls_id: int,
+                    shape: tuple = None) -> np.ndarray:
         """Merge all instance masks of a given class into a single binary mask."""
         if len(masks) == 0:
+            if shape is not None:
+                return np.zeros(shape, dtype=np.uint8)
             return np.zeros((1, 1), dtype=np.uint8)
         idx = np.where(labels == cls_id)[0]
         if len(idx) == 0:

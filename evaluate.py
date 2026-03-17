@@ -553,24 +553,26 @@ def predict_cellpose(checkpoint_dir: str, samples, img_size: int,
     target_classes = get_target_classes(num_classes)
 
     # Find per-class model paths
+    # Structure: checkpoint_dir/cellpose_v*_{ClassName}_*/YYYY-MM-DD_NNN/models/*
     class_models = {}
     for cls_id, cls_name in target_classes.items():
-        # Search for model directories matching this class
         pattern = f"cellpose_*_{cls_name}_*"
-        matches = sorted(checkpoint_dir.parent.glob(pattern))
+        matches = sorted(checkpoint_dir.glob(pattern))
         if not matches:
             print(f"  Warning: No Cellpose model found for class {cls_id} ({cls_name})")
             continue
-        model_dir = matches[-1]  # Use latest
-        # Find the model file (Cellpose saves as models/*)
-        model_files = sorted(model_dir.glob("models/*")) + sorted(model_dir.glob("*.npy"))
+        class_dir = matches[-1]  # Use latest class directory
+        # Search inside dated subfolders for model files
+        model_files = sorted(class_dir.glob("*/models/*"))
         if not model_files:
-            # Try the directory itself for Cellpose model files
-            model_files = [f for f in model_dir.iterdir()
-                          if f.suffix not in ('.json', '.png', '.csv')]
-        if model_files:
-            class_models[cls_id] = str(model_files[-1])
-            print(f"  Class {cls_id} ({cls_name}): {model_files[-1]}")
+            # Fallback: models directly in class dir (old structure)
+            model_files = sorted(class_dir.glob("models/*"))
+        if not model_files:
+            print(f"  Warning: No model file found in {class_dir}")
+            continue
+        # Pick the latest model file (last dated subfolder, last model)
+        class_models[cls_id] = str(model_files[-1])
+        print(f"  Class {cls_id} ({cls_name}): {model_files[-1]}")
 
     if not class_models:
         print("Error: No Cellpose models found")

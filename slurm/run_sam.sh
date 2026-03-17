@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SLURM job script: Run 4 — SAM vit_b (multi-GPU with DDP)
+# SLURM job script: Run 4 — SAM vit_b (single GPU, large batch)
 #
 # Usage:
 #   sbatch slurm/run_sam.sh
@@ -12,7 +12,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --gres=gpu:a100_80:2
+#SBATCH --gres=gpu:a100_80:1
 #SBATCH --mem=80G
 #SBATCH --time=48:00:00
 #SBATCH --output=logs/sam_%j.out
@@ -30,14 +30,11 @@ cd "$PROJECT_DIR"
 export PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS=8
 
-# Count allocated GPUs
-NGPU=$(echo "$CUDA_VISIBLE_DEVICES" | tr ',' '\n' | wc -l)
-
 echo "============================================"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node:   $(hostname)"
 echo "Date:   $(date)"
-echo "Run:    4 — SAM vit_b (${NGPU} GPU)"
+echo "Run:    4 — SAM vit_b (single GPU, batch 32)"
 echo "============================================"
 
 python -c "
@@ -56,20 +53,19 @@ fi
 
 mkdir -p logs
 
-# Use torchrun for multi-GPU DDP
-stdbuf -oL torchrun --nproc_per_node="$NGPU" \
-    train/train_sam.py \
+# Single GPU — no DDP overhead for small mask decoder
+stdbuf -oL python train/train_sam.py \
     --strategy A \
     --sam-type vit_b \
     --num-classes 5 \
     --img-size 1024 \
-    --batch-size 8 \
+    --batch-size 32 \
     --epochs 300 \
     --lr 1e-4 \
     --weight-decay 1e-4 \
     --patience 15 \
-    --save-every 50 \
-    --num-workers 4 \
+    --save-every 5 \
+    --num-workers 8 \
     2>&1 | tee "logs/sam_${SLURM_JOB_ID}.log"
 
 echo ""

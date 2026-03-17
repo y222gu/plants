@@ -31,9 +31,13 @@ def train_cellpose_model(
     model_dir: Path,
     version: int = 2,
     n_epochs: int = 100,
-    learning_rate: float = 0.1,
+    learning_rate: float = 0.01,
+    weight_decay: float = 0.01,
     batch_size: int = 8,
     model_type: str = "cyto2",
+    rescale: bool = True,
+    scale_range: float = 0.5,
+    nimg_per_epoch: Optional[int] = None,
 ) -> Path:
     """Train a Cellpose model.
 
@@ -69,8 +73,8 @@ def train_cellpose_model(
     )
     print(f"Cellpose model device: {model.device}")
 
-    # Train — nimg_per_epoch limits images sampled per epoch to speed up training
-    nimg_epoch = min(len(train_images), 200)
+    # Train
+    nimg_epoch = nimg_per_epoch if nimg_per_epoch is not None else len(train_images)
     model_path, train_losses, test_losses = train.train_seg(
         model.net,
         train_data=train_images,
@@ -80,9 +84,12 @@ def train_cellpose_model(
         save_path=str(model_dir),
         n_epochs=n_epochs,
         learning_rate=learning_rate,
+        weight_decay=weight_decay,
         batch_size=batch_size,
         nimg_per_epoch=nimg_epoch,
         min_train_masks=1,
+        rescale=rescale,
+        scale_range=scale_range,
     )
 
     # Save training history
@@ -101,7 +108,11 @@ def train_cellpose_model(
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(history["train_losses"], label="Train Loss")
     if history["test_losses"]:
-        ax.plot(history["test_losses"], label="Val Loss")
+        # Cellpose only computes val loss at epoch 0, 5, and every 10 epochs;
+        # intermediate epochs are logged as 0.0 — filter those out for plotting.
+        val_epochs = [i for i, v in enumerate(history["test_losses"]) if v > 0]
+        val_values = [history["test_losses"][i] for i in val_epochs]
+        ax.plot(val_epochs, val_values, "o-", label="Val Loss", markersize=3)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Loss")
     ax.set_title(f"Cellpose v{version} Training Loss")
@@ -171,8 +182,16 @@ def main():
                         help="Cellpose version")
     parser.add_argument("--img-size", type=int, default=512)
     parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--lr", type=float, default=0.1)
+    parser.add_argument("--lr", type=float, default=0.01)
+    parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--rescale", action="store_true", default=True,
+                        help="Enable diameter-based rescaling during training")
+    parser.add_argument("--no-rescale", dest="rescale", action="store_false")
+    parser.add_argument("--scale-range", type=float, default=0.5,
+                        help="Random rescaling range for augmentation")
+    parser.add_argument("--nimg-per-epoch", type=int, default=None,
+                        help="Images per epoch (None=use all)")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -242,7 +261,11 @@ def main():
             version=args.version,
             n_epochs=args.epochs,
             learning_rate=args.lr,
+            weight_decay=args.weight_decay,
             batch_size=args.batch_size,
+            rescale=args.rescale,
+            scale_range=args.scale_range,
+            nimg_per_epoch=args.nimg_per_epoch,
         )
 
         # Evaluate

@@ -116,6 +116,21 @@ python train/run_grid_training.py --train-only     # Only train, skip evaluation
 
 Each run trains the model and then evaluates on the test set via `evaluate.py`.
 
+### Annotation Summary
+
+| Species | Samples | cls 0: Whole Root | cls 1: Aerenchyma | cls 2: Outer Endo | cls 3: Inner Endo | cls 4: Outer Exo | cls 5: Inner Exo | Total Polygons |
+|---------|--------:|------------------:|------------------:|------------------:|------------------:|-----------------:|-----------------:|---------------:|
+| Millet  |     110 |               110 |               418 |               110 |               110 |                0 |                0 |            748 |
+| Rice    |     588 |               588 |            13,706 |               588 |               588 |                0 |                0 |         15,470 |
+| Sorghum |     474 |               474 |             9,218 |               474 |               474 |                0 |                0 |         10,640 |
+| Tomato  |     545 |               545 |                 0 |               545 |               545 |              545 |              545 |          2,725 |
+| **Total** | **1,717** |         **1,717** |        **23,342** |         **1,717** |         **1,717** |          **545** |          **545** |     **29,583** |
+
+- Classes 0, 2, 3 have exactly 1 polygon per sample across all species
+- Aerenchyma (cls 1): cereals only — avg ~3.8 (Millet), ~23.3 (Rice), ~19.4 (Sorghum) per sample
+- Exodermis (cls 4-5): tomato only — exactly 1 polygon each per sample
+- Tomato has no aerenchyma; cereals have no exodermis
+
 ### Strategy A Data Split
 
 All models share the same experiment-level split (seed=42). Samples from the same experiment always stay together. Rice/Zeiss (35 samples) is excluded — reserved for deployment evaluation.
