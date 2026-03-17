@@ -32,6 +32,8 @@ from src.config import (
     DEFAULT_LR,
     DEFAULT_PATIENCE,
     OUTPUT_DIR,
+    make_run_subfolder,
+    save_hparams,
 )
 from src.dataset import SampleRegistry
 from src.models.unet_dataset import UNetDataset
@@ -440,7 +442,9 @@ def main():
         run_name += "_masked"
     if args.species:
         run_name += f"_{args.species}"
-    run_dir = OUTPUT_DIR / "runs" / "unet" / run_name
+    base_run_dir = OUTPUT_DIR / "runs" / "unet" / run_name
+    run_dir = make_run_subfolder(base_run_dir)
+    save_hparams(run_dir, args)
 
     callbacks = [
         ModelCheckpoint(

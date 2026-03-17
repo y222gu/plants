@@ -17,7 +17,7 @@ from typing import Dict, List, Optional
 import numpy as np
 from cellpose import models, train
 
-from src.config import DEFAULT_IMG_SIZE, OUTPUT_DIR, get_target_classes
+from src.config import DEFAULT_IMG_SIZE, OUTPUT_DIR, get_target_classes, make_run_subfolder, save_hparams
 from src.dataset import SampleRegistry
 from src.models.cellpose_utils import prepare_cellpose_data
 from src.splits import get_split, print_split_summary
@@ -87,8 +87,8 @@ def train_cellpose_model(
 
     # Save training history
     history = {
-        "train_losses": [float(x) for x in train_losses],
-        "test_losses": [float(x) for x in test_losses] if test_losses else [],
+        "train_losses": [float(x) for x in train_losses] if train_losses is not None and len(train_losses) > 0 else [],
+        "test_losses": [float(x) for x in test_losses] if test_losses is not None and len(test_losses) > 0 else [],
     }
     with open(model_dir / "training_history.json", "w") as f:
         json.dump(history, f, indent=2)
@@ -137,11 +137,18 @@ def evaluate_cellpose(
     from cellpose import metrics as cp_metrics
 
     ap_scores = cp_metrics.average_precision(test_labels, pred_masks)[0]
-    mean_ap = float(np.mean(ap_scores))
+    # ap_scores may be multi-dimensional (samples x IoU thresholds);
+    # average per sample across thresholds if needed
+    ap_scores = np.array(ap_scores)
+    if ap_scores.ndim > 1:
+        per_sample_ap = ap_scores.mean(axis=-1)
+    else:
+        per_sample_ap = ap_scores
+    mean_ap = float(np.mean(per_sample_ap))
 
     results = {
         "mean_AP": mean_ap,
-        "per_sample_AP": [float(x) for x in ap_scores],
+        "per_sample_AP": [float(x) for x in per_sample_ap],
         "n_samples": len(test_images),
     }
 
@@ -185,24 +192,24 @@ def main():
     else:
         class_ids = [None]  # all classes combined
 
+    # Pre-load images and annotations once, then build per-class labels
+    # without reloading from disk for each class.
+    from src.models.cellpose_utils import preload_cellpose_data, build_class_labels
+
+    print("Pre-loading images and annotations (shared across all classes)...")
+    train_cache = preload_cellpose_data(split["train"], args.img_size, args.num_classes)
+    val_cache = preload_cellpose_data(split["val"], args.img_size, args.num_classes)
+    test_cache = preload_cellpose_data(split["test"], args.img_size, args.num_classes)
+
     for class_id in class_ids:
         class_name = target_classes.get(class_id, "all") if class_id is not None else "all"
         print(f"\n{'='*60}")
         print(f"Training Cellpose v{args.version} for class: {class_name}")
 
-        # Prepare data
-        train_imgs, train_lbls = prepare_cellpose_data(
-            split["train"], img_size=args.img_size, target_class=class_id,
-            num_classes=args.num_classes,
-        )
-        val_imgs, val_lbls = prepare_cellpose_data(
-            split["val"], img_size=args.img_size, target_class=class_id,
-            num_classes=args.num_classes,
-        )
-        test_imgs, test_lbls = prepare_cellpose_data(
-            split["test"], img_size=args.img_size, target_class=class_id,
-            num_classes=args.num_classes,
-        )
+        # Build per-class labels from cached data (no disk I/O)
+        train_imgs, train_lbls = build_class_labels(train_cache, class_id, args.img_size)
+        val_imgs, val_lbls = build_class_labels(val_cache, class_id, args.img_size)
+        test_imgs, test_lbls = build_class_labels(test_cache, class_id, args.img_size)
 
         # Filter out samples with no instances
         train_pairs = [(i, l) for i, l in zip(train_imgs, train_lbls) if l.max() > 0]
@@ -224,7 +231,9 @@ def main():
 
         # Train
         run_name = f"cellpose_v{args.version}_{class_name}_{args.strategy}_c{args.num_classes}"
-        model_dir = OUTPUT_DIR / "runs" / "cellpose" / run_name
+        base_model_dir = OUTPUT_DIR / "runs" / "cellpose" / run_name
+        model_dir = make_run_subfolder(base_model_dir)
+        save_hparams(model_dir, args)
 
         model_path = train_cellpose_model(
             train_imgs, train_lbls,

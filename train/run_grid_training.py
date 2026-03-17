@@ -76,9 +76,8 @@ GRID = [
             "--model", "yolo",
             "--strategy", "A",
             "--num-classes", "4",
-            "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/yolo/yolo11m-seg_A/weights/best.pt",
+        "checkpoint_pattern": "output/runs/yolo/yolo11m-seg_A/*/weights/best.pt",
     },
     {
         "id": 2,
@@ -104,9 +103,8 @@ GRID = [
             "--model", "unet", "--unet-mode", "multilabel",
             "--strategy", "A",
             "--num-classes", "4",
-            "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/unet/unetplusplus_resnet34_A_multilabel_c4/checkpoints/best-*.ckpt",
+        "checkpoint_pattern": "output/runs/unet/unetplusplus_resnet34_A_multilabel_c4/*/checkpoints/best-*.ckpt",
     },
     {
         "id": 3,
@@ -133,9 +131,8 @@ GRID = [
             "--model", "unet", "--unet-mode", "multilabel",
             "--strategy", "A",
             "--num-classes", "5",
-            "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/unet/unetplusplus_resnet34_A_multilabel_c5_masked/checkpoints/best-*.ckpt",
+        "checkpoint_pattern": "output/runs/unet/unetplusplus_resnet34_A_multilabel_c5_masked/*/checkpoints/best-*.ckpt",
     },
     {
         "id": 4,
@@ -146,12 +143,13 @@ GRID = [
             "--sam-type", "vit_b",
             "--num-classes", "5",
             "--img-size", "1024",
-            "--batch-size", "16",
+            "--batch-size", "8",
             "--epochs", "300",
             "--lr", "1e-4",
             "--weight-decay", "1e-4",
             "--patience", "15",
             "--save-every", "50",
+            "--num-workers", "4",
         ],
         "eval": [
             sys.executable, f"{_PROJECT_DIR}/evaluate.py",
@@ -159,9 +157,8 @@ GRID = [
             "--sam-type", "vit_b",
             "--strategy", "A",
             "--num-classes", "5",
-            "--no-vis",
         ],
-        "checkpoint_pattern": "output/runs/sam/sam_vit_b_A_c5/best.pth",
+        "checkpoint_pattern": "output/runs/sam/sam_vit_b_A_c5/*/best.pth",
     },
     {
         "id": 5,
@@ -172,7 +169,7 @@ GRID = [
             "--version", "3",
             "--all-classes",
             "--num-classes", "5",
-            "--img-size", "1024",
+            "--img-size", "512",
             "--batch-size", "16",
             "--epochs", "150",
             "--lr", "0.1",
@@ -182,7 +179,6 @@ GRID = [
             "--model", "cellpose",
             "--strategy", "A",
             "--num-classes", "5",
-            "--no-vis",
         ],
         "checkpoint_pattern": "output/runs/cellpose/",
     },
@@ -190,7 +186,12 @@ GRID = [
 
 
 def find_checkpoint(pattern: str) -> str:
-    """Find the best checkpoint file or directory matching a glob pattern."""
+    """Find the best checkpoint from the latest dated run subfolder.
+
+    Glob patterns with dated subfolders (YYYY-MM-DD_NNN) sort
+    lexicographically in chronological order, so sorted()[-1] picks
+    the latest run.
+    """
     if pattern is None:
         return ""
     base = Path(__file__).parent.parent
@@ -201,10 +202,11 @@ def find_checkpoint(pattern: str) -> str:
     import glob
     matches = sorted(glob.glob(str(full_path)))
     if not matches:
-        # Also try "last.ckpt" for Lightning
-        last = Path(pattern).parent / "last.ckpt"
-        if (base / last).exists():
-            return str(base / last)
+        # Also try "last.ckpt" in the same directory structure
+        parent = Path(str(full_path)).parent
+        last_matches = sorted(glob.glob(str(parent / "last.ckpt")))
+        if last_matches:
+            return last_matches[-1]
         return ""
     return matches[-1]
 

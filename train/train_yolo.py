@@ -20,6 +20,8 @@ from src.config import (
     DEFAULT_IMG_SIZE,
     DEFAULT_PATIENCE,
     OUTPUT_DIR,
+    make_run_subfolder,
+    save_hparams,
 )
 from src.dataset import SampleRegistry
 from src.formats.yolo_format import export_yolo_dataset
@@ -97,7 +99,11 @@ def main():
         return
 
     # Train
-    project_dir = OUTPUT_DIR / "runs" / "yolo"
+    project_dir = OUTPUT_DIR / "runs" / "yolo" / run_name
+    run_dir = make_run_subfolder(project_dir)
+    dated_name = run_dir.name
+    save_hparams(run_dir, args)
+
     model = YOLO(args.model)
 
     if args.resume:
@@ -114,7 +120,7 @@ def main():
         patience=args.patience,
         device=device,
         project=str(project_dir),
-        name=run_name,
+        name=dated_name,
         save=True,
         save_period=args.save_every,  # save checkpoint periodically (-1=best only)
         amp=True,
@@ -138,7 +144,7 @@ def main():
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    results_csv = project_dir / run_name / "results.csv"
+    results_csv = run_dir / "results.csv"
     if results_csv.exists():
         df = pd.read_csv(results_csv)
         df.columns = df.columns.str.strip()
@@ -169,7 +175,7 @@ def main():
         axes[1].grid(True, alpha=0.3)
 
         fig.tight_layout()
-        plot_path = project_dir / run_name / "loss_curve.png"
+        plot_path = run_dir / "loss_curve.png"
         fig.savefig(plot_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
         print(f"Loss curve saved to {plot_path}")
@@ -177,7 +183,7 @@ def main():
     # Evaluate on test set
     print("\n" + "=" * 60)
     print("EVALUATING ON TEST SET")
-    best_model_path = project_dir / run_name / "weights" / "best.pt"
+    best_model_path = run_dir / "weights" / "best.pt"
     if best_model_path.exists():
         best_model = YOLO(str(best_model_path))
         test_results = best_model.val(
@@ -186,7 +192,7 @@ def main():
             imgsz=args.img_size,
             batch=args.batch_size,
             project=str(project_dir),
-            name=f"{run_name}_test",
+            name=f"{dated_name}_test",
             exist_ok=True,
         )
         print(f"\nTest mAP@0.5: {test_results.seg.map50:.4f}")

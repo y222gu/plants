@@ -1,8 +1,11 @@
 """Project configuration: paths, class definitions, training defaults."""
 
+import datetime
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
+
+import yaml
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 # Auto-detect base directory (works on both Windows and macOS)
@@ -116,3 +119,44 @@ class SampleRecord:
     def channel_path(self, channel: str) -> Path:
         """Path to a specific channel TIF file."""
         return self.image_dir / f"{self.sample_name}_{channel}.tif"
+
+
+def make_run_subfolder(parent_dir: Path) -> Path:
+    """Create a dated subfolder like 2026-03-16_001 inside parent_dir.
+
+    Auto-increments the sequence number if the same date already has
+    existing subfolders.
+    """
+    today = datetime.date.today().isoformat()  # "2026-03-16"
+    parent_dir = Path(parent_dir)
+    parent_dir.mkdir(parents=True, exist_ok=True)
+
+    existing = sorted(parent_dir.glob(f"{today}_*"))
+    if existing:
+        last = existing[-1].name
+        seq = int(last.split("_")[-1]) + 1
+    else:
+        seq = 1
+
+    subfolder = parent_dir / f"{today}_{seq:03d}"
+    subfolder.mkdir(parents=True, exist_ok=True)
+    return subfolder
+
+
+def save_hparams(run_dir: Path, args) -> Path:
+    """Save argparse Namespace (or dict) as hparams.yaml in run_dir."""
+    hparams = vars(args) if not isinstance(args, dict) else args
+
+    serializable = {}
+    for k, v in hparams.items():
+        if isinstance(v, Path):
+            serializable[k] = str(v)
+        else:
+            serializable[k] = v
+
+    out_path = Path(run_dir) / "hparams.yaml"
+    with open(out_path, "w") as f:
+        yaml.dump(serializable, f, default_flow_style=False, sort_keys=True)
+
+    print(f"Hyperparameters saved to {out_path}")
+    return out_path

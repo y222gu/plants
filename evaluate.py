@@ -297,10 +297,9 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
     fig.tight_layout(rect=[0.03, 0.05, 1, 1])
     fig.subplots_adjust(hspace=0.30, wspace=0.28)
 
-    for fmt in ("png", "pdf"):
-        fig.savefig(out_dir / f"{model_tag}_per_class_comparison.{fmt}")
+    fig.savefig(out_dir / f"{model_tag}_per_class_comparison.png")
     plt.close(fig)
-    print(f"Per-class comparison saved to {out_dir / model_tag}_per_class_comparison.[png|pdf]")
+    print(f"Per-class comparison saved to {out_dir / model_tag}_per_class_comparison.png")
 
     # ── Figure 2: Summary (mean IoU, mean Dice) by Species and Microscope (1x2) ──
     sum_keys = ["mean_IoU", "mean_Dice"]
@@ -319,10 +318,9 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
     fig.tight_layout(rect=[0, 0.08, 1, 1])
     fig.subplots_adjust(wspace=0.28)
 
-    for fmt in ("png", "pdf"):
-        fig.savefig(out_dir / f"{model_tag}_summary_comparison.{fmt}")
+    fig.savefig(out_dir / f"{model_tag}_summary_comparison.png")
     plt.close(fig)
-    print(f"Summary comparison saved to {out_dir / model_tag}_summary_comparison.[png|pdf]")
+    print(f"Summary comparison saved to {out_dir / model_tag}_summary_comparison.png")
 
     # ── Figure 3: Per-class IoU & Dice by Species+Microscope combo (2x1) ──
     combo_sub = {}
@@ -349,11 +347,10 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
         fig.tight_layout(rect=[0, 0.04, 1, 1])
         fig.subplots_adjust(hspace=0.45)
 
-        for fmt in ("png", "pdf"):
-            fig.savefig(out_dir / f"{model_tag}_species_microscope_comparison.{fmt}")
+        fig.savefig(out_dir / f"{model_tag}_species_microscope_comparison.png")
         plt.close(fig)
         print(f"Species+Microscope comparison saved to "
-              f"{out_dir / model_tag}_species_microscope_comparison.[png|pdf]")
+              f"{out_dir / model_tag}_species_microscope_comparison.png")
 
 
 # ── Inference functions ───────────────────────────────────────────────────────
@@ -722,7 +719,7 @@ def main():
             parser.error("--model and --checkpoint are required unless --plot-only or --from-predictions is used")
         model_tag = args.model
         if args.model == "unet":
-            model_tag = f"unet_{args.unet_mode}"
+            model_tag = f"unet_{args.unet_mode}_c{args.num_classes}"
 
     # Discover all samples with annotations in data-dir
     data_dir = Path(args.data_dir)

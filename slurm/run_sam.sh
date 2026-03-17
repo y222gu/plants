@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# SLURM job script: Run 4 — SAM vit_b (1 GPU)
+# SLURM job script: Run 4 — SAM vit_b (multi-GPU with DDP)
 #
 # Usage:
 #   sbatch slurm/run_sam.sh
@@ -12,7 +12,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --gres=gpu:a100_80:1
+#SBATCH --gres=gpu:a100_80:2
 #SBATCH --mem=80G
 #SBATCH --time=48:00:00
 #SBATCH --output=logs/sam_%j.out
@@ -30,17 +30,21 @@ cd "$PROJECT_DIR"
 export PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS=8
 
+# Count allocated GPUs
+NGPU=$(echo "$CUDA_VISIBLE_DEVICES" | tr ',' '\n' | wc -l)
+
 echo "============================================"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node:   $(hostname)"
 echo "Date:   $(date)"
-echo "Run:    4 — SAM vit_b (1 GPU)"
+echo "Run:    4 — SAM vit_b (${NGPU} GPU)"
 echo "============================================"
 
 python -c "
 import torch
 print(f'PyTorch: {torch.__version__}, CUDA: {torch.version.cuda}')
-print(f'GPU: {torch.cuda.get_device_name(0)} ({torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB)')
+for i in range(torch.cuda.device_count()):
+    print(f'GPU {i}: {torch.cuda.get_device_name(i)} ({torch.cuda.get_device_properties(i).total_memory / 1e9:.1f} GB)')
 "
 
 # Verify SAM checkpoint
@@ -52,9 +56,43 @@ fi
 
 mkdir -p logs
 
-stdbuf -oL python train/run_grid_training.py \
-    --only 4 \
+# Use torchrun for multi-GPU DDP
+stdbuf -oL torchrun --nproc_per_node="$NGPU" \
+    train/train_sam.py \
+    --strategy A \
+    --sam-type vit_b \
+    --num-classes 5 \
+    --img-size 1024 \
+    --batch-size 8 \
+    --epochs 300 \
+    --lr 1e-4 \
+    --weight-decay 1e-4 \
+    --patience 15 \
+    --save-every 50 \
+    --num-workers 4 \
     2>&1 | tee "logs/sam_${SLURM_JOB_ID}.log"
 
 echo ""
-echo "SAM complete: $(date)"
+echo "SAM training complete: $(date)"
+
+# ── Evaluation ────────────────────────────────────────────────────────────────
+echo ""
+echo "============================================"
+echo "Running SAM evaluation..."
+echo "============================================"
+
+SAM_BEST=$(ls -t output/runs/sam/sam_vit_b_A_c5/*/best.pth 2>/dev/null | head -1)
+if [ -z "$SAM_BEST" ]; then
+    echo "ERROR: No SAM best.pth found in dated subfolders"
+else
+    stdbuf -oL python evaluate.py \
+        --model sam \
+        --sam-type vit_b \
+        --strategy A \
+        --num-classes 5 \
+        --checkpoint "$SAM_BEST" \
+        2>&1 | tee "logs/sam_eval_${SLURM_JOB_ID}.log"
+fi
+
+echo ""
+echo "SAM evaluation complete: $(date)"
