@@ -1,4 +1,6 @@
 /.claude
+/logs
+/slurm
 /data
 /data_excluded
 /data_not_annotated
