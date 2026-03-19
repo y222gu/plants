@@ -15,7 +15,9 @@ Controls:
     - E: Enter vertex editing mode (drag, add, delete vertices)
     - Enter: Confirm drawing/edits
     - Escape: Cancel drawing/edits (reverts changes)
-    - Delete/Backspace: Remove selected vertex (edit mode) or polygon
+    - Drag on empty space (edit mode): Rectangle-select multiple vertices
+    - Shift+drag: Add to existing vertex selection
+    - Delete/Backspace: Remove selected vertex(es) (edit mode) or polygon
     - S: Save current annotations to file
     - Ctrl+C: Copy selected prediction polygon to editable panel
     - C: Copy ALL predictions to editable panel
@@ -53,6 +55,37 @@ from src.preprocessing import load_sample_normalized, to_uint8
 from src.annotation_utils import parse_yolo_annotations, polygon_to_mask
 
 
+def parse_npz_predictions(path: Path, img_w: int = 0, img_h: int = 0) -> List[dict]:
+    """Parse an .npz prediction file containing binary masks into polygon dicts.
+
+    Args:
+        path: Path to .npz file with 'masks', 'labels', and optionally 'scores'.
+        img_w, img_h: Unused, kept for API compatibility.
+
+    Returns:
+        List of dicts with keys: class_id (int), polygon (Nx2 int32 array).
+    """
+    data = np.load(str(path), allow_pickle=True)
+    masks = data['masks']      # (N, H, W) uint8
+    labels = data['labels']    # (N,)
+    annotations = []
+    for i in range(len(labels)):
+        mask = masks[i].astype(np.uint8)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            continue
+        # Use the largest contour
+        contour = max(contours, key=cv2.contourArea)
+        if len(contour) < 3:
+            continue
+        polygon = contour.reshape(-1, 2).astype(np.int32)
+        annotations.append({
+            "class_id": int(labels[i]),
+            "polygon": polygon,
+        })
+    return annotations
+
+
 # ── Editor modes ──────────────────────────────────────────────────────────
 MODE_CORRECT_GT = "Correct GT"
 MODE_CORRECT_PRED = "Correct Predictions"
@@ -65,6 +98,8 @@ CLASS_QCOLORS = {
     1: QColor(255, 255, 0, 180),    # Aerenchyma - Yellow
     2: QColor(0, 255, 0, 180),      # Outer Endodermis - Green
     3: QColor(255, 0, 0, 180),      # Inner Endodermis - Red
+    4: QColor(255, 128, 0, 180),    # Outer Exodermis - Orange
+    5: QColor(128, 0, 255, 180),    # Inner Exodermis - Purple
 }
 
 SELECTED_COLOR = QColor(255, 255, 255, 220)  # White for selected polygon
@@ -131,7 +166,11 @@ def discover_samples(image_dir: Path, annotation_dir: Optional[Path] = None,
             ann_name_short = sample_name + ".txt"
 
             has_ann = ann_name in ann_files or ann_name_short in ann_files
-            has_pred = ann_name in pred_files or ann_name_short in pred_files
+            # Check for both .txt and .npz prediction files
+            pred_name_npz = uid + ".npz"
+            pred_name_npz_short = sample_name + ".npz"
+            has_pred = (ann_name in pred_files or ann_name_short in pred_files
+                        or pred_name_npz in pred_files or pred_name_npz_short in pred_files)
 
             if require_annotation and not has_ann:
                 continue
@@ -179,7 +218,10 @@ class PolygonCanvas(QWidget):
         self.editing_mode = False
         self._dragging_vertex: Optional[int] = None
         self._selected_vertex: Optional[int] = None
+        self._selected_vertices: set = set()  # multi-select set
         self._drag_started = False
+        self._rubber_band_start: Optional[Tuple[float, float]] = None
+        self._rubber_band_end: Optional[Tuple[float, float]] = None
 
         # Edge hover state for adding nodes
         self._hover_edge_idx: Optional[int] = None
@@ -204,15 +246,20 @@ class PolygonCanvas(QWidget):
 
     # ── Edge hover helpers ────────────────────────────────────────────────
 
-    def _point_to_segment_dist(self, px, py, ax, ay, bx, by) -> float:
+    @staticmethod
+    def _project_onto_segment(px, py, ax, ay, bx, by) -> Tuple[float, float, float]:
+        """Return (distance, proj_x, proj_y) from point to segment."""
         dx, dy = bx - ax, by - ay
         len_sq = dx * dx + dy * dy
         if len_sq == 0:
-            return ((px - ax) ** 2 + (py - ay) ** 2) ** 0.5
+            return ((px - ax) ** 2 + (py - ay) ** 2) ** 0.5, ax, ay
         t = max(0, min(1, ((px - ax) * dx + (py - ay) * dy) / len_sq))
         proj_x = ax + t * dx
         proj_y = ay + t * dy
-        return ((px - proj_x) ** 2 + (py - proj_y) ** 2) ** 0.5
+        return ((px - proj_x) ** 2 + (py - proj_y) ** 2) ** 0.5, proj_x, proj_y
+
+    def _point_to_segment_dist(self, px, py, ax, ay, bx, by) -> float:
+        return self._project_onto_segment(px, py, ax, ay, bx, by)[0]
 
     def _find_nearest_edge(self, ix, iy) -> Optional[Tuple[int, float, float]]:
         if self.selected_idx is None or not (0 <= self.selected_idx < len(self.polygons)):
@@ -229,10 +276,10 @@ class PolygonCanvas(QWidget):
             j = (i + 1) % n
             ax, ay = float(polygon[i][0]), float(polygon[i][1])
             bx, by = float(polygon[j][0]), float(polygon[j][1])
-            dist = self._point_to_segment_dist(ix, iy, ax, ay, bx, by)
+            dist, proj_x, proj_y = self._project_onto_segment(ix, iy, ax, ay, bx, by)
             if dist < threshold and dist < best_dist:
                 best_dist = dist
-                best_edge = (i, (ax + bx) / 2, (ay + by) / 2)
+                best_edge = (i, proj_x, proj_y)
         return best_edge
 
     def _on_hover_timeout(self):
@@ -357,7 +404,7 @@ class PolygonCanvas(QWidget):
         if self.editing_mode and self.selected_idx is not None and 0 <= self.selected_idx < len(self.polygons):
             polygon = self.polygons[self.selected_idx]["polygon"]
             for vi, pt in enumerate(polygon):
-                if vi == self._selected_vertex:
+                if vi == self._selected_vertex or vi in self._selected_vertices:
                     painter.setPen(QPen(QColor(0, 255, 255), handle_pen * 1.5))
                     painter.setBrush(QBrush(QColor(0, 255, 255, 200)))
                     painter.drawEllipse(QPointF(float(pt[0]), float(pt[1])), handle_r * 1.4, handle_r * 1.4)
@@ -365,6 +412,15 @@ class PolygonCanvas(QWidget):
                     painter.setPen(QPen(QColor(255, 0, 255), handle_pen))
                     painter.setBrush(QBrush(QColor(255, 0, 255, 160)))
                     painter.drawEllipse(QPointF(float(pt[0]), float(pt[1])), handle_r, handle_r)
+
+            # Draw rubber band selection rectangle
+            if self._rubber_band_start is not None and self._rubber_band_end is not None:
+                rx0, ry0 = self._rubber_band_start
+                rx1, ry1 = self._rubber_band_end
+                rect = QRectF(min(rx0, rx1), min(ry0, ry1), abs(rx1 - rx0), abs(ry1 - ry0))
+                painter.setPen(QPen(QColor(0, 255, 255, 200), handle_pen, Qt.DashLine))
+                painter.setBrush(QBrush(QColor(0, 255, 255, 40)))
+                painter.drawRect(rect)
 
         if self.editing_mode and self._hover_midpoint is not None and self.selected_idx is not None:
             mx, my = self._hover_midpoint
@@ -449,6 +505,7 @@ class PolygonCanvas(QWidget):
                 if abs(ix - pt[0]) < grab_radius and abs(iy - pt[1]) < grab_radius:
                     self._dragging_vertex = vi
                     self._selected_vertex = vi
+                    self._selected_vertices.clear()
                     self._drag_started = False
                     self._clear_hover()
                     parent = self.get_editor_parent()
@@ -478,8 +535,13 @@ class PolygonCanvas(QWidget):
                     self.update()
                     return
 
+            # Start rubber band selection for multi-vertex select
+            self._rubber_band_start = (ix, iy)
+            self._rubber_band_end = (ix, iy)
             self._dragging_vertex = None
-            self._selected_vertex = None
+            if not (event.modifiers() & Qt.ShiftModifier):
+                self._selected_vertex = None
+                self._selected_vertices.clear()
             self._clear_hover()
             self.update()
             return
@@ -498,6 +560,13 @@ class PolygonCanvas(QWidget):
                     parent.update_status(f"Selected polygon {self.selected_idx} ({cname})")
 
     def mouseMoveEvent(self, event):
+        # Rubber band selection drag
+        if self._rubber_band_start is not None and self.editing_mode:
+            ix, iy = self.widget_to_image(event.pos().x(), event.pos().y())
+            self._rubber_band_end = (ix, iy)
+            self.update()
+            return
+
         if self._dragging_vertex is not None and self.editing_mode and self.selected_idx is not None:
             self._drag_started = True
             ix, iy = self.widget_to_image(event.pos().x(), event.pos().y())
@@ -513,14 +582,21 @@ class PolygonCanvas(QWidget):
             ix, iy = self.widget_to_image(event.pos().x(), event.pos().y())
             result = self._find_nearest_edge(ix, iy)
             if result is not None:
-                edge_idx, mid_x, mid_y = result
+                edge_idx, proj_x, proj_y = result
                 if edge_idx != self._pending_hover_edge:
+                    # New edge — use timer for debounce
                     self._hover_timer.stop()
                     self._hover_edge_idx = None
                     self._hover_midpoint = None
                     self._pending_hover_edge = edge_idx
-                    self._pending_hover_mid = (mid_x, mid_y)
+                    self._pending_hover_mid = (proj_x, proj_y)
                     self._hover_timer.start()
+                    self.update()
+                else:
+                    # Same edge — update position to follow mouse
+                    self._pending_hover_mid = (proj_x, proj_y)
+                    if self._hover_edge_idx is not None:
+                        self._hover_midpoint = (proj_x, proj_y)
                     self.update()
             else:
                 self._clear_hover()
@@ -538,6 +614,40 @@ class PolygonCanvas(QWidget):
             self._sync_view()
 
     def mouseReleaseEvent(self, event):
+        # Finalize rubber band selection
+        if self._rubber_band_start is not None and event.button() == Qt.LeftButton:
+            if (self._rubber_band_end is not None and self.selected_idx is not None
+                    and 0 <= self.selected_idx < len(self.polygons)):
+                rx0, ry0 = self._rubber_band_start
+                rx1, ry1 = self._rubber_band_end
+                x_min, x_max = min(rx0, rx1), max(rx0, rx1)
+                y_min, y_max = min(ry0, ry1), max(ry0, ry1)
+                # Only count as drag-select if the rectangle is non-trivial
+                s = self._effective_scale()
+                min_drag = 4.0 / s if s > 0 else 4.0
+                if abs(rx1 - rx0) > min_drag or abs(ry1 - ry0) > min_drag:
+                    polygon = self.polygons[self.selected_idx]["polygon"]
+                    shift = event.modifiers() & Qt.ShiftModifier
+                    if not shift:
+                        self._selected_vertices.clear()
+                    for vi, pt in enumerate(polygon):
+                        if x_min <= pt[0] <= x_max and y_min <= pt[1] <= y_max:
+                            self._selected_vertices.add(vi)
+                    if self._selected_vertices:
+                        self._selected_vertex = max(self._selected_vertices)
+                        parent = self.get_editor_parent()
+                        if parent:
+                            parent.update_status(
+                                f"Selected {len(self._selected_vertices)} vertices (Delete to remove)")
+                else:
+                    # Tiny drag = click on empty space, deselect
+                    self._selected_vertex = None
+                    self._selected_vertices.clear()
+            self._rubber_band_start = None
+            self._rubber_band_end = None
+            self.update()
+            return
+
         if self._dragging_vertex is not None and event.button() == Qt.LeftButton:
             if not self._drag_started:
                 parent = self.get_editor_parent()
@@ -602,23 +712,37 @@ class PolygonCanvas(QWidget):
         self.update()
 
     def delete_selected_vertex(self) -> bool:
-        if (self._selected_vertex is not None and self.selected_idx is not None
-                and 0 <= self.selected_idx < len(self.polygons)):
-            polygon = self.polygons[self.selected_idx]["polygon"]
-            if len(polygon) <= 3:
-                return False
-            self.polygons[self.selected_idx]["polygon"] = np.delete(polygon, self._selected_vertex, axis=0)
-            if self._selected_vertex >= len(self.polygons[self.selected_idx]["polygon"]):
-                self._selected_vertex = len(self.polygons[self.selected_idx]["polygon"]) - 1
-            self.update()
-            return True
-        return False
+        if self.selected_idx is None or not (0 <= self.selected_idx < len(self.polygons)):
+            return False
+        polygon = self.polygons[self.selected_idx]["polygon"]
+
+        # Collect all indices to delete (multi-select or single)
+        to_delete = set(self._selected_vertices)
+        if self._selected_vertex is not None:
+            to_delete.add(self._selected_vertex)
+        if not to_delete:
+            return False
+
+        # Ensure at least 3 vertices remain
+        remaining = len(polygon) - len(to_delete)
+        if remaining < 3:
+            return False
+
+        # Delete in reverse order to keep indices valid
+        self.polygons[self.selected_idx]["polygon"] = np.delete(
+            polygon, sorted(to_delete), axis=0
+        )
+        self._selected_vertex = None
+        self._selected_vertices.clear()
+        self.update()
+        return True
 
     def delete_selected(self) -> Optional[dict]:
         if self.selected_idx is not None and 0 <= self.selected_idx < len(self.polygons):
             removed = self.polygons.pop(self.selected_idx)
             self.selected_idx = None
             self._selected_vertex = None
+            self._selected_vertices.clear()
             self.update()
             return removed
         return None
@@ -998,18 +1122,34 @@ class AnnotationEditor(QMainWindow):
         pred_dir = self._prediction_dir()
         stem = self._file_stem(sample)
         ann_file = ann_dir / f"{stem}.txt" if ann_dir else None
-        pred_file = pred_dir / f"{stem}.txt" if pred_dir else None
+
+        # Resolve prediction file: prefer .txt, fall back to .npz
+        pred_file = None
+        if pred_dir:
+            txt_path = pred_dir / f"{stem}.txt"
+            npz_path = pred_dir / f"{stem}.npz"
+            if txt_path.exists():
+                pred_file = txt_path
+            elif npz_path.exists():
+                pred_file = npz_path
+
+        def _load_predictions(path, w, h):
+            if path is None or not path.exists():
+                return []
+            if path.suffix == ".npz":
+                return parse_npz_predictions(path, w, h)
+            return parse_yolo_annotations(path, w, h)
 
         if self.editor_mode == MODE_CORRECT_GT:
             # Edit: GT annotations, Reference: predictions
             gt_polys = parse_yolo_annotations(ann_file, w, h) if ann_file and ann_file.exists() else []
-            pred_polys = parse_yolo_annotations(pred_file, w, h) if pred_file and pred_file.exists() else []
+            pred_polys = _load_predictions(pred_file, w, h)
             self.edit_canvas.set_polygons(gt_polys)
             self.ref_canvas.set_image(img_uint8)
             self.ref_canvas.set_polygons(pred_polys)
         elif self.editor_mode == MODE_CORRECT_PRED:
             # Edit: predictions (to be corrected), no reference
-            pred_polys = parse_yolo_annotations(pred_file, w, h) if pred_file and pred_file.exists() else []
+            pred_polys = _load_predictions(pred_file, w, h)
             self.edit_canvas.set_polygons(pred_polys)
         else:  # MODE_CREATE_GT
             # Edit: existing annotations if any, else empty
@@ -1105,6 +1245,7 @@ class AnnotationEditor(QMainWindow):
                         and canvas.polygons[canvas.selected_idx]["class_id"] == class_id):
                     canvas.selected_idx = None
                     canvas._selected_vertex = None
+                    canvas._selected_vertices.clear()
             canvas.update()
 
     # ── Modal (draw/edit) ─────────────────────────────────────────────────
@@ -1145,12 +1286,14 @@ class AnnotationEditor(QMainWindow):
         self.edit_canvas.editing_mode = True
         self.edit_canvas.update()
         self._enter_modal("Editing vertices")
-        self.update_status("Edit: Drag vertices, hover edge for +, Del removes vertex. Enter = confirm, Esc = cancel.")
+        self.update_status("Edit: Drag vertices, drag empty=box select, Shift=add to selection, Del=remove. Enter/Esc=confirm/cancel.")
 
     def _exit_editing_raw(self):
         self.edit_canvas.editing_mode = False
         self.edit_canvas._dragging_vertex = None
         self.edit_canvas._selected_vertex = None
+        self.edit_canvas._selected_vertices.clear()
+        self.edit_canvas._rubber_band_start = None
         self.edit_canvas._clear_hover()
         self.edit_canvas.update()
 
@@ -1243,6 +1386,7 @@ class AnnotationEditor(QMainWindow):
         self.edit_canvas.polygons = self._undo_stack.pop()
         self.edit_canvas._dragging_vertex = None
         self.edit_canvas._selected_vertex = None
+        self.edit_canvas._selected_vertices.clear()
         self.edit_canvas._clear_hover()
         if was_editing and selected_idx is not None and selected_idx < len(self.edit_canvas.polygons):
             self.edit_canvas.selected_idx = selected_idx
@@ -1276,22 +1420,29 @@ class AnnotationEditor(QMainWindow):
     # ── Delete ────────────────────────────────────────────────────────────
 
     def delete_selected(self):
-        if (self.edit_canvas.editing_mode and self.edit_canvas._selected_vertex is not None
+        has_vertex_selection = (self.edit_canvas._selected_vertex is not None
+                                or len(self.edit_canvas._selected_vertices) > 0)
+        if (self.edit_canvas.editing_mode and has_vertex_selection
                 and self.edit_canvas.selected_idx is not None):
             polygon = self.edit_canvas.polygons[self.edit_canvas.selected_idx]["polygon"]
-            if len(polygon) <= 3:
+            # Count how many would be deleted
+            to_delete = set(self.edit_canvas._selected_vertices)
+            if self.edit_canvas._selected_vertex is not None:
+                to_delete.add(self.edit_canvas._selected_vertex)
+            remaining = len(polygon) - len(to_delete)
+            if remaining < 3:
                 self.push_undo()
                 removed = self.edit_canvas.delete_selected()
                 self._exit_editing_raw()
                 if removed:
                     self.modified = True
-                    self.update_status("Deleted polygon (< 3 vertices remaining)")
+                    self.update_status("Deleted polygon (< 3 vertices would remain)")
                 return
             self.push_undo()
             if self.edit_canvas.delete_selected_vertex():
                 self.modified = True
                 n = len(self.edit_canvas.polygons[self.edit_canvas.selected_idx]['polygon'])
-                self.update_status(f"Deleted vertex ({n} vertices remaining)")
+                self.update_status(f"Deleted {len(to_delete)} vertex(es) ({n} remaining)")
             return
         if self.edit_canvas.selected_idx is not None:
             self.push_undo()
