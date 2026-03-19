@@ -1,14 +1,15 @@
-"""Run YOLO inference, save predictions as YOLO .txt files, and optionally visualize.
+"""Run model inference, save predictions, and optionally visualize.
 
-Merges the functionality of the old predict.py (generic directory discovery,
-visualization) and generate_predictions.py (batched inference, YOLO txt output).
+Supports YOLO and U-Net++ models. YOLO predictions are saved as .txt polygon
+files; U-Net++ predictions are saved as compressed .npz mask files.
 
 Usage:
-    # Run on the main data directory (uses SampleRegistry)
+    # YOLO inference (default)
     python predict.py --data-dir data/ --checkpoint best.pt
 
-    # Run on arbitrary directory of TIF triplets
-    python predict.py --data-dir path/to/images --checkpoint best.pt
+    # U-Net++ multilabel inference (5 classes)
+    python predict.py --model unet --unet-mode multilabel --num-classes 5 \
+        --checkpoint output/runs/unet/.../best-*.ckpt --data-dir data/
 
     # Skip visualization
     python predict.py --data-dir data/ --checkpoint best.pt --no-vis
@@ -24,7 +25,11 @@ import tifffile
 from tqdm import tqdm
 
 from src.config import DEFAULT_IMG_SIZE, TARGET_CLASS_COLORS_RGB, get_target_classes
-from src.evaluation import PredictionResult
+from src.evaluation import (
+    PredictionResult,
+    convert_multilabel_to_instances,
+    convert_semantic_to_instances,
+)
 from src.postprocessing import PostProcessor
 from src.preprocessing import normalize_percentile, to_uint8
 from src.visualization import (
@@ -94,6 +99,79 @@ def _load_image_generic(sample: dict) -> np.ndarray:
         channels.append(img.astype(np.float32))
     raw = np.stack(channels, axis=-1)
     return normalize_percentile(raw)
+
+
+# ── U-Net++ inference ────────────────────────────────────────────────────────
+
+def run_inference_unet(checkpoint: str, samples, img_size: int,
+                       unet_mode: str, num_classes: int, use_registry: bool):
+    """Run U-Net/U-Net++ inference on samples.
+
+    Returns dict: sample_name -> {img, masks, labels, scores}.
+    """
+    import torch
+    from src.preprocessing import load_sample_normalized
+
+    # Auto-detect device
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    print(f"Using device: {device}")
+
+    # Load model
+    if unet_mode == "multilabel":
+        from train.train_unet import MultiLabelSegmentationModule
+        model = MultiLabelSegmentationModule.load_from_checkpoint(
+            checkpoint, map_location=device)
+    else:
+        from train.train_unet import SegmentationModule
+        model = SegmentationModule.load_from_checkpoint(
+            checkpoint, map_location=device)
+    model.eval()
+    model.to(device)
+
+    results = {}
+    for sample in tqdm(samples, desc="U-Net inference"):
+        if use_registry:
+            img = load_sample_normalized(sample)
+            name = sample.uid
+        else:
+            img = _load_image_generic(sample)
+            name = sample["name"]
+
+        h, w = img.shape[:2]
+        img_resized = cv2.resize(img, (img_size, img_size),
+                                 interpolation=cv2.INTER_LINEAR)
+        tensor = torch.from_numpy(img_resized).permute(2, 0, 1).unsqueeze(0).float().to(device)
+
+        with torch.no_grad():
+            logits = model(tensor)
+
+        if unet_mode == "multilabel":
+            probs = torch.sigmoid(logits).squeeze(0).cpu().numpy()
+            nc = probs.shape[0]
+            ml_mask = np.zeros((nc, h, w), dtype=np.float32)
+            for c in range(nc):
+                ml_mask[c] = cv2.resize(probs[c], (w, h),
+                                        interpolation=cv2.INTER_LINEAR)
+            pred = convert_multilabel_to_instances(ml_mask)
+        else:
+            sem_mask = logits.argmax(dim=1).squeeze().cpu().numpy()
+            sem_mask = cv2.resize(sem_mask.astype(np.uint8), (w, h),
+                                  interpolation=cv2.INTER_NEAREST).astype(np.int32)
+            pred = convert_semantic_to_instances(sem_mask)
+
+        results[name] = {
+            "img": img,
+            "masks": pred.masks,
+            "labels": pred.labels,
+            "scores": pred.scores,
+        }
+
+    return results
 
 
 # ── Mask-to-polygon conversion ───────────────────────────────────────────────
@@ -207,6 +285,26 @@ def save_predictions_txt(predictions: dict, out_dir: Path):
     print(f"Saved {len(predictions)} prediction .txt files to {out_dir}")
 
 
+def save_predictions_npz(predictions: dict, out_dir: Path):
+    """Save predictions as compressed NPZ files (lossless binary masks).
+
+    Each file contains:
+        masks:  (N, H, W) uint8 binary instance masks
+        labels: (N,) int32 target class IDs
+        scores: (N,) float32 confidence scores
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for name, pred in predictions.items():
+        npz_path = out_dir / f"{name}.npz"
+        np.savez_compressed(
+            npz_path,
+            masks=pred["masks"],
+            labels=pred["labels"],
+            scores=pred["scores"],
+        )
+    print(f"Saved {len(predictions)} prediction NPZ files to {out_dir}")
+
+
 def save_visualizations(predictions: dict, out_dir: Path, max_dim: int = 800):
     """Save 2-panel (Original | Prediction) overlay images."""
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -260,10 +358,17 @@ def save_visualizations(predictions: dict, out_dir: Path, max_dim: int = 800):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run YOLO inference, save prediction .txt files and visualizations")
+        description="Run model inference, save predictions and visualizations")
     parser.add_argument("--data-dir", required=True,
                         help="Data directory (supports SampleRegistry structure or generic TIF dirs)")
-    parser.add_argument("--checkpoint", required=True, help="YOLO checkpoint path")
+    parser.add_argument("--checkpoint", required=True, help="Model checkpoint path")
+    parser.add_argument("--model", default="yolo", choices=["yolo", "unet"],
+                        help="Model type for inference (default: yolo)")
+    parser.add_argument("--unet-mode", default="multilabel",
+                        choices=["semantic", "multilabel"],
+                        help="U-Net segmentation mode (only used with --model unet)")
+    parser.add_argument("--num-classes", type=int, default=4, choices=[4, 5],
+                        help="Number of target classes (only used with --model unet)")
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
     parser.add_argument("--conf-thresh", type=float, default=0.25)
     parser.add_argument("--batch-size", type=int, default=16)
@@ -306,14 +411,20 @@ def main():
         print(f"Found {len(samples)} samples via directory scan")
 
     # Run inference
-    predictions = run_inference(
-        args.checkpoint, samples, args.img_size, args.conf_thresh,
-        args.batch_size, use_registry,
-    )
+    if args.model == "unet":
+        predictions = run_inference_unet(
+            args.checkpoint, samples, args.img_size,
+            args.unet_mode, args.num_classes, use_registry,
+        )
+    else:
+        predictions = run_inference(
+            args.checkpoint, samples, args.img_size, args.conf_thresh,
+            args.batch_size, use_registry,
+        )
 
     # Post-processing
     if not args.no_postprocess:
-        pp = PostProcessor(model="yolo")
+        pp = PostProcessor(model=args.model)
         print(pp.summary())
         for name in predictions:
             p = predictions[name]
@@ -325,9 +436,12 @@ def main():
             predictions[name]["labels"] = pred_result.labels
             predictions[name]["scores"] = pred_result.scores
 
-    # Save YOLO .txt predictions
+    # Save predictions
     pred_dir = data_dir / "prediction"
-    save_predictions_txt(predictions, pred_dir)
+    if args.model == "unet":
+        save_predictions_npz(predictions, pred_dir)
+    else:
+        save_predictions_txt(predictions, pred_dir)
 
     # Save visualizations
     if not args.no_vis:

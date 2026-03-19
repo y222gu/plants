@@ -592,7 +592,7 @@ def predict_cellpose(checkpoint_dir: str, samples, img_size: int,
 
         for cls_id, model_path in class_models.items():
             model = models.CellposeModel(gpu=True, pretrained_model=model_path)
-            pred_mask = model.eval([img_uint8], channels=[0, 0], diameter=None)[0][0]
+            pred_mask = model.eval([img_uint8], diameter=None)[0][0]
 
             # Convert instance mask to individual binary masks
             instance_ids = np.unique(pred_mask)

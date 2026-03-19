@@ -140,7 +140,6 @@ def evaluate_cellpose(
     # Run inference
     pred_masks = model.eval(
         test_images,
-        channels=[0, 0],
         diameter=None,  # auto-detect
     )[0]
 
