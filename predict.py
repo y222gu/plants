@@ -123,9 +123,16 @@ def run_inference_unet(checkpoint: str, samples, img_size: int,
 
     # Load model
     if unet_mode == "multilabel":
-        from train.train_unet import MultiLabelSegmentationModule
-        model = MultiLabelSegmentationModule.load_from_checkpoint(
-            checkpoint, map_location=device)
+        # Try loading with the appropriate module class
+        try:
+            from train.train_unet import MultiLabelSegmentationModule
+            model = MultiLabelSegmentationModule.load_from_checkpoint(
+                checkpoint, map_location=device)
+        except RuntimeError:
+            # Checkpoint may be from train_unet_5c.py (MultiLabel5CModule)
+            from train.train_unet_5c import MultiLabel5CModule
+            model = MultiLabel5CModule.load_from_checkpoint(
+                checkpoint, map_location=device)
     else:
         from train.train_unet import SegmentationModule
         model = SegmentationModule.load_from_checkpoint(

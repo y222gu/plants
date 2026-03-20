@@ -15,6 +15,8 @@ Controls:
     - E: Enter vertex editing mode (drag, add, delete vertices)
     - Enter: Confirm drawing/edits
     - Escape: Cancel drawing/edits (reverts changes)
+    - R: Split selected ring polygon into outer + inner (endo/exo)
+    - Shift+click (edit mode): Insert a free vertex at cursor position
     - Drag on empty space (edit mode): Rectangle-select multiple vertices
     - Shift+drag: Add to existing vertex selection
     - Delete/Backspace: Remove selected vertex(es) (edit mode) or polygon
@@ -55,8 +57,60 @@ from src.preprocessing import load_sample_normalized, to_uint8
 from src.annotation_utils import parse_yolo_annotations, polygon_to_mask
 
 
+def _extract_ring_contours(mask: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    """Extract outer and inner contours from a ring-shaped mask.
+
+    Applies morphological closing first to fix small gaps in broken rings.
+
+    Returns:
+        (outer_polygon, inner_polygon) — each Nx2 int32 or None if not found.
+    """
+    # Close small gaps in the ring before extracting contours
+    h, w = mask.shape[:2]
+    kern_size = max(7, int(min(h, w) * 0.015) | 1)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kern_size, kern_size))
+    closed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+
+    # Find the outer boundary
+    contours_ext, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours_ext:
+        return None, None
+    outer_contour = max(contours_ext, key=cv2.contourArea)
+    if len(outer_contour) < 3:
+        return None, None
+    outer_poly = outer_contour.reshape(-1, 2).astype(np.int32)
+
+    # Fill the outer contour to find the hole (inner boundary)
+    filled_solid = np.zeros_like(closed)
+    cv2.fillPoly(filled_solid, [outer_contour], 1)
+    hole = filled_solid & (~closed.astype(bool)).astype(np.uint8)
+
+    # Find the largest hole contour = inner boundary
+    hole_contours, _ = cv2.findContours(hole, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not hole_contours:
+        return outer_poly, None
+    inner_contour = max(hole_contours, key=cv2.contourArea)
+    if len(inner_contour) < 3:
+        return outer_poly, None
+    inner_poly = inner_contour.reshape(-1, 2).astype(np.int32)
+
+    return outer_poly, inner_poly
+
+
+# Target class → annotation class mapping for ring structures
+# Target 2 (endodermis ring) → annotation 2 (outer endo) + 3 (inner endo)
+# Target 4 (exodermis ring) → annotation 4 (outer exo) + 5 (inner exo)
+_RING_CLASS_MAP = {
+    2: (2, 3),   # endodermis: outer=2, inner=3
+    4: (4, 5),   # exodermis: outer=4, inner=5
+}
+
+
 def parse_npz_predictions(path: Path, img_w: int = 0, img_h: int = 0) -> List[dict]:
     """Parse an .npz prediction file containing binary masks into polygon dicts.
+
+    Predictions use target class IDs (0-4). Ring classes (endodermis=2, exodermis=4)
+    are split back into outer/inner annotation class pairs (2→2+3, 4→4+5).
 
     Args:
         path: Path to .npz file with 'masks', 'labels', and optionally 'scores'.
@@ -70,19 +124,27 @@ def parse_npz_predictions(path: Path, img_w: int = 0, img_h: int = 0) -> List[di
     labels = data['labels']    # (N,)
     annotations = []
     for i in range(len(labels)):
+        label = int(labels[i])
         mask = masks[i].astype(np.uint8)
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contours:
-            continue
-        # Use the largest contour
-        contour = max(contours, key=cv2.contourArea)
-        if len(contour) < 3:
-            continue
-        polygon = contour.reshape(-1, 2).astype(np.int32)
-        annotations.append({
-            "class_id": int(labels[i]),
-            "polygon": polygon,
-        })
+
+        if label in _RING_CLASS_MAP:
+            # Ring mask: split into outer + inner annotation polygons
+            outer_cls, inner_cls = _RING_CLASS_MAP[label]
+            outer_poly, inner_poly = _extract_ring_contours(mask)
+            if outer_poly is not None:
+                annotations.append({"class_id": outer_cls, "polygon": outer_poly})
+            if inner_poly is not None:
+                annotations.append({"class_id": inner_cls, "polygon": inner_poly})
+        else:
+            # Non-ring class: use largest external contour
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if not contours:
+                continue
+            contour = max(contours, key=cv2.contourArea)
+            if len(contour) < 3:
+                continue
+            polygon = contour.reshape(-1, 2).astype(np.int32)
+            annotations.append({"class_id": label, "polygon": polygon})
     return annotations
 
 
@@ -535,13 +597,34 @@ class PolygonCanvas(QWidget):
                     self.update()
                     return
 
+            # Shift+click in edit mode: insert a free vertex at cursor position
+            if event.modifiers() & Qt.ShiftModifier:
+                insert_after = self._selected_vertex if self._selected_vertex is not None else len(polygon) - 1
+                parent = self.get_editor_parent()
+                if parent:
+                    parent.push_undo()
+                new_pt = [ix, iy]
+                self.polygons[self.selected_idx]["polygon"] = np.insert(
+                    polygon, insert_after + 1, new_pt, axis=0
+                )
+                self._selected_vertex = insert_after + 1
+                self._selected_vertices.clear()
+                self._dragging_vertex = insert_after + 1
+                self._drag_started = False
+                self._clear_hover()
+                if parent:
+                    parent.update_status(
+                        f"Inserted free vertex at ({int(ix)}, {int(iy)}) — "
+                        f"{len(self.polygons[self.selected_idx]['polygon'])} vertices")
+                self.update()
+                return
+
             # Start rubber band selection for multi-vertex select
             self._rubber_band_start = (ix, iy)
             self._rubber_band_end = (ix, iy)
             self._dragging_vertex = None
-            if not (event.modifiers() & Qt.ShiftModifier):
-                self._selected_vertex = None
-                self._selected_vertices.clear()
+            self._selected_vertex = None
+            self._selected_vertices.clear()
             self._clear_hover()
             self.update()
             return
@@ -1081,6 +1164,7 @@ class AnnotationEditor(QMainWindow):
             QShortcut(QKeySequence(Qt.Key_0 + i), self, lambda idx=i: self.set_drawing_class(idx))
         QShortcut(QKeySequence("Ctrl+C"), self, self.copy_selected_ref_to_edit)
         QShortcut(QKeySequence(Qt.Key_C), self, self.copy_all_ref_to_edit)
+        QShortcut(QKeySequence(Qt.Key_R), self, self.split_ring)
         QShortcut(QKeySequence(Qt.Key_H), self, self.home_view)
         QShortcut(QKeySequence("Ctrl+Z"), self, self.undo)
         QShortcut(QKeySequence("Ctrl+Shift+Z"), self, self.redo)
@@ -1286,7 +1370,7 @@ class AnnotationEditor(QMainWindow):
         self.edit_canvas.editing_mode = True
         self.edit_canvas.update()
         self._enter_modal("Editing vertices")
-        self.update_status("Edit: Drag vertices, drag empty=box select, Shift=add to selection, Del=remove. Enter/Esc=confirm/cancel.")
+        self.update_status("Edit: Drag vertices, Shift+click=add free vertex, drag empty=box select, Del=remove. Enter/Esc=confirm/cancel.")
 
     def _exit_editing_raw(self):
         self.edit_canvas.editing_mode = False
@@ -1452,6 +1536,76 @@ class AnnotationEditor(QMainWindow):
             self.update_status(f"Deleted polygon (class {removed['class_id']})")
         else:
             self.update_status("No polygon selected to delete")
+
+    # ── Split Ring ────────────────────────────────────────────────────────
+
+    # Annotation class pairs for ring structures
+    _RING_PAIRS = {
+        2: (2, 3),   # outer endo → outer endo (2) + inner endo (3)
+        3: (2, 3),   # inner endo → same pair
+        4: (4, 5),   # outer exo → outer exo (4) + inner exo (5)
+        5: (4, 5),   # inner exo → same pair
+    }
+
+    def split_ring(self):
+        """Split the selected polygon into outer + inner ring polygons.
+
+        Works on any polygon that forms a ring/donut shape. The polygon is
+        converted to a filled mask, morphological closing fixes small gaps,
+        then outer and inner contours are extracted as separate polygons.
+
+        The class assignment depends on the selected polygon's class:
+        - Class 2 or 3 → outer endo (2) + inner endo (3)
+        - Class 4 or 5 → outer exo (4) + inner exo (5)
+        - Other classes → outer keeps original class, inner = original + 1
+        """
+        canvas = self.edit_canvas
+        if canvas.selected_idx is None or canvas.base_image is None:
+            self.update_status("Select a polygon first, then press R to split ring")
+            return
+        if not (0 <= canvas.selected_idx < len(canvas.polygons)):
+            return
+
+        poly_data = canvas.polygons[canvas.selected_idx]
+        class_id = poly_data["class_id"]
+        polygon = poly_data["polygon"]
+        h, w = canvas.base_image.shape[:2]
+
+        # Convert polygon to filled mask
+        mask = np.zeros((h, w), dtype=np.uint8)
+        pts = polygon.reshape(-1, 1, 2).astype(np.int32)
+        cv2.fillPoly(mask, [pts], 1)
+
+        # Extract ring contours (with morphological closing for gap repair)
+        outer_poly, inner_poly = _extract_ring_contours(mask)
+
+        if outer_poly is None:
+            self.update_status("Could not extract ring contours from selected polygon")
+            return
+        if inner_poly is None:
+            self.update_status("No inner ring found — polygon may be solid, not a ring. "
+                               "Try closing gaps first (edit mode)")
+            return
+
+        # Determine class IDs for outer and inner
+        if class_id in self._RING_PAIRS:
+            outer_cls, inner_cls = self._RING_PAIRS[class_id]
+        else:
+            outer_cls = class_id
+            inner_cls = class_id + 1
+
+        # Replace selected polygon with outer + inner
+        self.push_undo()
+        idx = canvas.selected_idx
+        canvas.polygons.pop(idx)
+        canvas.polygons.insert(idx, {"class_id": outer_cls, "polygon": outer_poly})
+        canvas.polygons.insert(idx + 1, {"class_id": inner_cls, "polygon": inner_poly})
+        canvas.selected_idx = None
+        canvas.update()
+        self.modified = True
+        self.update_status(
+            f"Split ring → outer (class {outer_cls}, {len(outer_poly)} pts) "
+            f"+ inner (class {inner_cls}, {len(inner_poly)} pts)")
 
     # ── Save ──────────────────────────────────────────────────────────────
 

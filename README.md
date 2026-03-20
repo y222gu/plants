@@ -116,7 +116,35 @@ python train/run_grid_training.py --train-only     # Only train, skip evaluation
 
 Each run trains the model and then evaluates on the test set via `evaluate.py`.
 
-### Annotation Summary
+### Annotation Class Index
+
+Annotations are stored in YOLO polygon format (`.txt` files) using 6 raw classes. During training, these are converted into 4 or 5 semantic **target classes** by subtracting inner boundaries from outer boundaries to create ring masks.
+
+#### Annotation classes (raw, in `.txt` files)
+
+| Class ID | Name               | Color   | Description |
+|----------|--------------------|---------|-------------|
+| 0        | Whole Root         | Blue    | Outer boundary of the entire root cross-section (1 per sample) |
+| 1        | Aerenchyma         | Yellow  | Individual air spaces in the cortex (many per sample, cereals only) |
+| 2        | Outer Endodermis   | Green   | Outer boundary of the endodermis ring (1 per sample) |
+| 3        | Inner Endodermis   | Red     | Inner boundary of the endodermis ring (1 per sample) |
+| 4        | Outer Exodermis    | Orange  | Outer boundary of the exodermis ring (1 per sample, tomato only) |
+| 5        | Inner Exodermis    | Purple  | Inner boundary of the exodermis ring (1 per sample, tomato only) |
+
+#### Target classes (derived, used for model training)
+
+| Target ID | Name           | Derivation                              | Species       |
+|-----------|----------------|-----------------------------------------|---------------|
+| 0         | Whole Root     | Direct from annotation class 0          | All           |
+| 1         | Aerenchyma     | Direct from annotation class 1          | Cereals only  |
+| 2         | Endodermis     | Ring mask: annotation cls 2 minus cls 3 | All           |
+| 3         | Vascular       | Area inside annotation class 3          | All           |
+| 4         | Exodermis      | Ring mask: annotation cls 4 minus cls 5 | Tomato only   |
+
+- **4-class mode** (`--num-classes 4`): targets 0-3 only, exodermis ignored
+- **5-class mode** (`--num-classes 5`): targets 0-4, uses `--mask-missing` for species lacking certain classes
+
+#### Annotation counts per species
 
 | Species | Samples | cls 0: Whole Root | cls 1: Aerenchyma | cls 2: Outer Endo | cls 3: Inner Endo | cls 4: Outer Exo | cls 5: Inner Exo | Total Polygons |
 |---------|--------:|------------------:|------------------:|------------------:|------------------:|-----------------:|-----------------:|---------------:|
