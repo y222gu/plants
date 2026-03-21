@@ -144,6 +144,8 @@ Annotations are stored in YOLO polygon format (`.txt` files) using 6 raw classes
 - **4-class mode** (`--num-classes 4`): targets 0-3 only, exodermis ignored
 - **5-class mode** (`--num-classes 5`): targets 0-4, uses `--mask-missing` for species lacking certain classes
 
+**Important**: Ring classes (endodermis, exodermis) are derived by subtracting the inner boundary polygon from the outer boundary polygon. This subtraction happens during data loading (in `annotation_utils.py`), not in post-processing. The post-processing `fill_holes` step is ring-aware — it preserves the structural central hole of ring masks while filling only small artifact holes in the ring band.
+
 #### Annotation counts per species
 
 | Species | Samples | cls 0: Whole Root | cls 1: Aerenchyma | cls 2: Outer Endo | cls 3: Inner Endo | cls 4: Outer Exo | cls 5: Inner Exo | Total Polygons |
@@ -223,7 +225,7 @@ python predict.py --data-dir data/ --checkpoint path/to/best.pt --no-postprocess
 | `--conf-thresh`   | 0.25       | Confidence threshold                                                 |
 | `--batch-size`    | 16         | GPU batch size                                                       |
 | `--no-vis`        | false      | Skip visualization output                                            |
-| `--no-postprocess`| false      | Disable post-processing (hole filling, aerenchyma clipping, etc.)    |
+| `--no-postprocess`| false      | Disable post-processing (ring-aware hole filling, aerenchyma clipping, etc.) |
 | `--max-dim`       | 800        | Max dimension for visualization images                               |
 
 **Output:**
@@ -371,8 +373,9 @@ python polygon_editor.py
 |----------------------------|--------------------------------------------------|
 | `A` / `Left`              | Previous sample                                  |
 | `D` / `Right`             | Next sample                                      |
-| `N`                       | Start drawing new polygon (click to add points)  |
-| `E`                       | Enter vertex editing mode on selected polygon    |
+| `N`                       | Start drawing new polygon with nodes (click to add points)  |
+| `B`                       | Enter brush mode (erase default, Shift=add, Ctrl+scroll=size) |
+| `E`                       | Edit selected polygon with brush (same as B on selection)   |
 | `Enter`                   | Confirm drawing or edits                         |
 | `Escape`                  | Cancel drawing or edits (reverts all changes)    |
 | `Delete` / `Backspace`    | Delete selected vertex (edit mode) or polygon    |

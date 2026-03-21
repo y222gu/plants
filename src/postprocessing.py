@@ -21,23 +21,66 @@ from .evaluation import PredictionResult
 
 # ── Individual post-processing steps ──────────────────────────────────────────
 
+# Ring classes whose central hole is structural, not an artifact
+_RING_CLASSES = {2, 4}  # endodermis, exodermis
+
+
+def _fill_ring_holes(mask: np.ndarray) -> np.ndarray:
+    """Fill artifact holes in a ring mask while preserving its central hole.
+
+    Splits the ring into outer boundary (solid fill) and central hole,
+    fills artifact holes in each independently, then recombines.
+    """
+    # Outer boundary → solid fill (fills both central hole + artifact holes)
+    contours_ext, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+    if not contours_ext:
+        return mask.copy()
+    outer_solid = np.zeros_like(mask)
+    cv2.drawContours(outer_solid, contours_ext, -1, 1, thickness=cv2.FILLED)
+
+    # Central hole = solid fill minus ring pixels
+    # This includes the real central hole + any artifact holes in the ring band
+    hole = outer_solid & (~mask.astype(bool)).astype(np.uint8)
+
+    # Keep only the largest hole (the structural central hole);
+    # small holes are ring-band artifacts that should be filled
+    hole_filled = np.zeros_like(hole)
+    hole_contours, _ = cv2.findContours(hole, cv2.RETR_EXTERNAL,
+                                        cv2.CHAIN_APPROX_SIMPLE)
+    if hole_contours:
+        largest = max(hole_contours, key=cv2.contourArea)
+        cv2.drawContours(hole_filled, [largest], -1, 1,
+                         thickness=cv2.FILLED)
+
+    # Recombine: solid outer minus cleaned hole = cleaned ring
+    return np.clip(
+        outer_solid.astype(np.int8) - hole_filled.astype(np.int8), 0, 1
+    ).astype(np.uint8)
+
+
 def fill_holes(pred: PredictionResult) -> PredictionResult:
     """Fill internal holes in every instance mask.
 
-    For each mask, extracts outer contours and re-fills them, removing any
-    internal holes caused by self-intersecting polygons or noisy predictions.
+    For solid masks: extracts outer contours and re-fills them.
+    For ring masks (endodermis/exodermis): fills artifact holes in the outer
+    and inner regions independently, preserving the structural central hole.
     """
     if len(pred.masks) == 0:
         return pred
     filled = np.zeros_like(pred.masks)
     for i in range(len(pred.masks)):
         mask = pred.masks[i]
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
-                                       cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            cv2.drawContours(filled[i], contours, -1, 1, thickness=cv2.FILLED)
+        if pred.labels[i] in _RING_CLASSES:
+            filled[i] = _fill_ring_holes(mask)
         else:
-            filled[i] = mask
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
+                                           cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                cv2.drawContours(filled[i], contours, -1, 1,
+                                 thickness=cv2.FILLED)
+            else:
+                filled[i] = mask
     return PredictionResult(masks=filled, labels=pred.labels, scores=pred.scores)
 
 

@@ -11,10 +11,14 @@ Modes:
 Controls:
     - Left/Right arrows or A/D: Navigate samples
     - Click on polygon: Select it (highlighted in white)
-    - N: Start drawing new polygon (click points)
-    - E: Enter vertex editing mode (drag, add, delete vertices)
-    - Enter: Confirm drawing/edits
-    - Escape: Cancel drawing/edits (reverts changes)
+    - N: Start drawing new polygon with nodes (click points, connect with lines)
+    - B: Enter brush mode (erase by default, Shift+paint to add area)
+        - Scroll wheel: zoom in/out (normal zoom)
+        - Ctrl+scroll: change brush size
+    - V: Enter vertex (node) editing mode (drag, add, delete vertices)
+    - Enter: Edit selected polygon with brush / confirm edits + auto-save
+    - Enter: Confirm drawing/edits/brush
+    - Escape: Cancel drawing/edits/brush (reverts changes)
     - R: Split selected ring polygon into outer + inner (endo/exo)
     - Shift+click (edit mode): Insert a free vertex at cursor position
     - Drag on empty space (edit mode): Rectangle-select multiple vertices
@@ -285,6 +289,16 @@ class PolygonCanvas(QWidget):
         self._rubber_band_start: Optional[Tuple[float, float]] = None
         self._rubber_band_end: Optional[Tuple[float, float]] = None
 
+        # Brush editing state
+        self.brush_mode = False
+        self.brush_radius = 20  # pixels in image space
+        self._brush_mask: Optional[np.ndarray] = None  # (H, W) uint8
+        self._brush_class_id: int = 0
+        self._brush_painting = False
+        self._brush_erasing = False
+        self._brush_cursor_pos: Optional[Tuple[float, float]] = None
+        self._brush_orig_idx: Optional[int] = None  # index of polygon being edited
+
         # Edge hover state for adding nodes
         self._hover_edge_idx: Optional[int] = None
         self._hover_midpoint: Optional[Tuple[float, float]] = None
@@ -505,7 +519,34 @@ class PolygonCanvas(QWidget):
                     p2 = self.drawing_points[i + 1]
                     painter.drawLine(QPointF(p1[0], p1[1]), QPointF(p2[0], p2[1]))
 
+        # Brush mode: mask overlay + cursor
+        if self.brush_mode and self._brush_mask is not None:
+            mask_h, mask_w = self._brush_mask.shape
+            color = CLASS_QCOLORS.get(self._brush_class_id, QColor(128, 128, 128, 180))
+            overlay = np.zeros((mask_h, mask_w, 4), dtype=np.uint8)
+            overlay[self._brush_mask > 0] = [
+                color.blue(), color.green(), color.red(), 100]
+            qimg = QImage(overlay.data, mask_w, mask_h,
+                          4 * mask_w, QImage.Format_ARGB32)
+            painter.drawImage(QRectF(0, 0, mask_w, mask_h), qimg)
+
         painter.resetTransform()
+
+        # Brush cursor (drawn in widget space, after resetTransform)
+        if self.brush_mode and self._brush_cursor_pos is not None:
+            bx, by = self._brush_cursor_pos
+            wp = self.image_to_widget(bx, by)
+            radius_w = self.brush_radius * self._effective_scale()
+            cursor_color = QColor(255, 0, 0, 200) if self._brush_erasing else QColor(255, 255, 255, 200)
+            painter.setPen(QPen(cursor_color, 1.5, Qt.DashLine))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawEllipse(wp, radius_w, radius_w)
+            # Brush size text
+            painter.setPen(QPen(Qt.white))
+            painter.setFont(QFont("Arial", 10))
+            painter.drawText(int(wp.x() + radius_w + 5), int(wp.y() - 5),
+                             f"{self.brush_radius}px")
+
         painter.setPen(QPen(Qt.white))
         painter.setFont(QFont("Arial", 12, QFont.Bold))
         painter.drawText(10, 25, self.title)
@@ -532,6 +573,14 @@ class PolygonCanvas(QWidget):
     def wheelEvent(self, event):
         if self.base_image is None:
             return
+        # In brush mode: Ctrl+scroll = resize brush, scroll = zoom (default)
+        if self.brush_mode and (event.modifiers() & Qt.ControlModifier):
+            delta = 3 if event.angleDelta().y() > 0 else -3
+            self.brush_radius = max(2, min(self.brush_radius + delta, 200))
+            mx, my = event.pos().x(), event.pos().y()
+            self._brush_cursor_pos = self.widget_to_image(mx, my)
+            self.update()
+            return
         mx, my = event.pos().x(), event.pos().y()
         ix, iy = self.widget_to_image(mx, my)
         factor = 1.15 if event.angleDelta().y() > 0 else 1.0 / 1.15
@@ -557,6 +606,14 @@ class PolygonCanvas(QWidget):
         img_x, img_y = int(ix), int(iy)
         h, w = self.base_image.shape[:2]
         if not (0 <= img_x < w and 0 <= img_y < h):
+            return
+
+        # Brush mode: erase by default, Shift = paint
+        if self.editable and self.brush_mode:
+            self._brush_erasing = not bool(event.modifiers() & Qt.ShiftModifier)
+            self._brush_painting = True
+            self._apply_brush_stroke(ix, iy)
+            self.update()
             return
 
         if self.editable and self.editing_mode and self.selected_idx is not None:
@@ -643,6 +700,26 @@ class PolygonCanvas(QWidget):
                     parent.update_status(f"Selected polygon {self.selected_idx} ({cname})")
 
     def mouseMoveEvent(self, event):
+        # Brush mode: update cursor + paint
+        if self.brush_mode and self.base_image is not None:
+            ix, iy = self.widget_to_image(event.pos().x(), event.pos().y())
+            self._brush_cursor_pos = (ix, iy)
+            if self._brush_painting:
+                self._brush_erasing = not bool(event.modifiers() & Qt.ShiftModifier)
+                self._apply_brush_stroke(ix, iy)
+            self.update()
+            # Still allow panning with middle/right button
+            if self._panning and self._pan_start is not None:
+                s = self._effective_scale()
+                if s > 0:
+                    dx = (event.pos().x() - self._pan_start.x()) / s
+                    dy = (event.pos().y() - self._pan_start.y()) / s
+                    self.pan_offset[0] -= dx
+                    self.pan_offset[1] -= dy
+                    self._pan_start = event.pos()
+                    self._sync_view()
+            return
+
         # Rubber band selection drag
         if self._rubber_band_start is not None and self.editing_mode:
             ix, iy = self.widget_to_image(event.pos().x(), event.pos().y())
@@ -697,6 +774,11 @@ class PolygonCanvas(QWidget):
             self._sync_view()
 
     def mouseReleaseEvent(self, event):
+        # Brush mode: stop painting
+        if self.brush_mode and event.button() == Qt.LeftButton:
+            self._brush_painting = False
+            return
+
         # Finalize rubber band selection
         if self._rubber_band_start is not None and event.button() == Qt.LeftButton:
             if (self._rubber_band_end is not None and self.selected_idx is not None
@@ -829,6 +911,63 @@ class PolygonCanvas(QWidget):
             self.update()
             return removed
         return None
+
+    # ── Brush mode ────────────────────────────────────────────────────────
+
+    def start_brush_mode(self, polygon_idx: Optional[int]):
+        """Enter brush mode. Rasterizes selected polygon to mask, or starts blank."""
+        if self.base_image is None:
+            return
+        h, w = self.base_image.shape[:2]
+        self._brush_mask = np.zeros((h, w), dtype=np.uint8)
+        if polygon_idx is not None and 0 <= polygon_idx < len(self.polygons):
+            poly = self.polygons[polygon_idx]
+            self._brush_class_id = poly["class_id"]
+            self._brush_orig_idx = polygon_idx
+            pts = poly["polygon"].reshape((-1, 1, 2)).astype(np.int32)
+            cv2.fillPoly(self._brush_mask, [pts], 1)
+        else:
+            self._brush_orig_idx = None
+        self.brush_mode = True
+        self.update()
+
+    def finish_brush_mode(self) -> Optional[dict]:
+        """Convert brush mask to polygon and exit brush mode."""
+        if self._brush_mask is None or self._brush_mask.sum() == 0:
+            self.cancel_brush_mode()
+            return None
+        contours, _ = cv2.findContours(
+            self._brush_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)
+        if not contours:
+            self.cancel_brush_mode()
+            return None
+        largest = max(contours, key=cv2.contourArea)
+        if len(largest) < 3:
+            self.cancel_brush_mode()
+            return None
+        polygon = largest.reshape(-1, 2).astype(np.float32)
+        result = {"class_id": self._brush_class_id, "polygon": polygon}
+        self._reset_brush_state()
+        return result
+
+    def cancel_brush_mode(self):
+        self._reset_brush_state()
+        self.update()
+
+    def _reset_brush_state(self):
+        self.brush_mode = False
+        self._brush_mask = None
+        self._brush_painting = False
+        self._brush_erasing = False
+        self._brush_cursor_pos = None
+        self._brush_orig_idx = None
+
+    def _apply_brush_stroke(self, ix: float, iy: float):
+        if self._brush_mask is None:
+            return
+        cx, cy = int(round(ix)), int(round(iy))
+        value = 0 if self._brush_erasing else 1
+        cv2.circle(self._brush_mask, (cx, cy), self.brush_radius, int(value), -1)
 
 
 class AnnotationEditor(QMainWindow):
@@ -1046,10 +1185,13 @@ class AnnotationEditor(QMainWindow):
         main_page = QWidget()
         main_layout_inner = QHBoxLayout(main_page)
         main_layout_inner.setContentsMargins(0, 0, 0, 0)
-        self.draw_btn = QPushButton("Draw New (N)")
+        self.draw_btn = QPushButton("Draw (N)")
         self.draw_btn.clicked.connect(self.toggle_drawing)
         main_layout_inner.addWidget(self.draw_btn)
-        self.edit_btn = QPushButton("Edit (E)")
+        self.brush_btn = QPushButton("Brush (B)")
+        self.brush_btn.clicked.connect(self.toggle_brush)
+        main_layout_inner.addWidget(self.brush_btn)
+        self.edit_btn = QPushButton("Edit Brush (Enter)")
         self.edit_btn.clicked.connect(self.toggle_editing)
         main_layout_inner.addWidget(self.edit_btn)
         self.delete_btn = QPushButton("Delete Selected (Del)")
@@ -1153,17 +1295,17 @@ class AnnotationEditor(QMainWindow):
         QShortcut(QKeySequence(Qt.Key_D), self, self.next_sample)
         QShortcut(QKeySequence(Qt.Key_Right), self, self.next_sample)
         QShortcut(QKeySequence(Qt.Key_N), self, self.toggle_drawing)
-        QShortcut(QKeySequence(Qt.Key_E), self, self.toggle_editing)
         QShortcut(QKeySequence(Qt.Key_Delete), self, self.delete_selected)
         QShortcut(QKeySequence(Qt.Key_Backspace), self, self.delete_selected)
         QShortcut(QKeySequence(Qt.Key_S), self, self.save_annotations)
         QShortcut(QKeySequence(Qt.Key_Escape), self, self.escape_action)
-        QShortcut(QKeySequence(Qt.Key_Return), self, self.modal_confirm)
-        QShortcut(QKeySequence(Qt.Key_Enter), self, self.modal_confirm)
+        QShortcut(QKeySequence(Qt.Key_Return), self, self.enter_action)
+        QShortcut(QKeySequence(Qt.Key_Enter), self, self.enter_action)
         for i in range(6):
             QShortcut(QKeySequence(Qt.Key_0 + i), self, lambda idx=i: self.set_drawing_class(idx))
-        QShortcut(QKeySequence("Ctrl+C"), self, self.copy_selected_ref_to_edit)
-        QShortcut(QKeySequence(Qt.Key_C), self, self.copy_all_ref_to_edit)
+        QShortcut(QKeySequence(Qt.Key_Backslash), self, self.copy_selected_ref_to_edit)
+        QShortcut(QKeySequence(Qt.Key_B), self, self.toggle_brush)
+        QShortcut(QKeySequence(Qt.Key_V), self, self.toggle_vertex_editing)
         QShortcut(QKeySequence(Qt.Key_R), self, self.split_ring)
         QShortcut(QKeySequence(Qt.Key_H), self, self.home_view)
         QShortcut(QKeySequence("Ctrl+Z"), self, self.undo)
@@ -1189,6 +1331,14 @@ class AnnotationEditor(QMainWindow):
         self.modified = False
         self._undo_stack.clear()
         self._redo_stack.clear()
+        # Exit any active modal mode
+        if self.edit_canvas.brush_mode:
+            self.edit_canvas.cancel_brush_mode()
+        if self.edit_canvas.drawing_mode:
+            self.edit_canvas.cancel_drawing()
+        if self.edit_canvas.editing_mode:
+            self._exit_editing_raw()
+        self._exit_modal()
         sample = self.samples[idx]
 
         for canvas in self._all_canvases():
@@ -1357,20 +1507,65 @@ class AnnotationEditor(QMainWindow):
         self.update_status(f"Drawing class {class_id}: Click to add points. Enter = confirm, Esc = cancel.")
 
     def toggle_editing(self):
+        """Enter/button: enter brush mode on selected polygon (default editing mode)."""
+        if self.edit_canvas.brush_mode:
+            self.modal_confirm()
+            return
         if self.edit_canvas.editing_mode:
             self.modal_confirm()
             return
         if self.edit_canvas.selected_idx is None:
-            self.update_status("Select a polygon first, then press E to edit vertices")
+            self.update_status("Select a polygon first to edit")
+            return
+        # Default to brush mode for editing
+        self.toggle_brush()
+
+    def toggle_vertex_editing(self):
+        """V key: enter vertex (node) editing mode on selected polygon."""
+        if self.edit_canvas.editing_mode:
+            self.modal_confirm()
+            return
+        if self.edit_canvas.selected_idx is None:
+            self.update_status("Select a polygon first, then press V to edit vertices")
             return
         if self.edit_canvas.drawing_mode:
             self.edit_canvas.cancel_drawing()
+            self._exit_modal()
+        if self.edit_canvas.brush_mode:
+            self.edit_canvas.cancel_brush_mode()
+            self._exit_modal()
         self._mode_entry_snapshot = copy.deepcopy(self.edit_canvas.polygons)
         self._undo_depth_at_mode_entry = len(self._undo_stack)
         self.edit_canvas.editing_mode = True
         self.edit_canvas.update()
         self._enter_modal("Editing vertices")
-        self.update_status("Edit: Drag vertices, Shift+click=add free vertex, drag empty=box select, Del=remove. Enter/Esc=confirm/cancel.")
+        self.update_status("Vertices: Drag to move, Shift+click=add, Del=remove. Enter=confirm, Esc=cancel.")
+
+    def toggle_brush(self):
+        if self.edit_canvas.brush_mode:
+            self.modal_confirm()
+            return
+        # Exit other modes
+        if self.edit_canvas.drawing_mode:
+            self.edit_canvas.cancel_drawing()
+            self._exit_modal()
+        if self.edit_canvas.editing_mode:
+            self._exit_editing_raw()
+            self._exit_modal()
+        self._mode_entry_snapshot = copy.deepcopy(self.edit_canvas.polygons)
+        self._undo_depth_at_mode_entry = len(self._undo_stack)
+        canvas = self.edit_canvas
+        if canvas.selected_idx is not None and 0 <= canvas.selected_idx < len(canvas.polygons):
+            canvas.start_brush_mode(canvas.selected_idx)
+        else:
+            class_id = self.class_buttons.checkedId()
+            canvas._brush_class_id = class_id
+            canvas.start_brush_mode(None)
+        self.class_group.setVisible(True)
+        self._enter_modal("Brush painting")
+        self.update_status(
+            "Brush: Erase by default, Shift+paint to add, "
+            "Ctrl+scroll=brush size. Enter=confirm, Esc=cancel.")
 
     def _exit_editing_raw(self):
         self.edit_canvas.editing_mode = False
@@ -1392,12 +1587,15 @@ class AnnotationEditor(QMainWindow):
             self.edit_canvas.cancel_drawing()
         if self.edit_canvas.editing_mode:
             self._exit_editing_raw()
+        if self.edit_canvas.brush_mode:
+            self.edit_canvas.cancel_brush_mode()
         self.edit_canvas.selected_idx = None
         self.edit_canvas.update_display()
         self._exit_modal()
         self.update_status("Cancelled — reverted to previous state")
 
     def modal_confirm(self):
+        confirmed = False
         if self.edit_canvas.drawing_mode:
             result = self.edit_canvas.finish_drawing()
             if result:
@@ -1412,8 +1610,7 @@ class AnnotationEditor(QMainWindow):
                 self.modified = True
                 self._mode_entry_snapshot = None
                 self._exit_modal()
-                self.update_status(f"Added new polygon (class {result['class_id']})")
-                return
+                confirmed = True
             else:
                 depth = self._undo_depth_at_mode_entry
                 del self._undo_stack[depth:]
@@ -1425,6 +1622,34 @@ class AnnotationEditor(QMainWindow):
                 self._exit_modal()
                 self.update_status("Drawing cancelled (need at least 3 points)")
                 return
+        elif self.edit_canvas.brush_mode:
+            orig_idx = self.edit_canvas._brush_orig_idx
+            result = self.edit_canvas.finish_brush_mode()
+            depth = self._undo_depth_at_mode_entry
+            del self._undo_stack[depth:]
+            if self._mode_entry_snapshot is not None:
+                self._undo_stack.append(self._mode_entry_snapshot)
+            self._redo_stack.clear()
+            if result is not None:
+                # Only override class for new polygons; keep original class when editing
+                if orig_idx is None:
+                    result['class_id'] = self.class_buttons.checkedId()
+                if orig_idx is not None and 0 <= orig_idx < len(self.edit_canvas.polygons):
+                    self.edit_canvas.polygons[orig_idx] = result
+                else:
+                    self.edit_canvas.polygons.append(result)
+                self.edit_canvas.update_display()
+                self.modified = True
+                confirmed = True
+            else:
+                if self._mode_entry_snapshot is not None:
+                    self.edit_canvas.polygons = self._mode_entry_snapshot
+                    self.edit_canvas.update_display()
+                self.update_status("Brush cancelled (empty mask)")
+            self._mode_entry_snapshot = None
+            self._exit_modal()
+            if not confirmed:
+                return
         elif self.edit_canvas.editing_mode:
             self._exit_editing_raw()
             depth = self._undo_depth_at_mode_entry
@@ -1433,12 +1658,23 @@ class AnnotationEditor(QMainWindow):
                 self._undo_stack.append(self._mode_entry_snapshot)
             self._redo_stack.clear()
             self.modified = True
-            self.update_status("Edits confirmed")
-        self._mode_entry_snapshot = None
-        self._exit_modal()
+            confirmed = True
+            self._mode_entry_snapshot = None
+            self._exit_modal()
+
+        # Auto-save on confirm
+        if confirmed:
+            self.save_annotations()
+
+    def enter_action(self):
+        """Enter key: confirm modal if active, otherwise enter brush edit on selected polygon."""
+        if self.edit_canvas.drawing_mode or self.edit_canvas.editing_mode or self.edit_canvas.brush_mode:
+            self.modal_confirm()
+        elif self.edit_canvas.selected_idx is not None:
+            self.toggle_editing()
 
     def escape_action(self):
-        if self.edit_canvas.drawing_mode or self.edit_canvas.editing_mode:
+        if self.edit_canvas.drawing_mode or self.edit_canvas.editing_mode or self.edit_canvas.brush_mode:
             self.modal_cancel()
         else:
             self.edit_canvas.selected_idx = None
@@ -1669,8 +1905,9 @@ class AnnotationEditor(QMainWindow):
         self.edit_canvas.selected_idx = len(self.edit_canvas.polygons) - 1
         self.edit_canvas.update_display()
         self.modified = True
+        self.save_annotations()
         cname = ANNOTATED_CLASSES.get(poly_copy['class_id'], 'Unknown')
-        self.update_status(f"Copied reference polygon ({cname}) to editable panel.")
+        self.update_status(f"Copied reference polygon ({cname}) — saved.")
 
     def copy_all_ref_to_edit(self):
         if not self.ref_canvas.isVisible() or not self.ref_canvas.polygons:
@@ -1686,7 +1923,8 @@ class AnnotationEditor(QMainWindow):
             self.edit_canvas.selected_idx = None
             self.edit_canvas.update_display()
             self.modified = True
-            self.update_status(f"Copied {len(self.ref_canvas.polygons)} reference polygons")
+            self.save_annotations()
+            self.update_status(f"Copied {len(self.ref_canvas.polygons)} reference polygons — saved.")
 
     # ── Misc ──────────────────────────────────────────────────────────────
 

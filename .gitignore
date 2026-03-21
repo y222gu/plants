@@ -1,7 +1,8 @@
 /.claude
 /logs
 /slurm
-/data
+/data/image
+/data/prediction/vis
 /data_excluded
 /data_not_annotated
 /human_in_a_loop_data

@@ -357,6 +357,12 @@ python evaluate.py --model {yolo,unet,sam,cellpose} --strategy A --num-classes {
 
 **Benchmark evaluation**: Use `--no-postprocess` for fair model comparison without human prior knowledge. Post-processing can be used for deployment/downstream analysis.
 
+**Post-processing pipeline** (`src/postprocessing.py`):
+1. `fill_holes` — Fill artifact holes in masks. Ring-aware for endodermis (class 2) and exodermis (class 4): splits ring into outer boundary and central hole, fills only small artifact holes in the ring band, preserves the structural central hole.
+2. `cleanup_whole_root` — Morphological close + keep largest connected component (class 0).
+3. `clip_aerenchyma` — Clip aerenchyma (class 1) to inside whole root boundary.
+4. `yolo_to_target` — Endodermis ring subtraction (YOLO only, since YOLO trains on raw annotation classes).
+
 Output per run: `metrics.json`, `per_sample.csv`, comparison plots (per-class, summary, species+microscope — PNG only), `vis/` overlay PNGs (original image, GT overlay, prediction overlay).
 
 ### General Best Practices
