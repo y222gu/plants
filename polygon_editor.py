@@ -25,7 +25,7 @@ Controls:
     - Shift+drag: Add to existing vertex selection
     - Delete/Backspace: Remove selected vertex(es) (edit mode) or polygon
     - S: Save current annotations to file
-    - Ctrl+C: Copy selected prediction polygon to editable panel
+    - Tab: Copy selected prediction polygon to editable panel
     - C: Copy ALL predictions to editable panel
     - 0-5: Set class for new polygon
 """
@@ -825,6 +825,15 @@ class PolygonCanvas(QWidget):
             self._pan_start = None
             self.setCursor(Qt.ArrowCursor)
 
+    def mouseDoubleClickEvent(self, event):
+        parent = self.get_editor_parent()
+        if parent is None:
+            return
+        if event.button() == Qt.LeftButton:
+            parent.prev_sample()
+        elif event.button() == Qt.RightButton:
+            parent.next_sample()
+
     def find_polygon_at(self, x: int, y: int) -> Optional[int]:
         best_idx = None
         best_area = float("inf")
@@ -1301,8 +1310,11 @@ class AnnotationEditor(QMainWindow):
         QShortcut(QKeySequence(Qt.Key_Escape), self, self.escape_action)
         QShortcut(QKeySequence(Qt.Key_Return), self, self.enter_action)
         QShortcut(QKeySequence(Qt.Key_Enter), self, self.enter_action)
+        QShortcut(QKeySequence(Qt.Key_CapsLock), self, self.enter_action)
+        QShortcut(QKeySequence(Qt.Key_Space), self, self.enter_action)
         for i in range(6):
             QShortcut(QKeySequence(Qt.Key_0 + i), self, lambda idx=i: self.set_drawing_class(idx))
+        QShortcut(QKeySequence(Qt.Key_Tab), self, self.copy_exodermis_ref_to_edit)
         QShortcut(QKeySequence(Qt.Key_Backslash), self, self.copy_selected_ref_to_edit)
         QShortcut(QKeySequence(Qt.Key_B), self, self.toggle_brush)
         QShortcut(QKeySequence(Qt.Key_V), self, self.toggle_vertex_editing)
@@ -1909,6 +1921,24 @@ class AnnotationEditor(QMainWindow):
         cname = ANNOTATED_CLASSES.get(poly_copy['class_id'], 'Unknown')
         self.update_status(f"Copied reference polygon ({cname}) — saved.")
 
+    def copy_exodermis_ref_to_edit(self):
+        """Copy all exodermis polygons (classes 4, 5) from reference to edit."""
+        if not self.ref_canvas.isVisible() or not self.ref_canvas.polygons:
+            self.update_status("No reference polygons to copy")
+            return
+        exo_polys = [p for p in self.ref_canvas.polygons if p['class_id'] in (4, 5)]
+        if not exo_polys:
+            self.update_status("No exodermis polygons (classes 4/5) in reference")
+            return
+        self.push_undo()
+        for p in exo_polys:
+            self.edit_canvas.polygons.append(copy.deepcopy(p))
+        self.edit_canvas.selected_idx = len(self.edit_canvas.polygons) - 1
+        self.edit_canvas.update_display()
+        self.modified = True
+        self.save_annotations()
+        self.update_status(f"Copied {len(exo_polys)} exodermis polygon(s) from reference — saved.")
+
     def copy_all_ref_to_edit(self):
         if not self.ref_canvas.isVisible() or not self.ref_canvas.polygons:
             self.update_status("No reference polygons to copy")
@@ -1979,11 +2009,11 @@ Controls:
   D / Right Arrow   Next sample
   N                 Start drawing new polygon
   E                 Enter vertex editing
-  Enter             Confirm drawing or edits
+  Enter / Space     Confirm drawing or edits
   Escape            Cancel drawing or edits (reverts changes)
   Delete/Backspace  Delete selected vertex (edit mode) or polygon
   S                 Save annotations to file
-  Ctrl+C            Copy selected reference polygon to editable panel
+  Tab               Copy selected reference polygon to editable panel
   C                 Copy ALL reference polygons to editable panel
   Ctrl+Z / Ctrl+Shift+Z  Undo / Redo
   1-4               Set class for new polygon
