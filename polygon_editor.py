@@ -587,23 +587,37 @@ class PolygonCanvas(QWidget):
         painter.scale(s, s)
         painter.drawImage(QRectF(0, 0, w, h), self._qimage)
 
+        # Draw unselected polygons first, then selected on top
         for idx, poly_data in enumerate(self.polygons):
-            class_id = poly_data["class_id"]
-            polygon = poly_data["polygon"]
-            if class_id in self.hidden_classes and idx != self.selected_idx:
-                continue
             if idx == self.selected_idx:
-                color = SELECTED_COLOR
-                pen_width = max(2, int(5 / s))
-            else:
-                color = CLASS_QCOLORS.get(class_id, QColor(128, 128, 128, 180))
-                pen_width = max(1, int(2 / s))
+                continue
+            class_id = poly_data["class_id"]
+            if class_id in self.hidden_classes:
+                continue
+            polygon = poly_data["polygon"]
+            color = CLASS_QCOLORS.get(class_id, QColor(128, 128, 128, 180))
+            pen_width = max(1, int(2 / s))
             qpoly = QPolygonF()
             for pt in polygon:
                 qpoly.append(QPointF(float(pt[0]), float(pt[1])))
             painter.setPen(QPen(color, pen_width))
             fill_color = QColor(color)
-            fill_color.setAlpha(60)
+            parent = self.get_editor_parent()
+            opacity = parent._polygon_opacity if parent else 60
+            fill_color.setAlpha(opacity)
+            painter.setBrush(QBrush(fill_color))
+            painter.drawPolygon(qpoly)
+        # Draw selected polygon last (on top)
+        if self.selected_idx is not None and 0 <= self.selected_idx < len(self.polygons):
+            poly_data = self.polygons[self.selected_idx]
+            polygon = poly_data["polygon"]
+            pen_width = max(2, int(5 / s))
+            qpoly = QPolygonF()
+            for pt in polygon:
+                qpoly.append(QPointF(float(pt[0]), float(pt[1])))
+            painter.setPen(QPen(SELECTED_COLOR, pen_width))
+            fill_color = QColor(SELECTED_COLOR)
+            fill_color.setAlpha(opacity)
             painter.setBrush(QBrush(fill_color))
             painter.drawPolygon(qpoly)
 
@@ -1143,6 +1157,7 @@ class AnnotationEditor(QMainWindow):
         self._raw_image: Optional[np.ndarray] = None
         self._brightness = 0       # -100 to +100
         self._gamma = 100          # 10 to 300 (displayed as 0.1 to 3.0)
+        self._polygon_opacity = 60  # 0 to 255 (slider 0-100%)
 
         self.setWindowTitle("Plant Roots Polygon Editor")
         self.setMinimumSize(1400, 800)
@@ -1823,9 +1838,13 @@ class AnnotationEditor(QMainWindow):
         self.vis_checks = {}
         for cid, cname in ANNOTATED_CLASSES.items():
             color = CLASS_COLORS_RGB.get(cid, (128, 128, 128))
+            # Desaturate: blend 55% color + 45% gray for softer labels
+            r = int(color[0] * 0.55 + 160 * 0.45)
+            g = int(color[1] * 0.55 + 160 * 0.45)
+            b = int(color[2] * 0.55 + 160 * 0.45)
             cb = QCheckBox(CLASS_SHORT_NAMES[cid])
             cb.setChecked(True)
-            cb.setStyleSheet(f"color: rgb({color[0]},{color[1]},{color[2]}); font-weight: bold;")
+            cb.setStyleSheet(f"color: rgb({r},{g},{b}); font-weight: bold;")
             cb.setToolTip(cname)
             cb.toggled.connect(lambda checked, c=cid: self._on_visibility_toggled(c, checked))
             self.status_bar.addPermanentWidget(cb)
@@ -1863,10 +1882,23 @@ class AnnotationEditor(QMainWindow):
         self.gamma_label.setFixedWidth(25)
         self.status_bar.addPermanentWidget(self.gamma_label)
 
+        # Polygon opacity slider
+        self.status_bar.addPermanentWidget(QLabel(" Opacity:"))
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setRange(0, 100)
+        self.opacity_slider.setValue(24)  # 60/255 ≈ 24%
+        self.opacity_slider.setFixedWidth(80)
+        self.opacity_slider.setToolTip("Adjust polygon fill opacity (for display)")
+        self.opacity_slider.valueChanged.connect(self._on_opacity_changed)
+        self.status_bar.addPermanentWidget(self.opacity_slider)
+        self.opacity_label = QLabel("24%")
+        self.opacity_label.setFixedWidth(30)
+        self.status_bar.addPermanentWidget(self.opacity_label)
+
         # Reset button for sliders
         reset_display_btn = QPushButton("Reset")
         reset_display_btn.setFixedWidth(50)
-        reset_display_btn.setToolTip("Reset brightness and gamma to defaults")
+        reset_display_btn.setToolTip("Reset brightness, gamma, and opacity to defaults")
         reset_display_btn.clicked.connect(self._reset_display_adjustments)
         self.status_bar.addPermanentWidget(reset_display_btn)
 
@@ -1931,9 +1963,17 @@ class AnnotationEditor(QMainWindow):
         self.gamma_label.setText(f"{value / 100:.1f}")
         self._apply_display_adjustments()
 
+    def _on_opacity_changed(self, value: int):
+        self._polygon_opacity = int(value * 255 / 100)
+        self.opacity_label.setText(f"{value}%")
+        self.original_canvas.update()
+        self.edit_canvas.update()
+        self.ref_canvas.update()
+
     def _reset_display_adjustments(self):
         self.brightness_slider.setValue(0)
         self.gamma_slider.setValue(100)
+        self.opacity_slider.setValue(24)
 
     def _apply_display_adjustments(self):
         """Apply brightness and gamma to the raw image for display only."""

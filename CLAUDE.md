@@ -58,8 +58,13 @@ plants/
 ├── analyze_downstream.py              # Biological analysis
 ├── polygon_editor.py                  # Interactive annotation GUI
 ├── preview_annotations.py             # Annotation preview PNGs
-└── output/                            # Training runs, exports
+├── output/                            # Training runs, exports
+└── data_to_edit/                      # Samples needing exodermis annotation
+    ├── image/                         # Same structure as data/image/
+    └── annotation/                    # Same structure as data/annotation/
 ```
+
+**`data_to_edit/`**: Contains 522 cereal samples missing inner exodermis (class 5) annotations + all 110 Millet samples moved from `data/` for annotation work. Breakdown: Rice 12, Millet 110, Sorghum 412. Same directory structure as `data/`.
 
 **Species**: Millet, Rice, Sorghum (monocots/cereals), Tomato (dicot)
 **Microscopes**: Olympus IX83 (widefield), Cytation C10 (plate reader), Zeiss LSM 970 (confocal)
@@ -428,6 +433,85 @@ Compare automated vs expert measurements: R-squared, Bland-Altman analysis.
 | 2 | Endodermis | Green (0, 255, 0) |
 | 3 | Vascular | Red (255, 0, 0) |
 | 4 | Exodermis | Cyan (0, 255, 255) |
+
+---
+
+## Polygon Editor (`polygon_editor.py`)
+
+Interactive GUI for visualizing and correcting YOLO polygon annotations.
+
+### Modes
+- **Correct GT**: images + annotation/ + prediction/ — edit GT with predictions as reference
+- **Correct Pred**: images + prediction/ — edit predictions, save to annotation/
+- **Create GT**: images only — draw annotations from scratch
+
+### UI Layout
+
+**Row 1**: Data (QGroupBox) | Navigation (QGroupBox) | ... stretch ... | mode label | Settings gear (⚙)
+
+**Row 2**: Actions (QGroupBox) | QC (QGroupBox) | ... stretch ...
+
+- **Data**: data folder path | Browse (...)
+- **Navigation**: Filter: [None / By Missing / By Containing / By QC] [class dropdown] | [sample dropdown] | "N images"
+- **Actions** (QStackedWidget): **main page**: Mode: (Node / Brush) | Draw (N) | Edit (Enter) | Delete (Del) | Copy All Pred->GT | Copy Selected (Ctrl+C) | **modal page**: mode label | class radio buttons (short names) | Undo (Ctrl+Z) | Cancel (Esc) | Confirm (Enter)
+- **QC**: QC status label | QC | QC All
+
+**Image panels** (QWidget wrapper with stretch=1): `<` prev | [Original | Editable | Reference] splitter | next `>`
+
+**Settings gear**: QToolButton (top-right) with QMenu/QActionGroup for mode selection (Create GT / Correct GT with Pred / Correct Pred). Default mode: Create GT.
+
+**Status bar**: Visibility: Root | Aer | O.Endo | I.Endo | O.Exo | I.Exo | Brightness: [slider] | γ: [slider] | Reset | Home
+
+### Short Class Names (used in UI)
+
+| ID | Full Name | Short |
+|----|-----------|-------|
+| 0 | Whole Root | Root |
+| 1 | Aerenchyma | Aer |
+| 2 | Outer Endodermis | O.Endo |
+| 3 | Inner Endodermis | I.Endo |
+| 4 | Outer Exodermis | O.Exo |
+| 5 | Inner Exodermis | I.Exo |
+
+### Keyboard Shortcuts
+
+| Key | Function |
+|-----|----------|
+| Left / Right | Previous / Next sample |
+| N | Draw new polygon (Node or Brush per radio) |
+| Enter / Return / Space | Confirm action, or edit selected polygon if idle |
+| Escape | Cancel action, or deselect polygon |
+| S | Save annotations |
+| R | Split selected ring polygon (endo/exo) |
+| Delete / Backspace | Delete selected polygon/vertices |
+| Ctrl+Z | Undo |
+| Ctrl+Shift+Z | Redo |
+
+### PyQt5 Layout Rules (IMPORTANT)
+- **`addWidget()` vs `addLayout()` with stretch**: In a QVBoxLayout, `addLayout(layout, stretch=1)` does NOT work reliably for claiming extra space — bare QLayouts have no sizePolicy. Always wrap in a QWidget and use `addWidget(widget, stretch=1)` instead. This is how the image panel works: `panel_widget = QWidget()` with a QHBoxLayout containing prev_btn + splitter + next_btn, added via `main_layout.addWidget(panel_widget, stretch=1)`.
+- **Do NOT use `setSizePolicy()` or `setMaximumHeight()` on QGroupBoxes** to fix layout issues — these cause side effects (clipping, space redistribution to wrong places). If QGroupBoxes expand too much, the root cause is usually a missing stretch on the main content widget.
+- **Row 1 is flat** (no QGroupBox) — just bare widgets in a QHBoxLayout. Row 2 uses QGroupBoxes with tight `setContentsMargins(4, 2, 4, 2)` on their inner layouts.
+- **Do NOT wrap toolbar rows in a container QWidget with maxHeight** — this fights Qt's layout system and creates gaps.
+
+### Brush Mode Behavior
+- **Drawing new polygon** (no selection): default = paint/add, Shift = erase
+- **Editing existing polygon** (selected): default = erase, Shift = paint/add
+- Ctrl+Scroll = change brush size, Scroll = zoom
+
+### Display Adjustments (display only, do not affect saved data)
+- **Brightness slider**: -100 to +100 (pixel value shift)
+- **Gamma slider**: 0.1 to 3.0 (gamma correction curve)
+- Raw image stored in `_raw_image`, adjustments applied on-the-fly for display
+
+### Filter
+- **None**: show all samples
+- **By Missing**: show samples missing the selected annotation class
+- **By Containing**: show samples containing the selected annotation class
+- **By QC**: placeholder for future QC flag filtering
+
+### Edit Mode Class Behavior
+- When entering edit mode, the class radio defaults to the polygon's current class
+- Changing the radio during editing updates the polygon's class in real time
 
 ---
 
