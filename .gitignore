@@ -1,6 +1,8 @@
 /.claude
 /logs
 /slurm
+/data
+/data_to_edit
 /data/image
 /data/prediction/vis
 /data_excluded

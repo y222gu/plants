@@ -32,6 +32,8 @@ Controls:
 
 import argparse
 import copy
+import json
+import math
 import os
 import sys
 from dataclasses import dataclass
@@ -40,17 +42,19 @@ from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
-from PyQt5.QtCore import Qt, QPoint, QPointF, QRectF, QTimer
+from PyQt5.QtCore import Qt, QPoint, QPointF, QRectF, QTimer, QEvent
 from PyQt5.QtGui import (
     QImage, QPixmap, QPainter, QPen, QColor, QBrush,
-    QPolygonF, QFont, QKeySequence, QTransform
+    QPolygonF, QFont, QKeySequence, QTransform, QIcon
 )
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QComboBox, QMessageBox, QShortcut,
     QSplitter, QFrame, QScrollArea, QStatusBar, QGroupBox,
     QRadioButton, QButtonGroup, QSizePolicy, QCheckBox, QStackedWidget,
-    QFileDialog, QLineEdit
+    QFileDialog, QLineEdit, QSlider, QStyle, QProgressDialog,
+    QToolButton, QMenu, QAction, QActionGroup, QToolTip,
+    QDialog, QTextBrowser
 )
 
 # Add project root to path
@@ -152,8 +156,134 @@ def parse_npz_predictions(path: Path, img_w: int = 0, img_h: int = 0) -> List[di
     return annotations
 
 
+# ── QC checks ─────────────────────────────────────────────────────────────
+
+def run_qc_checks(polygons: List[dict], img_h: int = 1024, img_w: int = 1024) -> List[str]:
+    """Run anatomical constraint checks on annotation polygons.
+
+    Args:
+        polygons: List of dicts with 'class_id' and 'polygon' (Nx2 int32 arrays).
+        img_h, img_w: Rasterization dimensions.
+
+    Returns:
+        List of violation description strings. Empty list means all checks passed.
+    """
+    violations = []
+
+    # Group polygons by class
+    by_class: dict = {}
+    for p in polygons:
+        cid = p["class_id"]
+        by_class.setdefault(cid, []).append(p)
+
+    # Helper: rasterize a single polygon to mask
+    def _mask(poly_dict):
+        pts = poly_dict["polygon"].astype(np.float32)
+        return polygon_to_mask(pts, img_h, img_w)
+
+    # Helper: check if mask_inner is contained within mask_outer (2% tolerance)
+    def _is_contained(mask_inner, mask_outer, tolerance=0.02):
+        outside = int((mask_inner & ~mask_outer).sum())
+        total = int(mask_inner.sum())
+        if total == 0:
+            return True
+        return outside <= tolerance * total
+
+    # Cache masks
+    mask_cache = {}
+    def _get_mask(idx):
+        if idx not in mask_cache:
+            mask_cache[idx] = _mask(polygons[idx])
+        return mask_cache[idx]
+
+    # Get single-instance masks by class (for whole root, endo, exo)
+    def _class_mask(cid):
+        """Union mask for all polygons of a given class."""
+        if cid not in by_class:
+            return None
+        masks = [_mask(p) for p in by_class[cid]]
+        result = masks[0]
+        for m in masks[1:]:
+            result = result | m
+        return result
+
+    # Helper: check no boundary-crossing intersection between two masks
+    def _no_boundary_crossing(mask_a, mask_b, name_a, name_b):
+        overlap = int((mask_a & mask_b).sum())
+        if overlap == 0:
+            return  # no overlap, OK
+        sa, sb = int(mask_a.sum()), int(mask_b.sum())
+        a_in_b = (sa - overlap) <= 0.02 * sa if sa > 0 else True
+        b_in_a = (sb - overlap) <= 0.02 * sb if sb > 0 else True
+        if not a_in_b and not b_in_a:
+            violations.append(
+                f"Boundary intersection between {name_a} and {name_b}")
+
+    # Check 1: All polygons within whole root (class 0) — skip if missing
+    root_mask = _class_mask(0)
+    if root_mask is not None:
+        for p in polygons:
+            if p["class_id"] == 0:
+                continue
+            m = _mask(p)
+            if not _is_contained(m, root_mask):
+                cname = CLASS_SHORT_NAMES.get(p["class_id"], f"Class {p['class_id']}")
+                violations.append(f"{cname} polygon extends outside Whole Root boundary")
+
+    # Check 2: Inner exodermis (5) within outer exodermis (4) — skip if either missing
+    if 4 in by_class and 5 in by_class:
+        outer_exo = _class_mask(4)
+        inner_exo = _class_mask(5)
+        if not _is_contained(inner_exo, outer_exo):
+            violations.append("Inner Exodermis (I.Exo) extends outside Outer Exodermis (O.Exo)")
+        _no_boundary_crossing(outer_exo, inner_exo, "O.Exo", "I.Exo")
+
+    # Check 3: Outer endodermis (2) within inner exodermis (5) — skip if either missing
+    if 2 in by_class and 5 in by_class:
+        outer_endo = _class_mask(2)
+        inner_exo = _class_mask(5)
+        if not _is_contained(outer_endo, inner_exo):
+            violations.append("Outer Endodermis (O.Endo) extends outside Inner Exodermis (I.Exo)")
+        _no_boundary_crossing(outer_endo, inner_exo, "O.Endo", "I.Exo")
+
+    # Check 4: Inner endodermis (3) within outer endodermis (2) — skip if either missing
+    if 2 in by_class and 3 in by_class:
+        outer_endo = _class_mask(2)
+        inner_endo = _class_mask(3)
+        if not _is_contained(inner_endo, outer_endo):
+            violations.append("Inner Endodermis (I.Endo) extends outside Outer Endodermis (O.Endo)")
+        _no_boundary_crossing(outer_endo, inner_endo, "O.Endo", "I.Endo")
+
+    # Check 5: Aerenchyma in cortex only — skip if class 1 missing
+    if 1 in by_class:
+        outer_endo = _class_mask(2)
+        # Outer boundary of cortex
+        if 5 in by_class:
+            cortex_outer = _class_mask(5)  # inner exodermis
+        elif root_mask is not None:
+            cortex_outer = root_mask
+        else:
+            cortex_outer = None
+
+        if cortex_outer is not None and outer_endo is not None:
+            cortex_mask = cortex_outer & ~outer_endo
+            for p in by_class[1]:
+                m = _mask(p)
+                if not _is_contained(m, cortex_mask, tolerance=0.02):
+                    violations.append("Aerenchyma polygon extends outside cortex region")
+                    break  # report once
+
+    # Check 6: Required classes — must have root, O.Endo, I.Endo, O.Exo, I.Exo
+    required = {0: "Whole Root", 2: "O.Endo", 3: "I.Endo", 4: "O.Exo", 5: "I.Exo"}
+    for cid, name in required.items():
+        if cid not in by_class:
+            violations.append(f"Missing required class: {name}")
+
+    return violations
+
+
 # ── Editor modes ──────────────────────────────────────────────────────────
-MODE_CORRECT_GT = "Correct GT"
+MODE_CORRECT_GT = "Correct GT with Pred"
 MODE_CORRECT_PRED = "Correct Predictions"
 MODE_CREATE_GT = "Create GT"
 
@@ -169,6 +299,10 @@ CLASS_QCOLORS = {
 }
 
 SELECTED_COLOR = QColor(255, 255, 255, 220)  # White for selected polygon
+
+CLASS_SHORT_NAMES = {
+    0: "Root", 1: "Aer", 2: "O.Endo", 3: "I.Endo", 4: "O.Exo", 5: "I.Exo",
+}
 
 
 # ── Lightweight sample discovery ──────────────────────────────────────────
@@ -460,7 +594,7 @@ class PolygonCanvas(QWidget):
                 continue
             if idx == self.selected_idx:
                 color = SELECTED_COLOR
-                pen_width = max(1, int(3 / s))
+                pen_width = max(2, int(5 / s))
             else:
                 color = CLASS_QCOLORS.get(class_id, QColor(128, 128, 128, 180))
                 pen_width = max(1, int(2 / s))
@@ -608,9 +742,16 @@ class PolygonCanvas(QWidget):
         if not (0 <= img_x < w and 0 <= img_y < h):
             return
 
-        # Brush mode: erase by default, Shift = paint
+        # Brush mode: when editing existing polygon, erase by default (Shift = paint)
+        # When drawing new polygon (no original), paint by default (Shift = erase)
         if self.editable and self.brush_mode:
-            self._brush_erasing = not bool(event.modifiers() & Qt.ShiftModifier)
+            shift_held = bool(event.modifiers() & Qt.ShiftModifier)
+            if self._brush_orig_idx is None:
+                # New polygon: default = paint, Shift = erase
+                self._brush_erasing = shift_held
+            else:
+                # Editing existing: default = erase, Shift = paint
+                self._brush_erasing = not shift_held
             self._brush_painting = True
             self._apply_brush_stroke(ix, iy)
             self.update()
@@ -705,7 +846,11 @@ class PolygonCanvas(QWidget):
             ix, iy = self.widget_to_image(event.pos().x(), event.pos().y())
             self._brush_cursor_pos = (ix, iy)
             if self._brush_painting:
-                self._brush_erasing = not bool(event.modifiers() & Qt.ShiftModifier)
+                shift_held = bool(event.modifiers() & Qt.ShiftModifier)
+                if self._brush_orig_idx is None:
+                    self._brush_erasing = shift_held
+                else:
+                    self._brush_erasing = not shift_held
                 self._apply_brush_stroke(ix, iy)
             self.update()
             # Still allow panning with middle/right button
@@ -824,15 +969,6 @@ class PolygonCanvas(QWidget):
             self._panning = False
             self._pan_start = None
             self.setCursor(Qt.ArrowCursor)
-
-    def mouseDoubleClickEvent(self, event):
-        parent = self.get_editor_parent()
-        if parent is None:
-            return
-        if event.button() == Qt.LeftButton:
-            parent.prev_sample()
-        elif event.button() == Qt.RightButton:
-            parent.next_sample()
 
     def find_polygon_at(self, x: int, y: int) -> Optional[int]:
         best_idx = None
@@ -985,7 +1121,9 @@ class AnnotationEditor(QMainWindow):
     def __init__(self, data_dir: Optional[Path] = None):
         super().__init__()
         self.data_dir: Optional[Path] = data_dir
-        self.editor_mode: str = MODE_CORRECT_GT
+        self.editor_mode: str = MODE_CREATE_GT
+        self._info_dialog: Optional[QDialog] = None
+        self._all_samples: List[SampleRecord] = []  # unfiltered
         self.samples: List[SampleRecord] = []
 
         self.current_idx = 0
@@ -995,11 +1133,22 @@ class AnnotationEditor(QMainWindow):
         self._mode_entry_snapshot: Optional[List[dict]] = None
         self._undo_depth_at_mode_entry: int = 0
         self._max_undo = 50
+        self._editing_polygon_idx: Optional[int] = None  # tracks polygon being edited
+        self._deleting_mode: bool = False  # True when in delete confirmation modal
 
-        self.setWindowTitle("Plant Root Annotation Editor")
+        # QC status persistence: {"sample_uid": "passed"|"failed"}, absent = to_be_qc
+        self._qc_status: dict = {}
+
+        # Display-only brightness/gamma (do not affect saved data)
+        self._raw_image: Optional[np.ndarray] = None
+        self._brightness = 0       # -100 to +100
+        self._gamma = 100          # 10 to 300 (displayed as 0.1 to 3.0)
+
+        self.setWindowTitle("Plant Roots Polygon Editor")
         self.setMinimumSize(1400, 800)
         self.setup_ui()
         self.setup_shortcuts()
+        QApplication.instance().installEventFilter(self)
 
         if self.data_dir:
             self._reload_samples()
@@ -1039,25 +1188,332 @@ class AnnotationEditor(QMainWindow):
         """Discover samples based on current mode and data directory."""
         err = self._validate_dirs_for_mode(self.editor_mode)
         if err:
+            self._all_samples = []
             self.samples = []
             self._update_sample_combo()
             self.update_status(err)
             return
+
+        # Load QC status for this data directory
+        self._load_qc_status()
 
         img_dir = self._image_dir()
         ann_dir = self._annotation_dir()
         pred_dir = self._prediction_dir()
 
         if self.editor_mode == MODE_CORRECT_GT:
-            self.samples = discover_samples(
+            self._all_samples = discover_samples(
                 img_dir, ann_dir, pred_dir,
                 require_annotation=True, require_prediction=True)
         elif self.editor_mode == MODE_CORRECT_PRED:
-            self.samples = discover_samples(
+            self._all_samples = discover_samples(
                 img_dir, ann_dir, pred_dir,
                 require_prediction=True)
         else:  # MODE_CREATE_GT
-            self.samples = discover_samples(img_dir, ann_dir)
+            self._all_samples = discover_samples(img_dir, ann_dir)
+
+        self._apply_filter()
+
+    # ── QC persistence ───────────────────────────────────────────────────
+
+    def _qc_status_path(self) -> Optional[Path]:
+        if self.data_dir:
+            return self.data_dir / "qc_status.json"
+        return None
+
+    def _load_qc_status(self):
+        p = self._qc_status_path()
+        if p and p.exists():
+            try:
+                with open(p, 'r') as f:
+                    self._qc_status = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                self._qc_status = {}
+        else:
+            self._qc_status = {}
+
+    def _save_qc_status(self):
+        p = self._qc_status_path()
+        if p:
+            with open(p, 'w') as f:
+                json.dump(self._qc_status, f, indent=2)
+
+    def _get_sample_qc_status(self, sample: SampleRecord) -> str:
+        entry = self._qc_status.get(sample.uid, "to_be_qc")
+        if isinstance(entry, dict):
+            return entry.get("status", "to_be_qc")
+        return entry  # backward compat: bare string
+
+    def _get_sample_qc_violations(self, sample: SampleRecord) -> list:
+        entry = self._qc_status.get(sample.uid)
+        if isinstance(entry, dict):
+            return entry.get("violations", [])
+        return []
+
+    def _set_sample_qc_status(self, sample: SampleRecord, status: str,
+                              violations: list = None):
+        self._qc_status[sample.uid] = {
+            "status": status,
+            "violations": violations or [],
+        }
+
+    def _mark_modified(self):
+        """Mark current sample as modified and reset its QC status to TBD."""
+        if self.modified:
+            return  # already marked
+        self.modified = True
+        if self.samples and 0 <= self.current_idx < len(self.samples):
+            sample = self.samples[self.current_idx]
+            if self._get_sample_qc_status(sample) != "to_be_qc":
+                self._qc_status.pop(sample.uid, None)
+                self._save_qc_status()
+                self._update_qc_label()
+
+    def _update_qc_label(self):
+        """Update the QC status overlay and stats label."""
+        _base_style = (
+            "background-color: rgba(0, 0, 0, 160); padding: 4px 10px;"
+            " border-bottom-left-radius: 6px; font-weight: bold; font-size: 13px;")
+        if not self.samples:
+            self.qc_label.setText("")
+            self.qc_label.hide()
+            self.qc_stats_label.setText("")
+            return
+        sample = self.samples[self.current_idx]
+        status = self._get_sample_qc_status(sample)
+        if status == "passed":
+            self.qc_label.setText("QC Passed")
+            self.qc_label.setStyleSheet(_base_style + " color: #00cc00;")
+            self.qc_label.setToolTip("")
+        elif status == "failed":
+            self.qc_label.setText("QC Failed")
+            self.qc_label.setStyleSheet(_base_style + " color: #ff3333;")
+            violations = self._get_sample_qc_violations(sample)
+            if violations:
+                self.qc_label.setToolTip("\n".join(f"• {v}" for v in violations))
+            else:
+                self.qc_label.setToolTip("No details available — re-run QC")
+        else:
+            self.qc_label.setText("To Be QC")
+            self.qc_label.setStyleSheet(_base_style + " color: #888888;")
+            self.qc_label.setToolTip("")
+        self.qc_label.adjustSize()
+        self.qc_label.show()
+        self._position_qc_label()
+        # Update stats across currently displayed (filtered) samples
+        n_passed = n_failed = n_pending = 0
+        for s in self.samples:
+            st = self._get_sample_qc_status(s)
+            if st == "passed":
+                n_passed += 1
+            elif st == "failed":
+                n_failed += 1
+            else:
+                n_pending += 1
+        self.qc_stats_label.setText(
+            f'<span style="color:#00cc00;">P:{n_passed}</span>  '
+            f'<span style="color:#ff4444;">F:{n_failed}</span>  '
+            f'<span style="color:#aaaaaa;">TBD:{n_pending}</span>')
+
+    def _position_qc_label(self):
+        """Position the QC overlay label at the top-right of the image panel."""
+        if not hasattr(self, '_panel_widget'):
+            return
+        pw = self._panel_widget
+        lw = self.qc_label.width()
+        self.qc_label.move(pw.width() - lw - 30, 4)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._position_qc_label()
+
+    def _on_qc_current(self):
+        """Run QC checks on the current sample."""
+        if not self.samples:
+            return
+        sample = self.samples[self.current_idx]
+        polys = self.edit_canvas.polygons
+        if not polys:
+            QMessageBox.information(self, "QC", "No polygons to check.")
+            return
+
+        # Use canvas image dimensions if available, else 1024x1024
+        if self.edit_canvas.base_image is not None:
+            h, w = self.edit_canvas.base_image.shape[:2]
+        else:
+            h, w = 1024, 1024
+
+        violations = run_qc_checks(polys, h, w)
+        if violations:
+            self._set_sample_qc_status(sample, "failed", violations)
+            msg = "QC FAILED:\n\n" + "\n".join(f"  - {v}" for v in violations)
+        else:
+            self._set_sample_qc_status(sample, "passed")
+            msg = "QC PASSED — no violations found."
+
+        self._save_qc_status()
+        self._update_qc_label()
+        QMessageBox.information(self, "QC Result", msg)
+
+    def _on_auto_qc_toggled(self, checked: bool):
+        if checked:
+            self._schedule_auto_qc()
+
+    def _schedule_auto_qc(self):
+        """Schedule auto QC via a deferred timer if the Auto checkbox is checked."""
+        if not self.qc_auto_cb.isChecked():
+            return
+        QTimer.singleShot(0, self._run_auto_qc)
+
+    def _run_auto_qc(self):
+        """Run QC silently on the current sample (no message box)."""
+        if not self.qc_auto_cb.isChecked():
+            return
+        if not self.samples or not (0 <= self.current_idx < len(self.samples)):
+            return
+        if self._in_modal_mode():
+            return
+        sample = self.samples[self.current_idx]
+        polys = self.edit_canvas.polygons
+        if not polys:
+            # No polygons — clear QC status back to TBD
+            self._qc_status.pop(sample.uid, None)
+            self._save_qc_status()
+            self._update_qc_label()
+            return
+
+        if self.edit_canvas.base_image is not None:
+            h, w = self.edit_canvas.base_image.shape[:2]
+        else:
+            h, w = 1024, 1024
+
+        violations = run_qc_checks(polys, h, w)
+        if violations:
+            self._set_sample_qc_status(sample, "failed", violations)
+        else:
+            self._set_sample_qc_status(sample, "passed")
+        self._save_qc_status()
+        self._update_qc_label()
+
+    def _on_qc_all(self):
+        """Run QC on currently filtered samples with a progress dialog."""
+        if not self.samples:
+            QMessageBox.information(self, "QC All", "No samples to check.")
+            return
+
+        progress = QProgressDialog(
+            f"Running QC on {len(self.samples)} filtered samples...",
+            "Cancel", 0, len(self.samples), self)
+        progress.setWindowTitle("QC Filtered Samples")
+        progress.setMinimumDuration(0)
+        progress.setWindowModality(Qt.WindowModal)
+
+        passed = 0
+        failed = 0
+        errors = 0
+
+        ann_dir = self._annotation_dir()
+        for i, sample in enumerate(self.samples):
+            if progress.wasCanceled():
+                break
+            progress.setValue(i)
+            QApplication.processEvents()
+
+            # Load annotation polygons (no image loading needed)
+            stem = self._file_stem(sample)
+            ann_file = ann_dir / f"{stem}.txt" if ann_dir else sample.annotation_path
+            if not ann_file or not ann_file.exists():
+                # No annotation = skip
+                continue
+
+            try:
+                polys = parse_yolo_annotations(ann_file, 1024, 1024)
+            except Exception:
+                errors += 1
+                continue
+
+            if not polys:
+                continue
+
+            violations = run_qc_checks(polys, 1024, 1024)
+            if violations:
+                self._set_sample_qc_status(sample, "failed", violations)
+                failed += 1
+            else:
+                self._set_sample_qc_status(sample, "passed")
+                passed += 1
+
+        progress.setValue(len(self.samples))
+        self._save_qc_status()
+        self._update_qc_label()
+
+        msg = f"QC Complete:\n\n  Passed: {passed}\n  Failed: {failed}"
+        if errors:
+            msg += f"\n  Errors: {errors}"
+        QMessageBox.information(self, "QC All Results", msg)
+
+    def _on_filter_changed(self):
+        """Handle filter dropdown changes."""
+        sender = self.sender()
+        filter_type = self.filter_type_combo.currentText()
+        is_none = (filter_type == "None")
+        is_qc = (filter_type == "By QC")
+
+        # Only repopulate the class combo when the filter TYPE changes
+        if sender is self.filter_type_combo:
+            self.filter_class_combo.blockSignals(True)
+            self.filter_class_combo.clear()
+            if is_qc:
+                self.filter_class_combo.addItem("None", None)
+                self.filter_class_combo.addItem("To Be QC", "to_be_qc")
+                self.filter_class_combo.addItem("QC Passed", "passed")
+                self.filter_class_combo.addItem("QC Failed", "failed")
+            else:
+                self.filter_class_combo.addItem("None", None)
+                for cid, cname in ANNOTATED_CLASSES.items():
+                    self.filter_class_combo.addItem(f"{cid}: {cname}", cid)
+            self.filter_class_combo.blockSignals(False)
+
+            self.filter_class_combo.setEnabled(not is_none)
+            if is_none:
+                self.filter_class_combo.setCurrentIndex(0)
+
+        self._apply_filter()
+
+    def _apply_filter(self):
+        """Filter samples based on current filter settings and refresh the view."""
+        filter_type = self.filter_type_combo.currentText()
+        filter_data = self.filter_class_combo.currentData()
+
+        if filter_type == "None" or filter_data is None:
+            self.samples = list(self._all_samples)
+        elif filter_type == "By QC":
+            # filter_data is a QC status string: "to_be_qc", "passed", "failed"
+            self.samples = []
+            for sample in self._all_samples:
+                status = self._get_sample_qc_status(sample)
+                if status == filter_data:
+                    self.samples.append(sample)
+        else:
+            class_id = filter_data
+            self.samples = []
+            for sample in self._all_samples:
+                ann_path = sample.annotation_path
+                has_class = False
+                if ann_path and ann_path.exists():
+                    try:
+                        with open(ann_path, 'r') as f:
+                            for line in f:
+                                parts = line.strip().split()
+                                if parts and int(parts[0]) == class_id:
+                                    has_class = True
+                                    break
+                    except (ValueError, IndexError):
+                        pass
+                if filter_type == "By Containing" and has_class:
+                    self.samples.append(sample)
+                elif filter_type == "By Missing" and not has_class:
+                    self.samples.append(sample)
 
         self._update_sample_combo()
         self.current_idx = 0
@@ -1067,12 +1523,15 @@ class AnnotationEditor(QMainWindow):
 
         if self.samples:
             self.load_sample(0)
-            self.update_status(f"{self.editor_mode}: {len(self.samples)} samples loaded")
+            self.update_status(f"{len(self.samples)} images")
         else:
-            # Clear canvases
+            # Clear canvases and raw image
+            self._raw_image = None
             for c in self._all_canvases():
+                c.base_image = None
                 c.set_polygons([])
-            self.update_status(f"No samples found for mode '{self.editor_mode}'")
+                c.update()
+            self.update_status("0 images")
 
     @staticmethod
     def _display_name(sample: SampleRecord) -> str:
@@ -1094,7 +1553,7 @@ class AnnotationEditor(QMainWindow):
         for i, s in enumerate(self.samples):
             self.sample_combo.addItem(f"{i+1}. {self._display_name(s)}")
         self.sample_combo.blockSignals(False)
-        self.sample_label.setText(f"{len(self.samples)} samples")
+        self.sample_label.setText(f"{len(self.samples)} images")
 
     def _all_canvases(self):
         canvases = [self.original_canvas, self.edit_canvas]
@@ -1109,84 +1568,119 @@ class AnnotationEditor(QMainWindow):
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
 
-        # ── Row 1: Data folder + mode selector ───────────────────────────
-        folder_bar = QHBoxLayout()
+        # ── Row 1: Data + Navigation + Settings gear ────────────────────
+        row1 = QHBoxLayout()
 
-        folder_bar.addWidget(QLabel("Data Folder:"))
+        # Data folder (QGroupBox)
+        data_group = QGroupBox("Data")
+        data_layout = QHBoxLayout(data_group)
+        data_layout.setContentsMargins(4, 2, 4, 2)
         self.data_dir_entry = QLineEdit()
         self.data_dir_entry.setPlaceholderText("Browse for data folder...")
         if self.data_dir:
             self.data_dir_entry.setText(str(self.data_dir))
         self.data_dir_entry.returnPressed.connect(self._on_data_dir_changed)
-        folder_bar.addWidget(self.data_dir_entry, stretch=1)
-        browse_btn = QPushButton("Browse...")
-        browse_btn.setFixedWidth(80)
-        browse_btn.clicked.connect(self._browse_data_dir)
-        folder_bar.addWidget(browse_btn)
+        data_layout.addWidget(self.data_dir_entry)
+        self.browse_btn = QPushButton("...")
+        self.browse_btn.setFixedWidth(30)
+        self.browse_btn.clicked.connect(self._browse_data_dir)
+        data_layout.addWidget(self.browse_btn)
+        row1.addWidget(data_group)
 
-        folder_bar.addWidget(QLabel("  Mode:"))
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItems([MODE_CORRECT_GT, MODE_CORRECT_PRED, MODE_CREATE_GT])
-        self.mode_combo.setMinimumWidth(180)
-        self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
-        folder_bar.addWidget(self.mode_combo)
-
-        main_layout.addLayout(folder_bar)
-
-        # ── Row 2: Navigation + Visibility + Actions ─────────────────────
-        controls = QHBoxLayout()
-
-        # Navigation
+        # Navigation (filter + sample selector)
         nav_group = QGroupBox("Navigation")
         nav_layout = QHBoxLayout(nav_group)
-        self.prev_btn = QPushButton("< Prev (A)")
-        self.prev_btn.clicked.connect(self.prev_sample)
-        nav_layout.addWidget(self.prev_btn)
+        nav_layout.setContentsMargins(4, 2, 4, 2)
+        nav_layout.addWidget(QLabel("Filter:"))
+        self.filter_type_combo = QComboBox()
+        self.filter_type_combo.addItems(["None", "By Missing", "By Containing", "By QC"])
+        self.filter_type_combo.setMinimumWidth(110)
+        self.filter_type_combo.currentIndexChanged.connect(self._on_filter_changed)
+        nav_layout.addWidget(self.filter_type_combo)
+        self.filter_class_combo = QComboBox()
+        self.filter_class_combo.setMinimumWidth(130)
+        self.filter_class_combo.addItem("None", None)
+        for cid, cname in ANNOTATED_CLASSES.items():
+            self.filter_class_combo.addItem(f"{cid}: {cname}", cid)
+        self.filter_class_combo.setEnabled(False)
+        self.filter_class_combo.currentIndexChanged.connect(self._on_filter_changed)
+        nav_layout.addWidget(self.filter_class_combo)
         self.sample_combo = QComboBox()
         self.sample_combo.setMinimumWidth(300)
         self.sample_combo.setMaxVisibleItems(20)
         self.sample_combo.view().setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.sample_combo.currentIndexChanged.connect(self.on_combo_change)
         nav_layout.addWidget(self.sample_combo)
-        self.next_btn = QPushButton("Next (D) >")
-        self.next_btn.clicked.connect(self.next_sample)
-        nav_layout.addWidget(self.next_btn)
-        self.sample_label = QLabel("0 samples")
+        self.sample_label = QLabel("0 images")
         nav_layout.addWidget(self.sample_label)
-        controls.addWidget(nav_group)
+        row1.addWidget(nav_group)
 
-        # Class selection for drawing (hidden until draw mode)
-        self.class_group = QGroupBox("New Polygon Class")
-        class_layout = QHBoxLayout(self.class_group)
+        row1.addStretch()
+
+        # Settings gear button (right side) — editor mode selector
+        self.mode_label = QLabel(self.editor_mode)
+        self.mode_label.setStyleSheet("color: #aaaaaa; font-style: italic;")
+        row1.addWidget(self.mode_label)
+        self.settings_btn = QToolButton()
+        self.settings_btn.setIcon(self._make_gear_icon())
+        self.settings_btn.setToolTip("Settings")
+        self.settings_btn.setPopupMode(QToolButton.InstantPopup)
+        self.settings_btn.setFixedSize(28, 28)
+        self.settings_btn.setStyleSheet(
+            "QToolButton { border: none; }"
+            "QToolButton::menu-indicator { image: none; }")
+        settings_menu = QMenu(self)
+        self._mode_action_group = QActionGroup(self)
+        self._mode_action_group.setExclusive(True)
+        for mode in [MODE_CREATE_GT, MODE_CORRECT_GT, MODE_CORRECT_PRED]:
+            action = QAction(mode, self)
+            action.setCheckable(True)
+            if mode == self.editor_mode:
+                action.setChecked(True)
+            action.triggered.connect(lambda checked, m=mode: self._on_mode_changed(m))
+            self._mode_action_group.addAction(action)
+            settings_menu.addAction(action)
+        self.settings_btn.setMenu(settings_menu)
+        row1.addWidget(self.settings_btn)
+
+        # Info button — quick reference guide
+        self.info_btn = QToolButton()
+        self.info_btn.setIcon(
+            self.style().standardIcon(QStyle.SP_MessageBoxInformation))
+        self.info_btn.setFixedSize(28, 28)
+        self.info_btn.setStyleSheet(
+            "QToolButton { border: none; }"
+            "QToolButton::menu-indicator { image: none; }")
+        self.info_btn.setToolTip("Guide")
+        self.info_btn.clicked.connect(self._show_info_guide)
+        row1.addWidget(self.info_btn)
+
+        # Instant tooltips for settings and info buttons
+        self.settings_btn.installEventFilter(self)
+        self.info_btn.installEventFilter(self)
+
+        main_layout.addLayout(row1)
+
+        # ── Row 2: Actions + QC ──────────────────────────────────────────
+        controls = QHBoxLayout()
+
+        # Class radio buttons (created here, added to modal page below)
         self.class_buttons = QButtonGroup(self)
+        self._class_radios = []
         for cid, cname in ANNOTATED_CLASSES.items():
-            rb = QRadioButton(f"{cid}: {cname}")
+            rb = QRadioButton(f"{cid}: {CLASS_SHORT_NAMES[cid]}")
+            rb.setToolTip(cname)
             if cid == 1:
                 rb.setChecked(True)
             self.class_buttons.addButton(rb, cid)
-            class_layout.addWidget(rb)
+            self._class_radios.append(rb)
         self.class_buttons.buttonToggled.connect(self._update_class_radio_styles)
         self._update_class_radio_styles()
-        self.class_group.setVisible(False)
-        controls.addWidget(self.class_group)
-
-        # Visibility (before Actions)
-        vis_group = QGroupBox("Visibility")
-        vis_layout = QHBoxLayout(vis_group)
-        self.vis_checks = {}
-        for cid, cname in ANNOTATED_CLASSES.items():
-            color = CLASS_COLORS_RGB.get(cid, (128, 128, 128))
-            cb = QCheckBox(cname)
-            cb.setChecked(True)
-            cb.setStyleSheet(f"color: rgb({color[0]},{color[1]},{color[2]}); font-weight: bold;")
-            cb.toggled.connect(lambda checked, c=cid: self._on_visibility_toggled(c, checked))
-            vis_layout.addWidget(cb)
-            self.vis_checks[cid] = cb
-        controls.addWidget(vis_group)
 
         # Action buttons — stacked: page 0 = main, page 1 = modal
         action_group = QGroupBox("Actions")
         action_outer = QHBoxLayout(action_group)
+        action_outer.setContentsMargins(4, 2, 4, 2)
         self.action_stack = QStackedWidget()
         action_outer.addWidget(self.action_stack)
 
@@ -1194,33 +1688,47 @@ class AnnotationEditor(QMainWindow):
         main_page = QWidget()
         main_layout_inner = QHBoxLayout(main_page)
         main_layout_inner.setContentsMargins(0, 0, 0, 0)
+
+        # Tool mode radio: Node vs Brush
+        main_layout_inner.addWidget(QLabel("Mode:"))
+        self.tool_mode_group = QButtonGroup(self)
+        self.node_radio = QRadioButton("Node")
+        self.node_radio.setChecked(True)
+        self.node_radio.setToolTip("Use node/vertex tool for drawing and editing")
+        self.brush_radio = QRadioButton("Brush")
+        self.brush_radio.setToolTip("Use brush tool for drawing and editing")
+        self.tool_mode_group.addButton(self.node_radio, 0)
+        self.tool_mode_group.addButton(self.brush_radio, 1)
+        main_layout_inner.addWidget(self.node_radio)
+        main_layout_inner.addWidget(self.brush_radio)
+
         self.draw_btn = QPushButton("Draw (N)")
-        self.draw_btn.clicked.connect(self.toggle_drawing)
+        self.draw_btn.clicked.connect(self._on_draw)
         main_layout_inner.addWidget(self.draw_btn)
-        self.brush_btn = QPushButton("Brush (B)")
-        self.brush_btn.clicked.connect(self.toggle_brush)
-        main_layout_inner.addWidget(self.brush_btn)
-        self.edit_btn = QPushButton("Edit Brush (Enter)")
-        self.edit_btn.clicked.connect(self.toggle_editing)
+        self.edit_btn = QPushButton("Edit (Enter)")
+        self.edit_btn.clicked.connect(self._on_edit)
         main_layout_inner.addWidget(self.edit_btn)
-        self.delete_btn = QPushButton("Delete Selected (Del)")
+        self.delete_btn = QPushButton("Delete (Del)")
         self.delete_btn.clicked.connect(self.delete_selected)
         main_layout_inner.addWidget(self.delete_btn)
-        self.save_btn = QPushButton("Save (S)")
-        self.save_btn.clicked.connect(self.save_annotations)
-        main_layout_inner.addWidget(self.save_btn)
-        self.copy_pred_btn = QPushButton("Copy Ref->Edit (C)")
+        self.copy_pred_btn = QPushButton("Copy All Pred->GT")
         self.copy_pred_btn.clicked.connect(self.copy_all_ref_to_edit)
         main_layout_inner.addWidget(self.copy_pred_btn)
+        self.copy_sel_btn = QPushButton("Copy Selected (Ctrl+C)")
+        self.copy_sel_btn.clicked.connect(self.copy_selected_ref_to_edit)
+        main_layout_inner.addWidget(self.copy_sel_btn)
         self.action_stack.addWidget(main_page)
 
-        # Page 1: modal cancel/confirm
+        # Page 1: modal cancel/confirm + class radio buttons
         modal_page = QWidget()
         modal_layout = QHBoxLayout(modal_page)
         modal_layout.setContentsMargins(0, 0, 0, 0)
         self.modal_label = QLabel("")
         self.modal_label.setStyleSheet("font-weight: bold; color: #ffaa00;")
         modal_layout.addWidget(self.modal_label)
+        # Class radio buttons (shown in modal for drawing/brush)
+        for rb in self._class_radios:
+            modal_layout.addWidget(rb)
         self.modal_undo_btn = QPushButton("Undo (Ctrl+Z)")
         self.modal_undo_btn.setStyleSheet("background-color: #336699; color: white; font-weight: bold;")
         self.modal_undo_btn.clicked.connect(self.undo)
@@ -1235,28 +1743,138 @@ class AnnotationEditor(QMainWindow):
         modal_layout.addWidget(self.modal_confirm_btn)
         self.action_stack.addWidget(modal_page)
 
+        # QC section
+        qc_group = QGroupBox("Quality Check")
+        qc_layout = QHBoxLayout(qc_group)
+        qc_layout.setContentsMargins(4, 2, 4, 2)
+        self.qc_btn = QPushButton("QC Current")
+        self.qc_btn.setToolTip("Run QC checks on current image")
+        self.qc_btn.clicked.connect(self._on_qc_current)
+        qc_layout.addWidget(self.qc_btn)
+        self.qc_all_btn = QPushButton("QC All")
+        self.qc_all_btn.setToolTip("Run QC checks on all filtered images")
+        self.qc_all_btn.clicked.connect(self._on_qc_all)
+        qc_layout.addWidget(self.qc_all_btn)
+        self.qc_auto_cb = QCheckBox("Auto")
+        self.qc_auto_cb.setToolTip("Automatically run QC after each edit")
+        self.qc_auto_cb.setChecked(True)
+        self.qc_auto_cb.toggled.connect(self._on_auto_qc_toggled)
+        qc_layout.addWidget(self.qc_auto_cb)
+        self.qc_stats_label = QLabel("")
+        self.qc_stats_label.setStyleSheet("color: #aaaaaa;")
+        qc_layout.addWidget(self.qc_stats_label)
+        controls.addWidget(qc_group)
+
         controls.addWidget(action_group)
+
         controls.addStretch()
         main_layout.addLayout(controls)
 
         # ── Image panels ─────────────────────────────────────────────────
-        self.splitter = QSplitter(Qt.Horizontal)
+        self.prev_btn = QPushButton("<")
+        self.prev_btn.setFixedWidth(24)
+        self.prev_btn.setMinimumHeight(120)
+        self.prev_btn.setToolTip("Previous sample")
+        self.prev_btn.setStyleSheet("font-size: 18px; font-weight: bold;")
+        self.prev_btn.clicked.connect(self.prev_sample)
 
+        self.splitter = QSplitter(Qt.Horizontal)
         self.original_canvas = PolygonCanvas("Original Image", editable=False)
         self.splitter.addWidget(self.original_canvas)
-
         self.edit_canvas = PolygonCanvas("Editable", editable=True)
         self.splitter.addWidget(self.edit_canvas)
-
         self.ref_canvas = PolygonCanvas("Reference", editable=False, selectable=True)
         self.splitter.addWidget(self.ref_canvas)
-
         self.splitter.setSizes([1, 1, 1])
         self.splitter.setChildrenCollapsible(False)
-        main_layout.addWidget(self.splitter, stretch=1)
 
-        # Status bar with Home button at right
+        self.next_btn = QPushButton(">")
+        self.next_btn.setFixedWidth(24)
+        self.next_btn.setMinimumHeight(120)
+        self.next_btn.setToolTip("Next sample")
+        self.next_btn.setStyleSheet("font-size: 18px; font-weight: bold;")
+        self.next_btn.clicked.connect(self.next_sample)
+
+        panel_widget = QWidget()
+        panel_row = QHBoxLayout(panel_widget)
+        panel_row.setContentsMargins(0, 0, 0, 0)
+        panel_row.addWidget(self.prev_btn)
+        panel_row.addWidget(self.splitter, stretch=1)
+        panel_row.addWidget(self.next_btn)
+        main_layout.addWidget(panel_widget, stretch=1)
+
+        # QC status overlay — top-right corner of image panel
+        self.qc_label = QLabel("", panel_widget)
+        self.qc_label.setStyleSheet(
+            "background-color: rgba(0, 0, 0, 160); padding: 4px 10px;"
+            " border-bottom-left-radius: 6px; font-weight: bold; font-size: 13px;")
+        self.qc_label.installEventFilter(self)
+        self.qc_label.adjustSize()
+        self.qc_label.hide()
+        self.qc_label.raise_()
+        self._panel_widget = panel_widget
+
+        # Status bar: [status msg] ... Visibility ... | Brightness | Gamma | Reset | Home
         self.status_bar = QStatusBar()
+
+        # Visibility checkboxes with short labels
+        vis_label = QLabel("Visibility:")
+        self.status_bar.addPermanentWidget(vis_label)
+        self.vis_checks = {}
+        for cid, cname in ANNOTATED_CLASSES.items():
+            color = CLASS_COLORS_RGB.get(cid, (128, 128, 128))
+            cb = QCheckBox(CLASS_SHORT_NAMES[cid])
+            cb.setChecked(True)
+            cb.setStyleSheet(f"color: rgb({color[0]},{color[1]},{color[2]}); font-weight: bold;")
+            cb.setToolTip(cname)
+            cb.toggled.connect(lambda checked, c=cid: self._on_visibility_toggled(c, checked))
+            self.status_bar.addPermanentWidget(cb)
+            self.vis_checks[cid] = cb
+
+        # Separator
+        sep = QFrame()
+        sep.setFrameShape(QFrame.VLine)
+        sep.setFixedWidth(2)
+        self.status_bar.addPermanentWidget(sep)
+
+        # Brightness slider (compact)
+        self.status_bar.addPermanentWidget(QLabel("Brightness:"))
+        self.brightness_slider = QSlider(Qt.Horizontal)
+        self.brightness_slider.setRange(-100, 100)
+        self.brightness_slider.setValue(0)
+        self.brightness_slider.setFixedWidth(80)
+        self.brightness_slider.setToolTip("Adjust brightness (for display)")
+        self.brightness_slider.valueChanged.connect(self._on_brightness_changed)
+        self.status_bar.addPermanentWidget(self.brightness_slider)
+        self.brightness_label = QLabel("0")
+        self.brightness_label.setFixedWidth(25)
+        self.status_bar.addPermanentWidget(self.brightness_label)
+
+        # Gamma slider (compact)
+        self.status_bar.addPermanentWidget(QLabel(" γ:"))
+        self.gamma_slider = QSlider(Qt.Horizontal)
+        self.gamma_slider.setRange(10, 300)
+        self.gamma_slider.setValue(100)
+        self.gamma_slider.setFixedWidth(80)
+        self.gamma_slider.setToolTip("Adjust contrast (for display)")
+        self.gamma_slider.valueChanged.connect(self._on_gamma_changed)
+        self.status_bar.addPermanentWidget(self.gamma_slider)
+        self.gamma_label = QLabel("1.0")
+        self.gamma_label.setFixedWidth(25)
+        self.status_bar.addPermanentWidget(self.gamma_label)
+
+        # Reset button for sliders
+        reset_display_btn = QPushButton("Reset")
+        reset_display_btn.setFixedWidth(50)
+        reset_display_btn.setToolTip("Reset brightness and gamma to defaults")
+        reset_display_btn.clicked.connect(self._reset_display_adjustments)
+        self.status_bar.addPermanentWidget(reset_display_btn)
+
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.VLine)
+        sep2.setFixedWidth(2)
+        self.status_bar.addPermanentWidget(sep2)
+
         home_btn = QPushButton("Home")
         home_btn.setFixedWidth(60)
         home_btn.setToolTip("Reset zoom and center all panels (H)")
@@ -1280,47 +1898,102 @@ class AnnotationEditor(QMainWindow):
             self.ref_canvas.title = "Prediction (Reference)"
             self.ref_canvas.setVisible(True)
             self.copy_pred_btn.setVisible(True)
-            self.copy_pred_btn.setText("Copy Pred->GT (C)")
+            self.copy_pred_btn.setText("Copy All Pred->GT")
+            self.copy_sel_btn.setVisible(True)
             self.splitter.setSizes([1, 1, 1])
         elif mode == MODE_CORRECT_PRED:
             self.edit_canvas.title = "Prediction (Editable)"
             self.ref_canvas.title = ""
             self.ref_canvas.setVisible(False)
             self.copy_pred_btn.setVisible(False)
+            self.copy_sel_btn.setVisible(False)
             self.splitter.setSizes([1, 1])
         else:  # MODE_CREATE_GT
             self.edit_canvas.title = "Ground Truth (Editable)"
             self.ref_canvas.title = ""
             self.ref_canvas.setVisible(False)
             self.copy_pred_btn.setVisible(False)
+            self.copy_sel_btn.setVisible(False)
             self.splitter.setSizes([1, 1])
         # Refresh titles
         self.edit_canvas.update()
         self.ref_canvas.update()
 
+    # ── Display brightness / gamma (display only) ────────────────────────
+
+    def _on_brightness_changed(self, value: int):
+        self._brightness = value
+        self.brightness_label.setText(str(value))
+        self._apply_display_adjustments()
+
+    def _on_gamma_changed(self, value: int):
+        self._gamma = value
+        self.gamma_label.setText(f"{value / 100:.1f}")
+        self._apply_display_adjustments()
+
+    def _reset_display_adjustments(self):
+        self.brightness_slider.setValue(0)
+        self.gamma_slider.setValue(100)
+
+    def _apply_display_adjustments(self):
+        """Apply brightness and gamma to the raw image for display only."""
+        if self._raw_image is None:
+            return
+        img = self._raw_image.astype(np.float32)
+
+        # Brightness: shift pixel values
+        if self._brightness != 0:
+            img = img + self._brightness * 255.0 / 100.0
+
+        # Gamma correction: gamma < 1 brightens midtones, gamma > 1 darkens
+        gamma = self._gamma / 100.0
+        if gamma != 1.0:
+            img = np.clip(img, 0, 255) / 255.0
+            img = np.power(img, gamma) * 255.0
+
+        display_img = np.clip(img, 0, 255).astype(np.uint8)
+
+        # Update all canvases with adjusted image
+        for canvas in self._all_canvases():
+            canvas.set_image(display_img)
+
+    def _in_modal_mode(self) -> bool:
+        """Return True if in any modal mode (drawing, editing, brushing, deleting)."""
+        return (self._deleting_mode or self.edit_canvas.drawing_mode
+                or self.edit_canvas.editing_mode or self.edit_canvas.brush_mode)
+
+    def eventFilter(self, obj, event):
+        """Intercept events: arrow keys for navigation, instant tooltip for QC label."""
+        if obj is self.qc_label and event.type() == event.Enter:
+            tip = self.qc_label.toolTip()
+            if tip:
+                QToolTip.showText(self.qc_label.mapToGlobal(QPoint(0, self.qc_label.height())), tip, self.qc_label)
+                return True
+        if event.type() == event.KeyPress:
+            if event.key() == Qt.Key_Left:
+                if not self._in_modal_mode():
+                    self.prev_sample()
+                return True
+            if event.key() == Qt.Key_Right:
+                if not self._in_modal_mode():
+                    self.next_sample()
+                return True
+            if event.key() in (Qt.Key_Up, Qt.Key_Down):
+                return True
+        return super().eventFilter(obj, event)
+
     def setup_shortcuts(self):
-        QShortcut(QKeySequence(Qt.Key_A), self, self.prev_sample)
-        QShortcut(QKeySequence(Qt.Key_Left), self, self.prev_sample)
-        QShortcut(QKeySequence(Qt.Key_D), self, self.next_sample)
-        QShortcut(QKeySequence(Qt.Key_Right), self, self.next_sample)
-        QShortcut(QKeySequence(Qt.Key_N), self, self.toggle_drawing)
+        QShortcut(QKeySequence(Qt.Key_N), self, self._on_draw)
         QShortcut(QKeySequence(Qt.Key_Delete), self, self.delete_selected)
         QShortcut(QKeySequence(Qt.Key_Backspace), self, self.delete_selected)
-        QShortcut(QKeySequence(Qt.Key_S), self, self.save_annotations)
         QShortcut(QKeySequence(Qt.Key_Escape), self, self.escape_action)
         QShortcut(QKeySequence(Qt.Key_Return), self, self.enter_action)
         QShortcut(QKeySequence(Qt.Key_Enter), self, self.enter_action)
-        QShortcut(QKeySequence(Qt.Key_CapsLock), self, self.enter_action)
         QShortcut(QKeySequence(Qt.Key_Space), self, self.enter_action)
-        for i in range(6):
-            QShortcut(QKeySequence(Qt.Key_0 + i), self, lambda idx=i: self.set_drawing_class(idx))
-        QShortcut(QKeySequence(Qt.Key_Tab), self, self.copy_exodermis_ref_to_edit)
-        QShortcut(QKeySequence(Qt.Key_Backslash), self, self.copy_selected_ref_to_edit)
-        QShortcut(QKeySequence(Qt.Key_B), self, self.toggle_brush)
-        QShortcut(QKeySequence(Qt.Key_V), self, self.toggle_vertex_editing)
         QShortcut(QKeySequence(Qt.Key_R), self, self.split_ring)
-        QShortcut(QKeySequence(Qt.Key_H), self, self.home_view)
+        QShortcut(QKeySequence("Ctrl+C"), self, self.copy_selected_ref_to_edit)
         QShortcut(QKeySequence("Ctrl+Z"), self, self.undo)
+        QShortcut(QKeySequence("Ctrl+S"), self, self.save_annotations)
         QShortcut(QKeySequence("Ctrl+Shift+Z"), self, self.redo)
 
     # ── Sample loading ────────────────────────────────────────────────────
@@ -1360,8 +2033,9 @@ class AnnotationEditor(QMainWindow):
         img_uint8 = to_uint8(img)
         h, w = img.shape[:2]
 
-        self.original_canvas.set_image(img_uint8)
-        self.edit_canvas.set_image(img_uint8)
+        # Store raw image for display adjustments (brightness/gamma)
+        self._raw_image = img_uint8.copy()
+        self._apply_display_adjustments()
         self.original_canvas.set_polygons([])
 
         ann_dir = self._annotation_dir()
@@ -1387,25 +2061,28 @@ class AnnotationEditor(QMainWindow):
             return parse_yolo_annotations(path, w, h)
 
         if self.editor_mode == MODE_CORRECT_GT:
-            # Edit: GT annotations, Reference: predictions
+            # Edit: GT annotations, Reference: predictions only
             gt_polys = parse_yolo_annotations(ann_file, w, h) if ann_file and ann_file.exists() else []
             pred_polys = _load_predictions(pred_file, w, h)
             self.edit_canvas.set_polygons(gt_polys)
-            self.ref_canvas.set_image(img_uint8)
             self.ref_canvas.set_polygons(pred_polys)
         elif self.editor_mode == MODE_CORRECT_PRED:
             # Edit: predictions (to be corrected), no reference
             pred_polys = _load_predictions(pred_file, w, h)
             self.edit_canvas.set_polygons(pred_polys)
+            self.ref_canvas.set_polygons([])
         else:  # MODE_CREATE_GT
             # Edit: existing annotations if any, else empty
             gt_polys = parse_yolo_annotations(ann_file, w, h) if ann_file and ann_file.exists() else []
             self.edit_canvas.set_polygons(gt_polys)
+            self.ref_canvas.set_polygons([])
 
         self.sample_combo.blockSignals(True)
         self.sample_combo.setCurrentIndex(idx)
         self.sample_combo.blockSignals(False)
-        self.sample_label.setText(f"{idx + 1} / {len(self.samples)}")
+        self.sample_label.setText(f"{len(self.samples)} images")
+        self._update_qc_label()
+        self._schedule_auto_qc()
         self.update_status(f"Loaded: {self._display_name(sample)}")
 
     def on_combo_change(self, idx: int):
@@ -1413,10 +2090,14 @@ class AnnotationEditor(QMainWindow):
             self.load_sample(idx)
 
     def prev_sample(self):
+        if self._in_modal_mode():
+            return
         if self.current_idx > 0:
             self.load_sample(self.current_idx - 1)
 
     def next_sample(self):
+        if self._in_modal_mode():
+            return
         if self.current_idx < len(self.samples) - 1:
             self.load_sample(self.current_idx + 1)
 
@@ -1434,6 +2115,156 @@ class AnnotationEditor(QMainWindow):
         self.data_dir = Path(text) if text else None
         self._reload_samples()
 
+    @staticmethod
+    def _make_gear_icon(size: int = 64) -> QIcon:
+        """Draw a gear icon using QPainter."""
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.transparent)
+        p = QPainter(pixmap)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QBrush(QColor(200, 200, 200)))
+        cx, cy = size / 2, size / 2
+        r_outer = size * 0.44
+        r_inner = size * 0.30
+        r_center = size * 0.15
+        n_teeth = 8
+        points = []
+        for i in range(n_teeth * 2):
+            angle = math.pi * 2 * i / (n_teeth * 2) - math.pi / 2
+            r = r_outer if i % 2 == 0 else r_inner
+            points.append(QPointF(cx + r * math.cos(angle),
+                                  cy + r * math.sin(angle)))
+        p.drawPolygon(QPolygonF(points))
+        # Cut out center hole
+        p.setCompositionMode(QPainter.CompositionMode_Clear)
+        p.drawEllipse(QPointF(cx, cy), r_center, r_center)
+        p.end()
+        return QIcon(pixmap)
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Enter and hasattr(obj, 'toolTip') and obj.toolTip():
+            QToolTip.showText(obj.mapToGlobal(QPoint(0, obj.height())), obj.toolTip(), obj)
+        return super().eventFilter(obj, event)
+
+    def _show_info_guide(self):
+        """Show a non-modal quick-reference guide dialog (singleton)."""
+        # If already open, just raise it
+        if self._info_dialog is not None and self._info_dialog.isVisible():
+            self._info_dialog.raise_()
+            self._info_dialog.activateWindow()
+            return
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Quick Guide")
+        dlg.setAttribute(Qt.WA_DeleteOnClose)
+        dlg.finished.connect(lambda: setattr(self, '_info_dialog', None))
+        dlg.resize(520, 620)
+
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(0, 0, 0, 0)
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(False)
+        browser.setHtml(
+            "<style>"
+            "body { font-size: 14px; color: #e0e0e0; background: #353535;"
+            " margin: 12px 16px; }"
+            "table { border-collapse: collapse; margin: 6px 0 14px 0; width: 100%; }"
+            "th { padding: 5px 12px; text-align: left; "
+            "background: #2a82da; color: #ffffff; font-size: 13px; }"
+            "td { padding: 5px 12px; background: #2e2e2e; color: #e0e0e0; font-size: 13px; }"
+            "h2 { color: #ffffff; font-size: 18px; margin-top: 0; }"
+            "h3 { color: #2a82da; margin: 14px 0 6px 0; font-size: 15px; }"
+            "kbd { background: #2e2e2e; color: #e0e0e0; padding: 2px 6px; "
+            "border-radius: 3px; font-family: monospace; font-size: 12px; }"
+            "</style>"
+
+            "<h2>Quick Guide</h2>"
+
+            "<h3>Editor Modes</h3>"
+            "<table>"
+            "<tr><th>Mode</th><th>Purpose</th></tr>"
+            "<tr><td><b>Create GT</b></td>"
+            "<td>Draw annotations from scratch on raw images.<br>"
+            "Only the image folder is needed.</td></tr>"
+            "<tr><td><b>Correct GT with Pred</b></td>"
+            "<td>Edit existing ground-truth annotations using<br>"
+            "model predictions as a visual reference.<br>"
+            "Requires image + annotation + prediction folders.</td></tr>"
+            "<tr><td><b>Correct Predictions</b></td>"
+            "<td>Edit model predictions and save them<br>"
+            "for downstream analysis.<br>"
+            "Requires image + prediction folders.</td></tr>"
+            "</table>"
+
+            "<h3>QC Rules</h3>"
+            "<table>"
+            "<tr><th>#</th><th>Check</th></tr>"
+            "<tr><td>1</td><td>All polygons must be inside Whole Root</td></tr>"
+            "<tr><td>2</td><td>I.Exo must be inside O.Exo</td></tr>"
+            "<tr><td>3</td><td>O.Endo must be inside I.Exo</td></tr>"
+            "<tr><td>4</td><td>I.Endo must be inside O.Endo</td></tr>"
+            "<tr><td>5</td><td>Aerenchyma must be in cortex only<br>"
+            "<span style='color:#888'>(between root boundary &amp; O.Endo)</span></td></tr>"
+            "<tr><td>6</td><td>Required classes: Root, O.Endo, I.Endo,<br>"
+            "O.Exo, I.Exo</td></tr>"
+            "</table>"
+
+            "<h3>Keyboard Shortcuts</h3>"
+            "<table>"
+            "<tr><th>Key</th><th>Action</th></tr>"
+            "<tr><td><kbd>\u2190</kbd> / <kbd>\u2192</kbd></td>"
+            "<td>Previous / Next sample</td></tr>"
+            "<tr><td><kbd>N</kbd></td>"
+            "<td>Draw new polygon (Node or Brush)</td></tr>"
+            "<tr><td><kbd>Enter</kbd> / <kbd>Space</kbd></td>"
+            "<td>Confirm action, or edit selected polygon</td></tr>"
+            "<tr><td><kbd>Esc</kbd></td>"
+            "<td>Cancel action, or deselect polygon</td></tr>"
+            "<tr><td><kbd>Ctrl+S</kbd></td><td>Save annotations</td></tr>"
+            "<tr><td><kbd>R</kbd></td>"
+            "<td>Split selected ring polygon (endo/exo)</td></tr>"
+            "<tr><td><kbd>Del</kbd> / <kbd>Backspace</kbd></td>"
+            "<td>Delete selected polygon or vertices</td></tr>"
+            "<tr><td><kbd>Ctrl+Z</kbd></td><td>Undo</td></tr>"
+            "<tr><td><kbd>C</kbd></td>"
+            "<td>Copy all prediction polygons to GT (Correct GT mode)</td></tr>"
+            "<tr><td><kbd>Ctrl+C</kbd></td>"
+            "<td>Copy selected prediction polygon to GT (Correct GT mode)</td></tr>"
+            "<tr><td><kbd>Ctrl+Scroll</kbd></td>"
+            "<td>Change brush size</td></tr>"
+            "<tr><td><kbd>Scroll</kbd></td><td>Zoom</td></tr>"
+            "</table>"
+
+            "<h3>Mouse (Node Mode)</h3>"
+            "<table>"
+            "<tr><th>Input</th><th>Action</th></tr>"
+            "<tr><td><kbd>Left Click</kbd></td>"
+            "<td>Place a node (drawing)</td></tr>"
+            "<tr><td><kbd>Left Click</kbd></td>"
+            "<td>Select a single node (editing)</td></tr>"
+            "<tr><td><kbd>Left Drag</kbd></td>"
+            "<td>Select multiple nodes (editing)</td></tr>"
+            "<tr><td><kbd>Right Click</kbd> / <kbd>Middle Click</kbd></td>"
+            "<td>Pan / move the image</td></tr>"
+            "</table>"
+
+            "<h3>Mouse (Brush Mode)</h3>"
+            "<table>"
+            "<tr><th>Input</th><th>Action</th></tr>"
+            "<tr><td><kbd>Left Click</kbd></td>"
+            "<td>Erase area</td></tr>"
+            "<tr><td><kbd>Shift + Left Click</kbd></td>"
+            "<td>Paint / add area</td></tr>"
+            "<tr><td><kbd>Right Click</kbd> / <kbd>Middle Click</kbd></td>"
+            "<td>Pan / move the image</td></tr>"
+            "</table>"
+        )
+        layout.addWidget(browser)
+
+        self._info_dialog = dlg
+        dlg.show()
+
     def _on_mode_changed(self, mode_text: str):
         if mode_text == self.editor_mode:
             return
@@ -1441,11 +2272,13 @@ class AnnotationEditor(QMainWindow):
         err = self._validate_dirs_for_mode(mode_text)
         if err:
             QMessageBox.warning(self, "Missing Directories", err)
-            self.mode_combo.blockSignals(True)
-            self.mode_combo.setCurrentText(self.editor_mode)
-            self.mode_combo.blockSignals(False)
+            # Revert the action group check to current mode
+            for action in self._mode_action_group.actions():
+                if action.text() == self.editor_mode:
+                    action.setChecked(True)
             return
         self.editor_mode = mode_text
+        self.mode_label.setText(mode_text)
         self._apply_mode_layout()
         self._reload_samples()
 
@@ -1468,6 +2301,16 @@ class AnnotationEditor(QMainWindow):
                     f"QRadioButton {{ color: rgb({color[0]},{color[1]},{color[2]}); font-weight: bold; }}")
             else:
                 btn.setStyleSheet("QRadioButton { color: rgb(180,180,180); font-weight: normal; }")
+        # Update polygon class if editing an existing polygon
+        if self._editing_polygon_idx is not None:
+            new_class = self.class_buttons.checkedId()
+            idx = self._editing_polygon_idx
+            if 0 <= idx < len(self.edit_canvas.polygons) and new_class >= 0:
+                self.edit_canvas.polygons[idx]["class_id"] = new_class
+                # Also update brush class if in brush mode
+                if self.edit_canvas.brush_mode:
+                    self.edit_canvas._brush_class_id = new_class
+                self.edit_canvas.update()
 
     def _on_visibility_toggled(self, class_id: int, checked: bool):
         color = CLASS_COLORS_RGB.get(class_id, (128, 128, 128))
@@ -1494,15 +2337,71 @@ class AnnotationEditor(QMainWindow):
                     canvas._selected_vertices.clear()
             canvas.update()
 
+    # ── Tool dispatchers (Node / Brush radio) ───────────────────────────
+
+    def _on_draw(self):
+        """Draw new polygon using the selected tool (Node or Brush)."""
+        if self.brush_radio.isChecked():
+            # Brush draw: deselect so brush starts a new polygon
+            self.edit_canvas.selected_idx = None
+            self.toggle_brush()
+        else:
+            self.toggle_drawing()
+
+    def _on_edit(self):
+        """Edit selected polygon using the selected tool (Node or Brush)."""
+        if self.edit_canvas.selected_idx is None:
+            self.update_status("Select a polygon first to edit")
+            return
+        # Set class radio to match the polygon being edited
+        idx = self.edit_canvas.selected_idx
+        poly = self.edit_canvas.polygons[idx]
+        self._editing_polygon_idx = idx
+        btn = self.class_buttons.button(poly["class_id"])
+        if btn:
+            btn.setChecked(True)
+        if self.brush_radio.isChecked():
+            self.toggle_brush()
+        else:
+            self.toggle_vertex_editing()
+
     # ── Modal (draw/edit) ─────────────────────────────────────────────────
 
-    def _enter_modal(self, label: str):
+    def _enter_modal(self, label: str, hide_class_radios: bool = False, hide_undo: bool = False):
         self.modal_label.setText(label)
+        for rb in self._class_radios:
+            rb.setVisible(not hide_class_radios)
+        self.modal_undo_btn.setVisible(not hide_undo)
         self.action_stack.setCurrentIndex(1)
+        # Disable navigation and controls during modal
+        self._set_nav_controls_enabled(False)
 
     def _exit_modal(self):
         self.action_stack.setCurrentIndex(0)
-        self.class_group.setVisible(False)
+        self._editing_polygon_idx = None
+        self._deleting_mode = False
+        # Restore class radios and undo button visibility
+        for rb in self._class_radios:
+            rb.setVisible(True)
+        self.modal_undo_btn.setVisible(True)
+        # Re-enable navigation and controls
+        self._set_nav_controls_enabled(True)
+
+    def _set_nav_controls_enabled(self, enabled: bool):
+        """Enable or disable navigation, folder, mode, and filter controls."""
+        self.prev_btn.setEnabled(enabled)
+        self.next_btn.setEnabled(enabled)
+        self.sample_combo.setEnabled(enabled)
+        self.filter_type_combo.setEnabled(enabled)
+        if enabled:
+            # Respect filter state for class combo
+            is_none = self.filter_type_combo.currentText() == "None"
+            self.filter_class_combo.setEnabled(not is_none)
+        else:
+            self.filter_class_combo.setEnabled(False)
+        self.data_dir_entry.setEnabled(enabled)
+        self.browse_btn.setEnabled(enabled)
+        self.settings_btn.setEnabled(enabled)
 
     def toggle_drawing(self):
         if self.edit_canvas.drawing_mode:
@@ -1514,7 +2413,6 @@ class AnnotationEditor(QMainWindow):
         self._undo_depth_at_mode_entry = len(self._undo_stack)
         class_id = self.class_buttons.checkedId()
         self.edit_canvas.start_drawing(class_id)
-        self.class_group.setVisible(True)
         self._enter_modal("Drawing")
         self.update_status(f"Drawing class {class_id}: Click to add points. Enter = confirm, Esc = cancel.")
 
@@ -1549,6 +2447,12 @@ class AnnotationEditor(QMainWindow):
         self._mode_entry_snapshot = copy.deepcopy(self.edit_canvas.polygons)
         self._undo_depth_at_mode_entry = len(self._undo_stack)
         self.edit_canvas.editing_mode = True
+        self._editing_polygon_idx = self.edit_canvas.selected_idx
+        # Sync class radio to polygon being edited
+        poly = self.edit_canvas.polygons[self.edit_canvas.selected_idx]
+        btn = self.class_buttons.button(poly["class_id"])
+        if btn:
+            btn.setChecked(True)
         self.edit_canvas.update()
         self._enter_modal("Editing vertices")
         self.update_status("Vertices: Drag to move, Shift+click=add, Del=remove. Enter=confirm, Esc=cancel.")
@@ -1568,12 +2472,17 @@ class AnnotationEditor(QMainWindow):
         self._undo_depth_at_mode_entry = len(self._undo_stack)
         canvas = self.edit_canvas
         if canvas.selected_idx is not None and 0 <= canvas.selected_idx < len(canvas.polygons):
+            self._editing_polygon_idx = canvas.selected_idx
+            # Sync class radio to polygon being edited
+            poly = canvas.polygons[canvas.selected_idx]
+            btn = self.class_buttons.button(poly["class_id"])
+            if btn:
+                btn.setChecked(True)
             canvas.start_brush_mode(canvas.selected_idx)
         else:
             class_id = self.class_buttons.checkedId()
             canvas._brush_class_id = class_id
             canvas.start_brush_mode(None)
-        self.class_group.setVisible(True)
         self._enter_modal("Brush painting")
         self.update_status(
             "Brush: Erase by default, Shift+paint to add, "
@@ -1608,6 +2517,26 @@ class AnnotationEditor(QMainWindow):
 
     def modal_confirm(self):
         confirmed = False
+        if self._deleting_mode:
+            # Perform the actual deletion
+            removed = self.edit_canvas.delete_selected()
+            depth = self._undo_depth_at_mode_entry
+            del self._undo_stack[depth:]
+            if self._mode_entry_snapshot is not None:
+                self._undo_stack.append(self._mode_entry_snapshot)
+            self._redo_stack.clear()
+            self._mode_entry_snapshot = None
+            self._exit_modal()
+            if removed:
+                self._mark_modified()
+                self.update_status(f"Deleted polygon (class {removed['class_id']})")
+                confirmed = True
+            else:
+                self.update_status("Delete failed — no polygon selected")
+            if confirmed:
+                self.save_annotations()
+                self._schedule_auto_qc()
+            return
         if self.edit_canvas.drawing_mode:
             result = self.edit_canvas.finish_drawing()
             if result:
@@ -1619,7 +2548,7 @@ class AnnotationEditor(QMainWindow):
                 self._redo_stack.clear()
                 self.edit_canvas.polygons.append(result)
                 self.edit_canvas.update_display()
-                self.modified = True
+                self._mark_modified()
                 self._mode_entry_snapshot = None
                 self._exit_modal()
                 confirmed = True
@@ -1651,7 +2580,7 @@ class AnnotationEditor(QMainWindow):
                 else:
                     self.edit_canvas.polygons.append(result)
                 self.edit_canvas.update_display()
-                self.modified = True
+                self._mark_modified()
                 confirmed = True
             else:
                 if self._mode_entry_snapshot is not None:
@@ -1669,7 +2598,7 @@ class AnnotationEditor(QMainWindow):
             if self._mode_entry_snapshot is not None:
                 self._undo_stack.append(self._mode_entry_snapshot)
             self._redo_stack.clear()
-            self.modified = True
+            self._mark_modified()
             confirmed = True
             self._mode_entry_snapshot = None
             self._exit_modal()
@@ -1677,16 +2606,17 @@ class AnnotationEditor(QMainWindow):
         # Auto-save on confirm
         if confirmed:
             self.save_annotations()
+            self._schedule_auto_qc()
 
     def enter_action(self):
-        """Enter key: confirm modal if active, otherwise enter brush edit on selected polygon."""
-        if self.edit_canvas.drawing_mode or self.edit_canvas.editing_mode or self.edit_canvas.brush_mode:
+        """Enter key: confirm modal if active, otherwise edit selected polygon."""
+        if self._deleting_mode or self.edit_canvas.drawing_mode or self.edit_canvas.editing_mode or self.edit_canvas.brush_mode:
             self.modal_confirm()
         elif self.edit_canvas.selected_idx is not None:
-            self.toggle_editing()
+            self._on_edit()
 
     def escape_action(self):
-        if self.edit_canvas.drawing_mode or self.edit_canvas.editing_mode or self.edit_canvas.brush_mode:
+        if self._deleting_mode or self.edit_canvas.drawing_mode or self.edit_canvas.editing_mode or self.edit_canvas.brush_mode:
             self.modal_cancel()
         else:
             self.edit_canvas.selected_idx = None
@@ -1746,7 +2676,7 @@ class AnnotationEditor(QMainWindow):
             if was_editing:
                 self._exit_editing_raw()
         self.edit_canvas.update()
-        self.modified = True
+        self._mark_modified()
         self.update_status("Redo")
 
     # ── Delete ────────────────────────────────────────────────────────────
@@ -1767,23 +2697,27 @@ class AnnotationEditor(QMainWindow):
                 removed = self.edit_canvas.delete_selected()
                 self._exit_editing_raw()
                 if removed:
-                    self.modified = True
+                    self._mark_modified()
                     self.update_status("Deleted polygon (< 3 vertices would remain)")
                 return
             self.push_undo()
             if self.edit_canvas.delete_selected_vertex():
-                self.modified = True
+                self._mark_modified()
                 n = len(self.edit_canvas.polygons[self.edit_canvas.selected_idx]['polygon'])
                 self.update_status(f"Deleted {len(to_delete)} vertex(es) ({n} remaining)")
             return
-        if self.edit_canvas.selected_idx is not None:
-            self.push_undo()
-        removed = self.edit_canvas.delete_selected()
-        if removed:
-            self.modified = True
-            self.update_status(f"Deleted polygon (class {removed['class_id']})")
-        else:
+        # Whole-polygon deletion: enter confirmation modal
+        if self.edit_canvas.selected_idx is None:
             self.update_status("No polygon selected to delete")
+            return
+        self._deleting_mode = True
+        self._mode_entry_snapshot = copy.deepcopy(self.edit_canvas.polygons)
+        self._undo_depth_at_mode_entry = len(self._undo_stack)
+        idx = self.edit_canvas.selected_idx
+        class_id = self.edit_canvas.polygons[idx]['class_id']
+        class_name = CLASS_SHORT_NAMES.get(class_id, f"class {class_id}")
+        self._enter_modal(f"Delete {class_name}?", hide_class_radios=True, hide_undo=True)
+        self.update_status(f"Confirm delete of {class_name} polygon, or cancel to keep it.")
 
     # ── Split Ring ────────────────────────────────────────────────────────
 
@@ -1850,7 +2784,7 @@ class AnnotationEditor(QMainWindow):
         canvas.polygons.insert(idx + 1, {"class_id": inner_cls, "polygon": inner_poly})
         canvas.selected_idx = None
         canvas.update()
-        self.modified = True
+        self._mark_modified()
         self.update_status(
             f"Split ring → outer (class {outer_cls}, {len(outer_poly)} pts) "
             f"+ inner (class {inner_cls}, {len(inner_poly)} pts)")
@@ -1890,6 +2824,13 @@ class AnnotationEditor(QMainWindow):
             f.write("\n".join(lines))
 
         self.modified = False
+
+        # Reset QC status since annotations changed
+        if sample.uid in self._qc_status:
+            del self._qc_status[sample.uid]
+            self._save_qc_status()
+            self._update_qc_label()
+
         self.update_status(f"Saved {len(lines)} polygons to {save_path.name}")
 
     # ── Sync view ─────────────────────────────────────────────────────────
@@ -1916,8 +2857,9 @@ class AnnotationEditor(QMainWindow):
         self.edit_canvas.polygons.append(poly_copy)
         self.edit_canvas.selected_idx = len(self.edit_canvas.polygons) - 1
         self.edit_canvas.update_display()
-        self.modified = True
+        self._mark_modified()
         self.save_annotations()
+        self._schedule_auto_qc()
         cname = ANNOTATED_CLASSES.get(poly_copy['class_id'], 'Unknown')
         self.update_status(f"Copied reference polygon ({cname}) — saved.")
 
@@ -1935,8 +2877,9 @@ class AnnotationEditor(QMainWindow):
             self.edit_canvas.polygons.append(copy.deepcopy(p))
         self.edit_canvas.selected_idx = len(self.edit_canvas.polygons) - 1
         self.edit_canvas.update_display()
-        self.modified = True
+        self._mark_modified()
         self.save_annotations()
+        self._schedule_auto_qc()
         self.update_status(f"Copied {len(exo_polys)} exodermis polygon(s) from reference — saved.")
 
     def copy_all_ref_to_edit(self):
@@ -1952,8 +2895,9 @@ class AnnotationEditor(QMainWindow):
             self.edit_canvas.polygons = copy.deepcopy(self.ref_canvas.polygons)
             self.edit_canvas.selected_idx = None
             self.edit_canvas.update_display()
-            self.modified = True
+            self._mark_modified()
             self.save_annotations()
+            self._schedule_auto_qc()
             self.update_status(f"Copied {len(self.ref_canvas.polygons)} reference polygons — saved.")
 
     # ── Misc ──────────────────────────────────────────────────────────────
@@ -2035,7 +2979,7 @@ Controls:
     palette.setColor(palette.WindowText, Qt.white)
     palette.setColor(palette.Base, QColor(25, 25, 25))
     palette.setColor(palette.AlternateBase, QColor(53, 53, 53))
-    palette.setColor(palette.ToolTipBase, Qt.white)
+    palette.setColor(palette.ToolTipBase, QColor(53, 53, 53))
     palette.setColor(palette.ToolTipText, Qt.white)
     palette.setColor(palette.Text, Qt.white)
     palette.setColor(palette.Button, QColor(53, 53, 53))
