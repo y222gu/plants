@@ -32,6 +32,7 @@ Controls:
 
 import argparse
 import copy
+import gc
 import json
 import math
 import os
@@ -554,10 +555,14 @@ class PolygonCanvas(QWidget):
     # ── Data setters ──────────────────────────────────────────────────────
 
     def set_image(self, img: np.ndarray):
-        self.base_image = img.copy()
+        # Release old data before allocating new
+        self._qimage = None
+        self.base_image = None
+        # Store contiguous copy — QImage references this buffer directly
+        self.base_image = np.ascontiguousarray(img)
         self._qimage = QImage(
-            self.base_image.data, img.shape[1], img.shape[0],
-            3 * img.shape[1], QImage.Format_RGB888
+            self.base_image.data, self.base_image.shape[1], self.base_image.shape[0],
+            3 * self.base_image.shape[1], QImage.Format_RGB888
         )
         self.update()
 
@@ -1248,6 +1253,14 @@ class AnnotationEditor(QMainWindow):
             self._qc_status = {}
 
     def _save_qc_status(self):
+        """Debounced save — writes to disk after 500ms of inactivity."""
+        if not hasattr(self, '_qc_save_timer'):
+            self._qc_save_timer = QTimer(self)
+            self._qc_save_timer.setSingleShot(True)
+            self._qc_save_timer.timeout.connect(self._save_qc_status_now)
+        self._qc_save_timer.start(500)
+
+    def _save_qc_status_now(self):
         p = self._qc_status_path()
         if p:
             with open(p, 'w') as f:
@@ -1991,11 +2004,17 @@ class AnnotationEditor(QMainWindow):
             img = np.clip(img, 0, 255) / 255.0
             img = np.power(img, gamma) * 255.0
 
-        display_img = np.clip(img, 0, 255).astype(np.uint8)
+        display_img = np.ascontiguousarray(np.clip(img, 0, 255).astype(np.uint8))
 
-        # Update all canvases with adjusted image
+        # Update all canvases with the same shared image
         for canvas in self._all_canvases():
-            canvas.set_image(display_img)
+            canvas._qimage = None
+            canvas.base_image = display_img
+            canvas._qimage = QImage(
+                display_img.data, display_img.shape[1], display_img.shape[0],
+                3 * display_img.shape[1], QImage.Format_RGB888
+            )
+            canvas.update()
 
     def _in_modal_mode(self) -> bool:
         """Return True if in any modal mode (drawing, editing, brushing, deleting)."""
@@ -2003,20 +2022,15 @@ class AnnotationEditor(QMainWindow):
                 or self.edit_canvas.editing_mode or self.edit_canvas.brush_mode)
 
     def eventFilter(self, obj, event):
-        """Intercept events: arrow keys for navigation, instant tooltip for QC label."""
-        if obj is self.qc_label and event.type() == event.Enter:
-            tip = self.qc_label.toolTip()
-            if tip:
-                QToolTip.showText(self.qc_label.mapToGlobal(QPoint(0, self.qc_label.height())), tip, self.qc_label)
-                return True
+        """Intercept events: arrow keys for navigation, instant tooltips."""
+        if event.type() == QEvent.Enter and hasattr(obj, 'toolTip') and obj.toolTip():
+            QToolTip.showText(obj.mapToGlobal(QPoint(0, obj.height())), obj.toolTip(), obj)
         if event.type() == event.KeyPress:
             if event.key() == Qt.Key_Left:
-                if not self._in_modal_mode():
-                    self.prev_sample()
+                self.prev_sample()
                 return True
             if event.key() == Qt.Key_Right:
-                if not self._in_modal_mode():
-                    self.next_sample()
+                self.next_sample()
                 return True
             if event.key() in (Qt.Key_Up, Qt.Key_Down):
                 return True
@@ -2066,8 +2080,14 @@ class AnnotationEditor(QMainWindow):
         self._exit_modal()
         sample = self.samples[idx]
 
+        # Release previous image data before loading new
         for canvas in self._all_canvases():
+            canvas._qimage = None
+            canvas.base_image = None
+            canvas.polygons = []
             canvas.reset_view()
+        self._raw_image = None
+        gc.collect()
 
         img = load_sample_normalized(sample)
         img_uint8 = to_uint8(img)
@@ -2181,11 +2201,6 @@ class AnnotationEditor(QMainWindow):
         p.drawEllipse(QPointF(cx, cy), r_center, r_center)
         p.end()
         return QIcon(pixmap)
-
-    def eventFilter(self, obj, event):
-        if event.type() == QEvent.Enter and hasattr(obj, 'toolTip') and obj.toolTip():
-            QToolTip.showText(obj.mapToGlobal(QPoint(0, obj.height())), obj.toolTip(), obj)
-        return super().eventFilter(obj, event)
 
     def _show_info_guide(self):
         """Show a non-modal quick-reference guide dialog (singleton)."""
