@@ -32,8 +32,8 @@ def main():
                         help="YOLO model variant (e.g. yolo11m-seg, yolo26m-seg)")
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
     parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
-    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
-    parser.add_argument("--patience", type=int, default=DEFAULT_PATIENCE)
+    parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--patience", type=int, default=30)
     parser.add_argument("--num-classes", type=int, default=6, choices=[4, 6],
                         help="Number of raw annotation classes (6=all classes, 4=cereals only)")
     parser.add_argument("--save-every", type=int, default=10,
@@ -112,25 +112,27 @@ def main():
         project=str(project_dir),
         name=dated_name,
         save=True,
-        save_period=args.save_every,  # save checkpoint periodically (-1=best only)
+        save_period=args.save_every,
         amp=True,
         seed=args.seed,
         workers=8,
         exist_ok=True,
         plots=True,
+        cos_lr=True,              # cosine annealing (better than linear decay)
+        mask_ratio=4,             # mask resolution = img_size/4 (default)
         # Augmentation — match shared albumentations pipeline
-        hsv_h=0.0,       # no hue augmentation (fluorescence)
-        hsv_s=0.0,       # no saturation augmentation (fluorescence)
-        hsv_v=0.2,       # mild brightness
-        degrees=45.0,    # rotation ±45° (matches Affine rotate=(-45,45))
-        translate=0.1,   # translation ±10% (matches Affine translate_percent)
-        scale=0.3,       # scale 0.7-1.3 (matches Affine scale=(0.7,1.3))
-        shear=10.0,      # shear ±10° (matches Affine shear=(-10,10))
+        hsv_h=0.0,               # no hue augmentation (fluorescence)
+        hsv_s=0.0,               # no saturation augmentation (fluorescence)
+        hsv_v=0.2,               # mild brightness
+        degrees=45.0,            # rotation ±45°
+        translate=0.1,           # translation ±10%
+        scale=0.3,               # scale 0.7-1.3
+        shear=10.0,              # shear ±10°
         flipud=0.5,
         fliplr=0.5,
-        bgr=0.2,         # BGR channel swap (similar to ChannelShuffle p=0.2)
-        mosaic=0.0,      # disabled for fair comparison
-        mixup=0.0,       # disabled for fair comparison
+        bgr=0.2,                 # BGR channel swap (similar to ChannelShuffle)
+        mosaic=0.0,              # disabled for fair comparison
+        mixup=0.0,               # disabled for fair comparison
     )
 
     # Plot loss curves from YOLO results CSV

@@ -28,7 +28,7 @@ import pytorch_lightning as pl
 import segmentation_models_pytorch as smp
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger
 from torch.utils.data import DataLoader
 
@@ -238,7 +238,19 @@ def main():
     run_dir = make_run_subfolder(base_run_dir)
     save_hparams(run_dir, args)
 
+    class EpochLogger(Callback):
+        """Print epoch summary to stdout (visible in SLURM logs)."""
+        def on_train_epoch_end(self, trainer, pl_module):
+            metrics = trainer.callback_metrics
+            epoch = trainer.current_epoch
+            parts = [f"Epoch {epoch:3d}"]
+            for key in ["train_loss", "val_loss", "train_bce_loss", "train_dice_loss"]:
+                if key in metrics:
+                    parts.append(f"{key}={metrics[key]:.4f}")
+            print(" | ".join(parts), flush=True)
+
     callbacks = [
+        EpochLogger(),
         ModelCheckpoint(
             dirpath=str(run_dir / "checkpoints"),
             filename="best-{epoch}-{val_loss:.4f}",
