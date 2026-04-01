@@ -47,10 +47,11 @@ def main():
                         help="Only export dataset, don't train")
     parser.add_argument("--force-export", action="store_true",
                         help="Force re-export even if dataset already exists")
+    parser.add_argument("--strategy", default="A", help="Split strategy")
     args = parser.parse_args()
 
     # Setup
-    split = get_split()
+    split = get_split(strategy=args.strategy)
     print_split_summary(split)
 
     # Export to YOLO format (skip if already exported with matching counts)

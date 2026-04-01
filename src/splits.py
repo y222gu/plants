@@ -6,9 +6,19 @@ from typing import Dict, List, Optional
 from .config import TRAIN_DIR, VAL_DIR, TEST_DIR, SampleRecord
 from .dataset import SampleRegistry
 
+MONOCOT_SPECIES = {"Millet", "Rice", "Sorghum"}
+DICOT_SPECIES = {"Tomato"}
+
+# Strategy -> species filter (None = no filter = all species)
+STRATEGY_SPECIES = {
+    "A": None,
+    "B-mono": MONOCOT_SPECIES,
+    "B-dico": DICOT_SPECIES,
+}
+
 
 def get_split(
-    strategy: str = "A",  # noqa: ARG001
+    strategy: str = "A",
     registry: Optional["SampleRegistry"] = None,  # noqa: ARG001
     seed: int = 42,  # noqa: ARG001
     species: Optional[str] = None,
@@ -21,21 +31,28 @@ def get_split(
     This function creates a SampleRegistry for each and returns the combined
     split dict.
 
-    The ``strategy``, ``registry``, ``seed``, and ``cache`` parameters are
-    accepted for backward compatibility but ignored.
-
     Args:
-        species: If provided, filter to only this species.
+        strategy: Split strategy. "A" = all species, "B-mono" = monocots only,
+            "B-dico" = dicots only. Uses same underlying splits as A, filtered.
+        species: If provided, filter to only this single species (overrides
+            strategy-based filtering).
 
     Returns:
         Dict with "train", "val", "test" lists of SampleRecord.
     """
+    if strategy not in STRATEGY_SPECIES:
+        raise ValueError(f"Unknown strategy '{strategy}'. Choose from: {list(STRATEGY_SPECIES.keys())}")
+
+    strategy_filter = STRATEGY_SPECIES[strategy]
+
     split: Dict[str, List[SampleRecord]] = {}
     for subset, data_dir in [("train", TRAIN_DIR), ("val", VAL_DIR), ("test", TEST_DIR)]:
         reg = SampleRegistry(data_dir=data_dir, require_annotations=True)
         samples = reg.samples
         if species:
             samples = [s for s in samples if s.species == species]
+        elif strategy_filter is not None:
+            samples = [s for s in samples if s.species in strategy_filter]
         split[subset] = samples
 
     return split
