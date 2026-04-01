@@ -705,28 +705,51 @@ Interactive GUI for visualizing and correcting YOLO polygon annotations.
 
 ## HPC Commands
 
-**Sync code to HPC** (excludes data, outputs, and build artifacts):
+**Sync code + data to HPC** (from local machine):
 
 ```bash
-rsync -avz --exclude='data/' --exclude='output/' --exclude='__pycache__/' --exclude='.git/' --exclude='*.pyc' ~/Documents/Siobhan_Lab/plants/ hpc2:~/plants/
+rsync -avz --progress --exclude='.git/' --exclude='__pycache__/' --exclude='*.pyc' --exclude='output/' --exclude='logs/' --exclude='.DS_Store' --exclude='annotation_copy/' --exclude='*.pt' ~/Documents/Siobhan_Lab/plants/ hpc2:~/plants/
+```
+
+**Environment setup on hpc2** (run every session, or included in SLURM scripts):
+
+```bash
+module load conda3/4.13.0
+conda activate plants
+```
+
+**Update packages:**
+
+```bash
+module load conda3/4.13.0
+conda activate plants
+pip install -U ultralytics              # update YOLO
+pip install -U cellpose                 # update Cellpose
+pip install -r ~/plants/requirements.txt  # install all deps
+```
+
+**First-time setup** (if `plants` env doesn't exist):
+
+```bash
+module load conda3/4.13.0
+conda create -n plants python=3.11 -y
+conda activate plants
+pip install -r ~/plants/requirements.txt
 ```
 
 **Submit training jobs:**
 
 ```bash
-sbatch slurm/run_1_yolo.sh
-sbatch slurm/run_2_unet_4c.sh
-sbatch slurm/run_3_unet_5c.sh
-sbatch slurm/run_sam.sh           # Train + eval (auto)
-sbatch slurm/run_cellpose.sh      # 5 parallel class jobs + dependent eval job
-```
+# Grid training (YOLO + U-Net multilabel + U-Net semantic sequentially)
+mkdir -p logs
+sbatch slurm/run_grid.sh
 
-**Submit evaluation-only jobs:**
-
-```bash
-sbatch slurm/eval_all.sh           # All 4 models (--no-postprocess)
-sbatch slurm/eval_sam.sh           # SAM only
-sbatch slurm/eval_cellpose.sh      # Cellpose only (--no-postprocess)
+# Or interactive session (can monitor GPU directly)
+srun --job-name=grid_train --partition=gpu-qi --gres=gpu:a100_80:1 \
+     --cpus-per-task=8 --mem=64G --time=72:00:00 --pty bash
+# Then inside interactive session:
+module load conda3/4.13.0 && conda activate plants
+python train/run_grid_training.py --models yolo unet_multilabel unet_semantic
 ```
 
 **Monitor jobs:**
@@ -736,12 +759,11 @@ sbatch slurm/eval_cellpose.sh      # Cellpose only (--no-postprocess)
 squeue -u $USER
 squeue -u $USER -o "%.10i %.20j %.8T %.10M %.6D %R"
 
+# Follow live output
+tail -f logs/grid_<JOB_ID>.out
+
 # Job resource usage (after completion)
 sacct -j <JOB_ID> --format=JobID,Elapsed,MaxRSS,MaxVMSize,AllocTRES%40
-
-# Follow live output
-tail -f logs/sam_<JOB_ID>.out
-tail -f logs/cellpose_<JOB_ID>.out
 ```
 
 **GPU monitoring** (cannot SSH to compute nodes directly):
@@ -750,26 +772,22 @@ tail -f logs/cellpose_<JOB_ID>.out
 srun --jobid=<JOB_ID> --overlap nvidia-smi
 ```
 
+**Transfer results from HPC to local:**
+
+```bash
+# All runs and evaluation results
+rsync -avz hpc2:~/plants/output/ ~/Documents/Siobhan_Lab/plants/output/
+
+# All logs
+rsync -avz hpc2:~/plants/logs/ ~/Documents/Siobhan_Lab/plants/logs/
+```
+
 **HPC details:**
 - Cluster: `hpc2`
 - Partition: `gpu-qi`
 - GPU type: `a100_80` (NVIDIA A100 80GB)
-- Conda env: `plants`
-- Cannot SSH to compute nodes (publickey denied) — use `srun --overlap` instead
-
-**Transfer results from HPC to local:**
-
-```bash
-# All runs and evaluation results at once
-rsync -avz hpc2:~/plants/output/ ~/Documents/Siobhan_Lab/plants/output/
-
-# All logs
-rsync -avz "hpc2:~/plants/logs/" ~/Documents/Siobhan_Lab/plants/logs/
-
-# Or per-model (quote remote globs to prevent local expansion)
-rsync -avz hpc2:~/plants/output/runs/cellpose/ ~/Documents/Siobhan_Lab/plants/output/runs/cellpose/
-rsync -avz hpc2:~/plants/output/runs/sam/ ~/Documents/Siobhan_Lab/plants/output/runs/sam/
-```
+- Conda: `module load conda3/4.13.0` then `conda activate plants`
+- Cannot SSH to compute nodes — use `srun --overlap` instead
 
 ---
 
