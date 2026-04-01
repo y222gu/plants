@@ -1,9 +1,9 @@
 """Cellpose training script — compare v2 and v3 models.
 
 Usage:
-    python train_cellpose.py --strategy A --class-id 1
-    python train_cellpose.py --strategy A --all-classes
-    python train_cellpose.py --version 3 --strategy A --class-id 1
+    python train_cellpose.py --class-id 1
+    python train_cellpose.py --all-classes
+    python train_cellpose.py --version 3 --class-id 1
 """
 
 import sys
@@ -17,8 +17,7 @@ from typing import Dict, List, Optional
 import numpy as np
 from cellpose import models, train
 
-from src.config import DEFAULT_IMG_SIZE, OUTPUT_DIR, get_target_classes, make_run_subfolder, save_hparams
-from src.dataset import SampleRegistry
+from src.config import DEFAULT_IMG_SIZE, OUTPUT_DIR, make_run_subfolder, save_hparams
 from src.models.cellpose_utils import prepare_cellpose_data
 from src.splits import get_split, print_split_summary
 
@@ -168,16 +167,13 @@ def evaluate_cellpose(
 
 def main():
     parser = argparse.ArgumentParser(description="Cellpose training")
-    parser.add_argument("--strategy", default="A",
-                        choices=["A", "B", "C"])
-    parser.add_argument("--species", default=None)
-    parser.add_argument("--num-classes", type=int, default=4, choices=[4, 5],
-                        help="Number of target classes (4=standard, 5=with exodermis)")
+    parser.add_argument("--num-classes", type=int, default=6, choices=[6],
+                        help="Number of raw annotation classes (always 6)")
     parser.add_argument("--class-id", type=int, default=None,
-                        help="Target class ID (0-3 or 0-4). If None, train on all classes.")
+                        help="Raw annotation class ID (0-5). If None, train on all classes.")
     parser.add_argument("--all-classes", action="store_true",
                         help="Train separate models for each class")
-    parser.add_argument("--version", type=int, default=2, choices=[2, 3],
+    parser.add_argument("--version", type=int, default=3, choices=[2, 3],
                         help="Cellpose version")
     parser.add_argument("--img-size", type=int, default=512)
     parser.add_argument("--epochs", type=int, default=100)
@@ -187,8 +183,8 @@ def main():
     parser.add_argument("--rescale", action="store_true", default=True,
                         help="Enable diameter-based rescaling during training")
     parser.add_argument("--no-rescale", dest="rescale", action="store_false")
-    parser.add_argument("--scale-range", type=float, default=0.5,
-                        help="Random rescaling range for augmentation")
+    parser.add_argument("--scale-range", type=float, default=0.6,
+                        help="Random rescaling range (0.6 → factors 0.7-1.3, matching SAM/YOLO)")
     parser.add_argument("--nimg-per-epoch", type=int, default=None,
                         help="Images per epoch (None=use all)")
     parser.add_argument("--seed", type=int, default=42)
@@ -197,14 +193,13 @@ def main():
     np.random.seed(args.seed)
 
     # Setup
-    registry = SampleRegistry()
-    split = get_split(args.strategy, registry, seed=args.seed, species=args.species)
+    split = get_split()
     print_split_summary(split)
 
-    # Determine classes to train
-    target_classes = get_target_classes(args.num_classes)
+    # Determine classes to train (raw annotation classes 0-5)
+    from src.config import ANNOTATED_CLASSES
     if args.all_classes:
-        class_ids = list(range(args.num_classes))
+        class_ids = list(range(6))
     elif args.class_id is not None:
         class_ids = [args.class_id]
     else:
@@ -220,7 +215,7 @@ def main():
     test_cache = preload_cellpose_data(split["test"], args.img_size, args.num_classes)
 
     for class_id in class_ids:
-        class_name = target_classes.get(class_id, "all") if class_id is not None else "all"
+        class_name = ANNOTATED_CLASSES.get(class_id, "all") if class_id is not None else "all"
         print(f"\n{'='*60}")
         print(f"Training Cellpose v{args.version} for class: {class_name}")
 
@@ -248,7 +243,7 @@ def main():
         print(f"  Train: {len(train_imgs)}, Val: {len(val_imgs)}, Test: {len(test_imgs)}")
 
         # Train
-        run_name = f"cellpose_v{args.version}_{class_name}_{args.strategy}_c{args.num_classes}"
+        run_name = f"cellpose_v{args.version}_{class_name}_c{args.num_classes}"
         base_model_dir = OUTPUT_DIR / "runs" / "cellpose" / run_name
         model_dir = make_run_subfolder(base_model_dir)
         save_hparams(model_dir, args)

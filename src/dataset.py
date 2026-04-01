@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .config import IMAGE_DIR, ANNOTATION_DIR, SampleRecord
+from .config import TRAIN_DIR, SampleRecord
 
 
 class SampleRegistry:
@@ -15,11 +15,12 @@ class SampleRegistry:
     """
 
     def __init__(self, data_dir: Optional[Path] = None, require_annotations: bool = True):
-        """Discover samples under *data_dir* (default: project DATA_DIR).
+        """Discover samples under *data_dir* (default: TRAIN_DIR).
 
         Args:
             data_dir: Root data folder containing ``image/`` (and optionally
-                ``annotation/``) sub-directories.
+                ``annotation/``) sub-directories.  Typically one of
+                ``TRAIN_DIR``, ``VAL_DIR``, ``TEST_DIR``.
             require_annotations: If True (default), only include samples that
                 have a matching annotation file.  Set to False to discover
                 image-only samples.
@@ -35,8 +36,8 @@ class SampleRegistry:
             image_dir = self._data_dir / "image"
             annotation_dir = self._data_dir / "annotation"
         else:
-            image_dir = IMAGE_DIR
-            annotation_dir = ANNOTATION_DIR
+            image_dir = TRAIN_DIR / "image"
+            annotation_dir = TRAIN_DIR / "annotation"
 
         if not image_dir.exists():
             return

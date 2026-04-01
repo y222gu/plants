@@ -7,7 +7,7 @@ Pipeline order:
     1. fill_holes        — Fill internal holes in each mask
     2. cleanup_whole_root — Morphological close + keep largest component (class 0)
     3. clip_aerenchyma   — Clip aerenchyma to inside whole root boundary
-    4. yolo_to_target    — Endodermis ring = outer endo - inner endo (YOLO only)
+    4. raw_to_target     — Endodermis/exodermis ring subtraction (all models trained on raw classes)
 """
 
 from dataclasses import dataclass, field
@@ -192,51 +192,70 @@ def clip_aerenchyma(pred: PredictionResult) -> PredictionResult:
     )
 
 
-def yolo_to_target(pred: PredictionResult) -> PredictionResult:
-    """Convert YOLO annotated classes to target classes.
+def raw_to_target(pred: PredictionResult) -> PredictionResult:
+    """Convert raw annotation classes to target classes.
 
-    YOLO is trained on the original 4 annotation classes:
+    All models trained on 6 raw annotation classes produce:
         class 2 = filled outer endodermis polygon
         class 3 = filled inner endodermis polygon (= vascular area)
+        class 4 = filled outer exodermis polygon
+        class 5 = filled inner exodermis polygon
 
-    Converts to target classes:
-        class 2 = endodermis ring (outer - inner)
-        class 3 = vascular (kept as-is)
+    Converts to 5 target classes:
+        class 2 = endodermis ring (outer endo - inner endo)
+        class 3 = vascular (kept as-is, inner endo area)
+        class 4 = exodermis ring (outer exo - inner exo)
+        (class 5 is removed after deriving the exodermis ring)
     """
     if len(pred.masks) == 0:
         return pred
 
-    outer_idx = np.where(pred.labels == 2)[0]
-    inner_idx = np.where(pred.labels == 3)[0]
+    h, w = pred.masks.shape[1], pred.masks.shape[2]
 
-    if len(outer_idx) == 0 or len(inner_idx) == 0:
-        return pred
-
-    outer_mask = np.clip(pred.masks[outer_idx].sum(axis=0), 0, 1).astype(np.uint8)
-    inner_mask = np.clip(pred.masks[inner_idx].sum(axis=0), 0, 1).astype(np.uint8)
-
-    ring_mask = np.clip(
-        outer_mask.astype(np.int8) - inner_mask.astype(np.int8), 0, 1
-    ).astype(np.uint8)
+    # Collect indices for ring derivation
+    outer_endo_idx = np.where(pred.labels == 2)[0]
+    inner_endo_idx = np.where(pred.labels == 3)[0]
+    outer_exo_idx = np.where(pred.labels == 4)[0]
+    inner_exo_idx = np.where(pred.labels == 5)[0]
 
     new_masks = []
     new_labels = []
     new_scores = []
 
+    # Keep all masks that are NOT part of ring derivation (class 0, 1)
+    # Also keep class 3 (inner endo = vascular) as-is
+    skip_classes = {2, 4, 5}
     for i in range(len(pred.masks)):
-        if pred.labels[i] == 2:
-            continue
-        new_masks.append(pred.masks[i])
-        new_labels.append(pred.labels[i])
-        new_scores.append(pred.scores[i])
+        if pred.labels[i] not in skip_classes:
+            new_masks.append(pred.masks[i])
+            new_labels.append(pred.labels[i])
+            new_scores.append(pred.scores[i])
 
-    if ring_mask.sum() > 0:
-        new_masks.append(ring_mask)
-        new_labels.append(2)
-        new_scores.append(float(pred.scores[outer_idx[0]]))
+    # Endodermis ring: outer endo - inner endo → target class 2
+    if len(outer_endo_idx) > 0 and len(inner_endo_idx) > 0:
+        outer_mask = np.clip(pred.masks[outer_endo_idx].sum(axis=0), 0, 1).astype(np.uint8)
+        inner_mask = np.clip(pred.masks[inner_endo_idx].sum(axis=0), 0, 1).astype(np.uint8)
+        ring_mask = np.clip(
+            outer_mask.astype(np.int8) - inner_mask.astype(np.int8), 0, 1
+        ).astype(np.uint8)
+        if ring_mask.sum() > 0:
+            new_masks.append(ring_mask)
+            new_labels.append(2)
+            new_scores.append(float(pred.scores[outer_endo_idx[0]]))
+
+    # Exodermis ring: outer exo - inner exo → target class 4
+    if len(outer_exo_idx) > 0 and len(inner_exo_idx) > 0:
+        outer_mask = np.clip(pred.masks[outer_exo_idx].sum(axis=0), 0, 1).astype(np.uint8)
+        inner_mask = np.clip(pred.masks[inner_exo_idx].sum(axis=0), 0, 1).astype(np.uint8)
+        ring_mask = np.clip(
+            outer_mask.astype(np.int8) - inner_mask.astype(np.int8), 0, 1
+        ).astype(np.uint8)
+        if ring_mask.sum() > 0:
+            new_masks.append(ring_mask)
+            new_labels.append(4)
+            new_scores.append(float(pred.scores[outer_exo_idx[0]]))
 
     if not new_masks:
-        h, w = pred.masks.shape[1], pred.masks.shape[2]
         return PredictionResult(
             masks=np.zeros((0, h, w), dtype=np.uint8),
             labels=np.zeros(0, dtype=np.int32),
@@ -257,14 +276,20 @@ STEPS = [
     ("fill_holes",        fill_holes,        "Fill internal holes in each mask"),
     ("cleanup_whole_root", cleanup_whole_root, "Close gaps + keep largest whole root"),
     ("clip_aerenchyma",   clip_aerenchyma,   "Clip aerenchyma to inside whole root"),
-    ("yolo_to_target",    yolo_to_target,    "Endodermis ring = outer - inner (YOLO)"),
+    ("raw_to_target",     raw_to_target,     "Endo/exo ring subtraction (raw → target classes)"),
 ]
 
-# Default steps per model type
+# Keep old name as alias for backwards compatibility
+yolo_to_target = raw_to_target
+
+# Default steps per model type (all models trained on raw classes need ring subtraction)
 DEFAULT_STEPS: Dict[str, List[str]] = {
-    "yolo":    ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "yolo_to_target"],
-    "maskrcnn": ["fill_holes", "cleanup_whole_root", "clip_aerenchyma"],
-    "unet":    ["fill_holes", "cleanup_whole_root", "clip_aerenchyma"],
+    "yolo":           ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "raw_to_target"],
+    "unet_multilabel": ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "raw_to_target"],
+    "unet_semantic":  ["fill_holes", "cleanup_whole_root", "clip_aerenchyma"],
+    "unet":           ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "raw_to_target"],
+    "sam":            ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "raw_to_target"],
+    "cellpose":       ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "raw_to_target"],
 }
 
 _STEP_MAP = {name: fn for name, fn, _ in STEPS}

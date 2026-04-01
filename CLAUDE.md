@@ -4,7 +4,7 @@
 
 Train instance segmentation models for cell-type topology in cereal plant root cross-section fluorescence microscopy images. The goal is robust segmentation across species (millet, rice, sorghum, tomato), genotypes, and microscopes (C10, Olympus, Zeiss), with demonstrated generalization to unseen species and platforms.
 
-**GPU**: 2 or 3* NVIDIA A100 80GB
+**GPU**: 1 NVIDIA A100 80GB per model (1 GPU per SLURM job)
 **Dataset**: ~1,172 cereal samples + 545 tomato samples (~1,717 total), YOLO polygon format
 **Target journal**: Nature Plants (or Nature Machine Intelligence / Nature Methods)
 
@@ -24,10 +24,10 @@ plants/
 │       └── {Species}_{Microscope}_{Exp}_{Sample}.txt   # YOLO polygons
 ├── train/                             # Training scripts (one per model)
 │   ├── train_yolo.py
-│   ├── train_unet.py
+│   ├── train_unet_binary.py           # 6-channel multilabel U-Net (1 model, sigmoid)
+│   ├── train_unet_semantic.py         # 7-class semantic U-Net (1 model, softmax)
 │   ├── train_sam.py
 │   ├── train_cellpose.py
-│   ├── run_training.py
 │   └── run_grid_training.py
 ├── src/                               # Shared library
 │   ├── config.py                      # Paths, class defs, defaults
@@ -64,7 +64,7 @@ plants/
     └── annotation/                    # Same structure as data/annotation/
 ```
 
-**`data_to_edit/`**: Contains 522 cereal samples missing inner exodermis (class 5) annotations + all 110 Millet samples moved from `data/` for annotation work. Breakdown: Rice 12, Millet 110, Sorghum 412. Same directory structure as `data/`.
+**`data_to_edit/`**: Working directory for annotation in progress. Same directory structure as `data/`.
 
 **Species**: Millet, Rice, Sorghum (monocots/cereals), Tomato (dicot)
 **Microscopes**: Olympus IX83 (widefield), Cytation C10 (plate reader), Zeiss LSM 970 (confocal)
@@ -87,7 +87,7 @@ Annotation files use YOLO polygon format: `class_id x1 y1 x2 y2 ... xn yn` (norm
 | 2 | Outer Endodermis | Outer ring of the endodermis layer |
 | 3 | Inner Endodermis | Inner ring — encloses the **vascular** region |
 
-**Tomato classes (uses 0, 2, 3, 4, 5 — no aerenchyma):**
+**Tomato classes (uses 0, 2, 3, 4, 5):**
 
 | Class ID | Annotated Name | Polygon Meaning |
 |----------|---------------|-----------------|
@@ -97,33 +97,50 @@ Annotation files use YOLO polygon format: `class_id x1 y1 x2 y2 ... xn yn` (norm
 | 4 | Outer Exodermis | Outer ring of the exodermis layer |
 | 5 | Inner Exodermis | Inner ring of the exodermis layer |
 
-**Note**: Tomato has no aerenchyma (class 1) — aerenchyma is a monocot feature. Tomato adds exodermis annotations (classes 4-5) not present in cereals.
+**All samples are fully annotated for all 6 classes (0-5).** Some classes are biologically absent in certain species — this is real biology, not missing data:
+- **Aerenchyma (class 1)**: Air spaces that form in monocot cortex. Biologically absent in tomato (dicot) — tomato annotation files correctly have zero class 1 polygons.
+- **Exodermis (classes 4-5)**: Barrier layer present in tomato. Biologically absent in cereals — cereal annotation files correctly have zero class 4/5 polygons.
+
+Models should learn that these classes have zero area in the respective species — no special masking or missing-data handling is needed.
 
 ### Actual Semantic Regions (for model training)
 
-| Target Class | Region | How to Derive | Present in |
-|-------------|--------|---------------|------------|
+| Target Class | Region | How to Derive | Biologically present in |
+|-------------|--------|---------------|------------------------|
 | 0 | Whole Root | Use class 0 polygon directly | All species |
-| 1 | Aerenchyma | Use class 1 polygons directly | Cereals only |
+| 1 | Aerenchyma | Use class 1 polygons directly | Cereals (zero area in tomato) |
 | 2 | Endodermis | Subtract class 3 polygon from class 2 polygon (ring) | All species |
 | 3 | Vascular | Use class 3 polygon directly (area inside inner endodermis) | All species |
-| 4 | Exodermis | Subtract class 5 polygon from class 4 polygon (ring) | Tomato only |
+| 4 | Exodermis | Subtract class 5 polygon from class 4 polygon (ring) | Tomato (zero area in cereals) |
 
 ### Biology Context
 
 - **Epidermis**: outermost cell layer, defines whole root boundary
 - **Cortex**: region between epidermis and outer endodermis; contains aerenchyma in cereals
 - **Endodermis**: thin layer with Casparian strip; higher signal in FITC (lignin) and TRITC (suberin) channels; derived by subtraction (outer - inner ring)
-- **Exodermis**: barrier layer between cortex and epidermis; annotated in tomato (classes 4-5) as outer/inner ring pair, derived by subtraction like endodermis; not annotated in cereals
+- **Exodermis**: barrier layer between cortex and epidermis; present in tomato, biologically absent in cereals
 - **Vascular cylinder**: innermost region enclosed by inner endodermis
-- **Aerenchyma**: irregular air spaces in the cortex only; present in cereals (monocots), absent in tomato (dicot)
+- **Aerenchyma**: irregular air spaces in the cortex; present in cereals (monocots), biologically absent in tomato (dicot)
 
 ### Annotation Rules
 
 - Polygons can overlap but boundaries must NOT intersect
 - All aerenchyma polygons are contained within the whole root polygon
-- Cereal annotations: typically 1 whole root, many aerenchyma, 1 outer endodermis, 1 inner endodermis
-- Tomato annotations: exactly 1 polygon per class (whole root, outer/inner endodermis, outer/inner exodermis); all 5 classes present in every sample
+- All samples are annotated for all 6 classes — biologically absent classes simply have zero polygons
+- Cereal annotations: typically 1 whole root, many aerenchyma, 1 outer endodermis, 1 inner endodermis, 0 exodermis
+- Tomato annotations: 1 whole root, 0 aerenchyma, 1 outer/inner endodermis, 1 outer/inner exodermis
+
+### Annotation QC (`qc_annotations.py`)
+
+QC checked all 1,671 annotation files for spatial consistency:
+1. All polygons (classes 1-5) within whole root (class 0)
+2. All aerenchyma (class 1) within inner exodermis (class 5)
+3. All aerenchyma (class 1) outside outer endodermis (class 2)
+
+**Results**: 415/1,671 samples flagged, but all issues are minor boundary touching/overlap (max 2.3% area). No gross annotation errors. 886/1,036 issues are boundary intersections (shared edges), not containment violations. This is expected — biological structures share cell wall boundaries (e.g., aerenchyma bounded by cortex walls, exodermis adjacent to epidermis). No preprocessing needed — all models handle this naturally:
+- U-Net semantic: paint order resolves shared boundaries
+- U-Net multilabel: independent sigmoid channels tolerate shared pixels
+- YOLO/SAM/Cellpose: per-instance masks, minor boundary overlap is negligible
 
 ---
 
@@ -152,26 +169,24 @@ Annotation files use YOLO polygon format: `class_id x1 y1 x2 y2 ... xn yn` (norm
 - **Test**: ~20% held-out experiments from all species/microscope groups
 - **Zeiss**: Excluded entirely — reserved for deployment use case
 - **Purpose**: Proves the model works; model comparison happens here
-- **Classes**: 4 (YOLO) or 5 including exodermis (U-Net++, SAM, Cellpose). Use `--num-classes 5 --mask-missing` for U-Net++ to handle missing annotations per species.
+- **Classes**: All models train on the 6 raw annotation classes (0-5). U-Net++ semantic trains on 7 (bg+6 derived via paint order). Ring subtraction (raw → 5 target classes) happens in post-processing for all models.
 
-### Strategy B — Leave-one-species-out (generalization)
+### Strategy B — Monocot vs Dicot (generalization)
 
-| Rotation | Train on | Test on | Question |
-|----------|----------|---------|----------|
-| B1 | Rice + Sorghum | **Millet** | Cereal → unseen cereal |
-| B2 | Millet + Sorghum | **Rice** (Olympus+C10) | Cereal → unseen cereal |
-| B3 | Millet + Rice | **Sorghum** | Cereal → unseen cereal |
-| B4 | Millet + Rice + Sorghum | **Tomato** | Monocot → dicot |
+| Run | Train on | Test on | Question |
+|-----|----------|---------|----------|
+| B-mono | Monocots only (Rice + Sorghum + Millet) | Monocot test set | How does a monocot-only model compare to the unified model on monocots? |
+| B-dico | Dicot only (Tomato) | Dicot test set | How does a dicot-only model compare to the unified model on dicots? |
 
-- **No tomato in B1-B3 training** — cereals only, to isolate cross-cereal transfer
-- B4 tests the monocot-to-dicot divide
+- Compare B-mono performance on monocots vs Strategy A (unified) performance on monocots
+- Compare B-dico performance on dicots vs Strategy A (unified) performance on dicots
+- Shows whether a unified multi-species model helps or hurts per-group performance
 - All use Olympus + C10 only
-- Run with both YOLO and U-Net++ (8 runs total)
+- Run with all 4 models
 
 ### Deployment Use Cases (zero-shot, no training)
 
 - **Zeiss**: Apply best Strategy A model to all 35 Zeiss images (unseen microscope)
-- **Striga**: Apply best Strategy A model to Striga images (extreme OOD, parasitic plant)
 
 ---
 
@@ -179,149 +194,281 @@ Annotation files use YOLO polygon format: `class_id x1 y1 x2 y2 ... xn yn` (norm
 
 ### Training Run Plan
 
-| Run | Model | Strategy | Classes | Masking | Purpose |
-|-----|-------|----------|---------|---------|---------|
-| 1 | YOLO11m-seg | A | 4 | N/A | Benchmark (YOLO = 4 classes only) |
-| 2 | U-Net++ (multilabel) | A | 4 | No | Benchmark (4-class) |
-| 3 | U-Net++ (multilabel) | A | 5 | Yes | Benchmark (5-class, masked loss) |
-| 4 | SAM 2 (ViT-B) | A | 5 | N/A | Benchmark (prompt-based, natural handling) |
-| 5 | Cellpose 3.0 (per-class) | A | 5 | N/A | Benchmark (per-class models, natural handling) |
-| 6-9 | YOLO11m-seg | B1-B4 | 4 | N/A | Generalization |
-| 10-13 | U-Net++ | B1-B4 | 4 | No | Generalization |
-| 14-16 | Best model | A (augmentation ablation) | — | — | Ablation study |
+| Run | Model | Strategy | Classes | Purpose |
+|-----|-------|----------|---------|---------|
+| 1 | YOLO26m-seg | A | 6 raw | Benchmark |
+| 2 | U-Net++ multilabel | A | 6 raw (sigmoid) | Benchmark |
+| 3 | U-Net++ semantic | A | 7 (bg+6, softmax) | Benchmark |
+| 4 | SAM (ViT-B) | A | 6 raw | Benchmark |
+| 5 | Cellpose (per-class) | A | 6 raw | Benchmark |
+| 6-13 | All 4 models | B-mono | — | Monocot-only generalization |
+| 14-21 | All 4 models | B-dico | — | Dicot-only generalization |
+| 22+ | Best model | A (augmentation ablation) | — | Ablation study |
 
-### Benchmark Hyperparameters (Runs 1-5, Strategy A)
+### Benchmark Hyperparameters (Strategy A)
 
-| Param | Run 1: YOLO | Run 2: U-Net++ 4c | Run 3: U-Net++ 5c | Run 4: SAM | Run 5: Cellpose |
-|-------|-------------|--------------------|--------------------|------------|-----------------|
-| Architecture | yolo11m-seg | unetplusplus | unetplusplus | vit_b | cyto3 |
-| Encoder | CSPDarknet (COCO) | resnet34 (ImageNet) | resnet34 (ImageNet) | ViT-B (SA-1B) | cyto3 (pretrained) |
-| Num classes | 4 | 4 | 5 | 5 | 5 |
-| Mask missing | N/A | No | Yes | N/A | N/A |
-| Image size | 1024 | 1024 | 1024 | 1024 | 1024 |
-| Epochs | 300 | 300 | 300 | 300 | 150 |
-| Patience | 15 | 15 | 15 | 15 | — |
+| Param | YOLO | U-Net++ binary | U-Net++ semantic | SAM | Cellpose |
+|-------|------|----------------|------------------|-----|---------|
+| Architecture | yolo26m-seg | unetplusplus | unetplusplus | vit_b | cyto3 |
+| Encoder | YOLO26 backbone (COCO) | resnet34 (ImageNet) | resnet34 (ImageNet) | ViT-B (SA-1B) | cyto pretrained |
+| Alt. encoder (TODO) | — | efficientnet-b4 (ImageNet) | efficientnet-b4 (ImageNet) | — | — |
+| Classes | 6 raw annotation | 6 raw (multilabel sigmoid) | 7 (bg + 6, softmax) | 6 raw annotation | 6 raw (per-class models) |
+| Input image size | 1024 | 1024 | 1024 | 1024 | 512 (trains on 256 patches) |
+| Epochs | 200 | 200 | 200 | 200 | 100 |
+| Patience | 15 | 15 | 15 | 15 | — (fixed epochs) |
 | Batch size | 16 | 16 | 16 | 8 | 8 |
-| LR (head/decoder) | auto (Ultralytics) | 1e-4 | 1e-4 | 1e-4 | 0.1 |
+| LR (head/decoder) | auto (Ultralytics) | 1e-4 | 1e-4 | 1e-4 | 0.01 |
 | LR (backbone) | auto (Ultralytics) | 1e-5 | 1e-5 | frozen | — |
-| Weight decay | 5e-4 (Ultralytics) | 1e-4 | 1e-4 | 1e-4 | 1e-4 (Cellpose) |
-| Optimizer | SGD (Ultralytics) | AdamW | AdamW | AdamW | AdamW (Cellpose) |
-| Scheduler | auto (Ultralytics) | CosineAnnealing (eta_min=1e-7) | CosineAnnealing (eta_min=1e-7) | CosineAnnealing (eta_min=1e-7) | — |
-| Loss | Box+Seg+Cls (YOLO) | BCE+Dice (1:1) | BCE(masked)+Dice(masked) (1:1) | BCE+Dice (1:1) | Cellpose flow |
-| BCE pos_weight | N/A | [1, 2, 5, 1] | [1, 2, 5, 1, 5] | N/A | N/A |
-| Trainable params | 22.4M | 24.4M | 24.4M | 4.1M (93.7M total) | ~13M |
-| Precision | fp16 (AMP) | fp16 (AMP) | fp16 (AMP) | fp16 (AMP) | fp32 |
-| Frozen layers | None | None | None | Image encoder + prompt encoder | None |
+| Weight decay | 5e-4 (Ultralytics) | 1e-4 | 1e-4 | 1e-4 | 0.01 |
+| Optimizer | MuSGD (Ultralytics) | AdamW | AdamW | AdamW | Cellpose internal |
+| Scheduler | auto (Ultralytics) | CosineAnnealing | CosineAnnealing | CosineAnnealing | — |
+| Precision | fp16 (AMP) | fp16 (16-mixed) | fp16 (16-mixed) | fp16 (GradScaler) | fp32 |
+| GPU | 1 | 1 | 1 | 1 | 1 |
 
-**Notes on 5-class support:**
-- YOLO only supports 4 classes (exodermis classes 4/5 are filtered from annotations during export)
-- U-Net++ with `--num-classes 5 --mask-missing`: uses validity masking so missing classes (aerenchyma for tomato, exodermis for cereals) contribute zero loss
-- SAM and Cellpose handle missing classes naturally (prompt-based / per-class models)
+### Model Parameters & Frozen Layers
+
+| Model | Architecture | Total Params | Frozen | Trainable | Trainable % |
+|-------|-------------|-------------|--------|-----------|-------------|
+| **YOLO26m-seg** | YOLO26 backbone (COCO pretrained) | 23.6M | None | 23.6M | 100% |
+| **U-Net++ multilabel** | resnet34 encoder (ImageNet pretrained) | ~24.4M | None (differential LR: encoder 1e-5, decoder 1e-4) | ~24.4M | 100% |
+| **U-Net++ semantic** | resnet34 encoder (ImageNet pretrained) | ~24.4M | None (differential LR: encoder 1e-5, decoder 1e-4) | ~24.4M | 100% |
+| **SAM (ViT-B)** | ViT-B image encoder (SA-1B pretrained) | 93.7M | Image encoder (89.7M) + prompt encoder (6K) | 4.1M (mask decoder only) | 4.4% |
+| **Cellpose (cyto3)** | ViT-L via SAM (cyto3 pretrained) | ~307M | None | ~307M | 100% |
+
+Note: Cellpose cyto3 uses a SAM ViT-L-based transformer architecture (~307M params). The older cyto2 uses a residual U-Net (~13M params).
+
+### Loss Functions
+
+| Model | Loss Formula | Class Weights |
+|-------|-------------|---------------|
+| **YOLO26** | Ultralytics internal: CIoU (box) + `0.5×BCE + 0.5×Dice` (mask) + BCE (cls) + semantic seg loss | N/A (framework-managed) |
+| **U-Net++ multilabel** | `1.0 × BCE + 1.0 × Dice` (sigmoid, 6 channels) | pos_weight=[1, 2, 5, 1, 5, 1] per channel on BCE |
+| **U-Net++ semantic** | `Dice + Focal + weighted CE + Lovász` (softmax, 7 classes) | CE weights=[0.5, 1, 2, 5, 1, 5, 1] |
+| **SAM** | `1.0 × BCE + 1.0 × Dice` (sigmoid, per instance) | pos_weight=[1, 2, 5, 1, 5, 1] per instance class on BCE |
+| **Cellpose** | Cellpose internal: flow field + distance loss | N/A (framework-managed) |
+
+**pos_weight mapping** (shared by U-Net++ multilabel and SAM):
+
+| Class ID | Raw Class | pos_weight | Rationale |
+|----------|-----------|------------|-----------|
+| 0 | Whole Root | 1.0 | Large filled region |
+| 1 | Aerenchyma | 2.0 | Many small instances |
+| 2 | Outer Endodermis | 5.0 | Thin boundary polygon |
+| 3 | Inner Endodermis | 1.0 | Large filled region |
+| 4 | Outer Exodermis | 5.0 | Thin boundary polygon |
+| 5 | Inner Exodermis | 1.0 | Large filled region |
+
+**U-Net++ multilabel**: Single model with 6 sigmoid output channels (one per raw annotation class 0-5). Channels can overlap. Post-processing derives 5 target classes via `raw_to_target` ring subtraction.
+
+**U-Net++ semantic**: Single model predicts 7 mutually exclusive classes (bg + 6 anatomical regions) via softmax.
+
+**All models train on 6 raw annotation classes** — no ring subtraction during training. Ring subtraction (raw → 5 target classes) is done in post-processing via `raw_to_target` step.
 
 ### Model Architecture Details
 
-#### YOLO11m-seg
+#### YOLO26m-seg
 - **Pretrained on**: COCO
 - **Frozen**: Nothing (full fine-tuning; Ultralytics handles warmup internally)
-- **Trainable**: Entire model (CSPDarknet backbone + PANet neck + detection head + segmentation head)
+- **Trainable**: Entire model (backbone + neck + detection head + segmentation head)
+- **NMS-free**: End-to-end design, no post-processing NMS required
+- **Classes**: 6 raw annotation classes (0-5)
+- **Data export**: Pre-exports composited uint8 PNG images + filtered YOLO .txt labels to `output/yolo_dataset/` via `export_yolo_dataset()`; skips re-export if counts match (use `--force-export` to override)
+- **Augmentation**: Ultralytics built-in: `hsv_h=0.0, hsv_s=0.0, hsv_v=0.2, degrees=45.0, translate=0.1, scale=0.3, shear=10.0, flipud=0.5, fliplr=0.5, bgr=0.2, mosaic=0.0, mixup=0.0` — parameters matched to shared albumentations pipeline where possible; no channel dropout
 - **Embedding extraction**: Forward hook on SPPF layer → global average pool → image-level vector
-- **Key setting**: Disable HSV hue/saturation augmentation (meaningless for fluorescence)
+- **GPU**: 1 GPU per job (single device)
 
-#### U-Net++ (multilabel mode — primary)
-- **Encoder**: ResNet50 (ImageNet-pretrained) via `segmentation_models_pytorch`
-- **Output**: 4 or 5-channel sigmoid (root, aerenchyma, endodermis, vasculature [, exodermis]) — allows overlapping predictions
-- **Phase 1** (epochs 1-10): Encoder **frozen**, decoder LR = 1e-3
-- **Phase 2** (epochs 11+): Encoder **unfrozen** at LR = 1e-5, decoder LR = 1e-4
-- **Loss**: BCE (pos_weight: root=1, aer=2, endo=5, vasc=1, exo=5) + Dice
-- **Masked loss** (`--mask-missing`): BCE computed with `reduction='none'`, multiplied by validity mask `(B, C, 1, 1)`, reduced over valid entries only. Dice computed per-channel on valid samples only. Validity determined by `SPECIES_VALID_CLASSES` in config.
+#### U-Net++ multilabel (`train_unet_binary.py`)
+- **Encoder**: resnet34 (ImageNet-pretrained) via `segmentation_models_pytorch` (configurable via `--encoder`)
+- **Differential LR**: Encoder at LR=1e-5, decoder at LR=1e-4
+- **Output**: (B, 6, H, W) — 6 sigmoid channels, one per raw annotation class. Channels can overlap (outer endo polygon contains inner endo area).
+- **Loss**: BCE (pos_weight: root=1, aer=2, o.endo=5, i.endo=1, o.exo=5, i.exo=1) + Dice (1:1)
+- **Post-processing**: Derives 5 target classes via `raw_to_target` ring subtraction
+
+#### U-Net++ semantic (`train_unet_semantic.py`)
+- **Encoder**: resnet34 (ImageNet-pretrained) via `segmentation_models_pytorch` (configurable via `--encoder`)
+- **Differential LR**: Encoder at LR=1e-5, decoder at LR=1e-4
+- **Output**: (B, 7, H, W) — 7 mutually exclusive classes (bg + 6 anatomical regions) via softmax
+- **Loss**: Dice + Focal + weighted CE (bg=0.5, epidermis=1, aer=2, endo=5, vasc=1, exo=5, cortex=1) + Lovász
 - **Embedding extraction**: `model.encoder(x)[-1]` → global average pool → (2048,) vector
 - **GradCAM**: On encoder layer 4 for per-class activation maps
 
-#### SAM 2 (ViT-B)
+#### SAM (ViT-B) — `segment_anything` (SAM 1)
 - **Pretrained on**: SA-1B
-- **Frozen**: Image encoder (completely) + prompt encoder
+- **Frozen**: Image encoder (completely) + prompt encoder (by default; `--unfreeze-prompt-encoder` to unfreeze)
 - **Trainable**: Mask decoder only
-- **Embeddings**: Pre-computed and cached (already in pipeline); global average pool → (256,) vector
-- **Prompts**: 3 random foreground points + bounding box with 5% jitter from GT
-- **Loss**: BCE + Dice
-- **Limitation**: Requires prompts at inference (not fully automatic)
+- **On-the-fly encoding**: Frozen image encoder runs every batch (not pre-computed), enabling full augmentation via `AugmentedSAMDataset`
+- **Prompts**: 3 random foreground points + bounding box with 5% jitter from GT (re-randomized each `__getitem__`)
+- **Loss**: `bce_weight` × BCE + `dice_weight` × Dice (custom `DiceLoss` with sigmoid + smooth=1)
+- **GPU**: 1 GPU per job (DDP support available but not used)
+- **Embeddings**: `image_encoder(x)` → global average pool → (256,) vector
+- **Limitation**: Requires prompts at inference (not fully automatic); eval uses oracle GT bounding boxes
 
-#### Cellpose 3.0
-- **Base model**: cyto3 (microscopy-pretrained)
-- **Training**: Per-class models (separate model for each target class)
-- **Frozen**: Nothing (Cellpose manages internally)
+#### Cellpose (v3)
+- **Base model**: cyto3 (default, ViT-L-based transformer, ~307M params); microscopy-pretrained. Use `--version 2` for cyto2 (residual U-Net, ~13M params).
+- **Image size**: 512 (not 1024 — 4x faster per sample)
+- **Training**: Per-class models (separate model for each raw annotation class via `--class-id N` or `--all-classes`)
+- **Frozen**: Nothing — all parameters trainable (Cellpose manages internally)
+- **Data pipeline**: Images preloaded once via `preload_cellpose_data()`, per-class labels built from cache via `build_class_labels()` (no disk I/O per class). Images converted to uint8 before training.
+- **Training API**: `cellpose.train.train_seg()` with `rescale=True`, `scale_range=0.6`, `min_train_masks=1`; internally crops to 256×256 patches via `random_rotate_and_resize(bsize=256)`
 - **Embedding extraction**: Style network → (256,) global vector
-- **Limitation**: Black-box flow-based post-processing; harder to interpret
+- **Limitation**: Black-box flow-based post-processing; harder to interpret; no confidence scores (set to 1.0 during eval)
 
 ---
 
-## Data Loading & Preprocessing
+## Data Loading, Preprocessing & Augmentation
 
-- Load 3-channel TIF → float32 tensor (R=TRITC, G=FITC, B=DAPI)
-- Percentile normalization: 1st-99.5th percentile per channel → [0, 1]
-- Resize to 1024x1024 with aspect ratio preservation + zero-padding
-- Derive endodermis mask by subtracting inner endodermis from outer endodermis polygon
-- Derive exodermis mask (tomato only) by subtracting inner exodermis from outer exodermis polygon
+### Per-Model Training Data Pipeline
+
+All models start from the same raw data: 3 separate grayscale TIF files per sample (TRITC, FITC, DAPI). The full pipeline from raw TIF to model input differs per model:
+
+#### U-Net++ (binary & semantic)
+
+Pipeline runs on-the-fly in `UNetBinaryDataset.__getitem__()` / `UNetSemanticDataset.__getitem__()`:
+
+1. **Load**: 3 TIFs → `load_sample_normalized()` → (H, W, 3) float32 [0,1] (percentile normalization: 1st–99.5th per channel)
+2. **Resize**: `cv2.resize()` to 1024×1024 (no aspect ratio preservation)
+3. **Augmentation**: `get_train_transform(1024)` applied via `transform(image=img, mask=mask)` — albumentations handles spatial transforms on both image and mask, photometric transforms on image only
+4. **Format**: `torch.from_numpy().permute(2,0,1).float()` → (3, 1024, 1024) float32 tensor
+5. **Model trains on**: 1024×1024 float32 [0,1]
+
+Mask derivation: semantic mode uses `polygons_to_raw_semantic_mask()` (7-class painted mask); binary mode uses `polygons_to_raw_binary_masks()` (per-class binary mask).
+
+#### SAM
+
+Pipeline runs on-the-fly in `AugmentedSAMDataset.__getitem__()`:
+
+1. **Load**: 3 TIFs → `load_sample_normalized()` → (H, W, 3) float32 [0,1] (cached via LRU cache)
+2. **No pre-resize** — image stays at original size (e.g. 1276×1276)
+3. **Augmentation**: `get_train_transform(1024)` applied via `apply_transform_with_masks()` — augments image + all N instance masks together with identical spatial transforms; `A.Resize(1024)` at end of pipeline resizes to 1024×1024
+4. **Prompt generation**: After augmentation, point prompts (random foreground pixels) and box prompts (bounding box + 5% jitter) are generated from the augmented mask
+5. **Format**: `torch.from_numpy().permute(2,0,1).float()` → (3, 1024, 1024) float32 tensor
+6. **Model trains on**: 1024×1024 float32 [0,1] — fed directly to frozen image encoder, no additional SAM-specific normalization applied
+
+#### YOLO
+
+Pipeline split into two phases — pre-export + Ultralytics training:
+
+1. **Pre-export** (runs once via `export_yolo_dataset()`):
+   - Load: 3 TIFs → `load_sample_normalized()` → float32 [0,1]
+   - Resize: `cv2.resize()` to 1024×1024
+   - Format: `to_uint8()` (×255, clip) → save as uint8 RGB PNG on disk
+   - Labels: YOLO polygon .txt files copied (exodermis classes filtered if num_classes≤4)
+2. **Training** (Ultralytics `model.train()` loads pre-exported PNGs):
+   - Ultralytics loads PNG, applies built-in augmentation (rotation, scale, flip, etc.)
+   - Ultralytics internally divides by 255 → [0,1] float32
+   - Letterbox resize to `imgsz=1024` (no-op since images are already 1024×1024 square)
+3. **Model trains on**: 1024×1024 float32 [0,1]
+
+#### Cellpose
+
+Pipeline split into two phases — pre-load + Cellpose training:
+
+1. **Pre-load** (runs once via `preload_cellpose_data()` + `build_class_labels()`):
+   - Load: 3 TIFs → `load_sample_normalized()` → float32 [0,1]
+   - Resize: `cv2.resize()` to 512×512
+   - Format: `(np.clip(img, 0, 1) * 255).astype(np.uint8)` → uint8 arrays in memory
+   - Labels: per-class integer instance masks built from cached annotations
+2. **Training** (`train.train_seg()` internal, each batch):
+   - Calls `random_rotate_and_resize(xy=(bsize, bsize))` with default `bsize=256`
+   - Applies rotation (0–360°), scaling (0.7–1.3× with `scale_range=0.6`), horizontal flip (50%)
+   - **Crops 256×256 patches** from the rotated/scaled 512×512 image
+3. **Model trains on**: 256×256 uint8 patches (significantly smaller than other models)
+
+### Normalization Summary
+
+| Step | U-Net++ | SAM | YOLO | Cellpose |
+|------|---------|-----|------|----------|
+| Percentile norm (1st–99.5th → [0,1]) | Yes (`load_sample_normalized`) | Yes | Yes (at export) | Yes (at preload) |
+| Additional normalization | None | None (no ImageNet mean/std) | Ultralytics /255 | None |
+| Format into model | float32 [0,1] | float32 [0,1] | float32 [0,1] (after /255) | uint8 [0,255] |
+
+Normalization is applied **before** augmentation for all models. Photometric augmentations intentionally shift the normalized values — re-normalizing after would undo them. For downstream intensity analysis, use `load_sample_raw()` (no normalization) to preserve true fluorescence values.
 
 ### Augmentation (fluorescence microscopy appropriate)
 
-- Random horizontal/vertical flips, 90-degree rotations
-- Affine transforms, elastic deformation (mild)
-- Brightness/contrast adjustment, Gaussian blur, Gaussian noise
-- **Channel dropout** (p=0.2): zero out 1 of 3 channels — key for cross-microscope robustness
-- **Channel shuffle** (p=0.2): randomly permute channel order — key for cross-microscope robustness
-- Coarse dropout (spatial patches), gamma adjustment
-- Do NOT use color jitter (hue shifts meaningless for fluorescence)
+All models use similar spatial augmentations for fair comparison. No hue/saturation jitter (meaningless for fluorescence).
+
+#### Shared albumentations pipeline (`src/augmentation.py: get_train_transform()`) — used by U-Net++ and SAM:
+
+- `RandomRotate90` (p=0.5), `HorizontalFlip` (p=0.5), `VerticalFlip` (p=0.5)
+- `Affine` (p=0.7): translate ±10%, scale 0.7-1.3, rotate ±45°, shear ±10°
+- `ElasticTransform` (p=0.3): alpha=120, sigma=12
+- `RandomBrightnessContrast` (p=0.6): ±0.3 each
+- `GaussianBlur` (p=0.2): kernel 3-7
+- `GaussNoise` (p=0.4): std 0.01-0.08
+- `RandomGamma` (p=0.3): gamma 70-150
+- **`ChannelDropout`** (p=0.2): zero out 1 of 3 channels — key for cross-microscope robustness
+- **`ChannelShuffle`** (p=0.2): randomly permute channel order — key for cross-microscope robustness
+- `A.Resize(img_size, img_size)` at the end
+
+For SAM, augmentation is applied via `AugmentedSAMDataset` which uses `apply_transform_with_masks()` to transform the image and all instance masks together, then generates point/box prompts from the augmented mask.
+
+#### YOLO augmentation — Ultralytics built-in (`train_yolo.py` kwargs), matched to shared pipeline:
+
+- `hsv_h=0.0, hsv_s=0.0` (no hue/saturation), `hsv_v=0.2` (mild brightness)
+- `degrees=45.0` (rotation ±45°), `translate=0.1` (±10%), `scale=0.3` (0.7-1.3×), `shear=10.0` (±10°)
+- `flipud=0.5`, `fliplr=0.5`
+- `bgr=0.2` (BGR channel swap, similar to ChannelShuffle)
+- `mosaic=0.0`, `mixup=0.0` (disabled for fair comparison)
+- Not available in Ultralytics: elastic transform, gaussian blur/noise, gamma, channel dropout
+
+#### Cellpose augmentation — Cellpose built-in (`random_rotate_and_resize()` called internally by `train.train_seg()`):
+
+- Random rotation: 0° to 360° (uniform)
+- Random scaling: factors 0.7-1.3 (with `scale_range=0.6`)
+- Random horizontal flip: 50% probability
+- Random crop to 256×256 patches (default `bsize=256`)
+- Not available in Cellpose: elastic transform, brightness/contrast, gaussian blur/noise, gamma, channel dropout/shuffle
+
+### Training Image Size Summary
+
+| Model | Pre-augmentation size | Post-augmentation size | Model trains on |
+|-------|----------------------|----------------------|-----------------|
+| U-Net++ | 1024×1024 | 1024×1024 | 1024×1024 |
+| SAM | Original (varies) | 1024×1024 (A.Resize) | 1024×1024 |
+| YOLO | 1024×1024 (PNG) | 1024×1024 | 1024×1024 |
+| Cellpose | 512×512 (uint8) | 256×256 (bsize crop) | 256×256 |
 
 ---
 
 ## Training Configuration (Strategy A Benchmark, Runs 1-5)
 
-### Early Stopping
+### Early Stopping, Checkpointing & Training Outputs
 
-| Run | Model | Trigger | Monitor | Patience |
-|-----|-------|---------|---------|----------|
-| 1 | YOLO | Ultralytics internal | mAP | 15 epochs |
-| 2-3 | U-Net++ | PyTorch Lightning `EarlyStopping` | val_loss | 15 epochs |
-| 4 | SAM | Manual counter in training loop | val_loss | 15 epochs |
-| 5 | Cellpose | None (fixed epochs) | — | — |
+| | YOLO | U-Net++ multilabel | U-Net++ semantic | SAM | Cellpose |
+|---|---|---|---|---|---|
+| **Early stopping** | Ultralytics internal | PL `EarlyStopping` | PL `EarlyStopping` | Manual counter | None (fixed epochs) |
+| **Monitor** | mAP (fitness) | val_loss | val_loss | val_loss | — |
+| **Patience** | 15 | 15 | 15 | 15 | — |
+| **Best ckpt** | `weights/best.pt` | `checkpoints/best-{epoch}-{val_loss}.ckpt` | `checkpoints/best-{epoch}-{val_loss}.ckpt` | `best.pth` | Cellpose internal |
+| **Last ckpt** | `weights/last.pt` | `checkpoints/last.ckpt` | `checkpoints/last.ckpt` | — | — |
+| **Periodic ckpt** | Every 10 epochs | `periodic-{epoch}.ckpt` every 10 epochs | `periodic-{epoch}.ckpt` every 10 epochs | `epoch_{N}.pth` every 10 epochs | — |
+| **Training history** | `results.csv` (Ultralytics) | `logs/metrics.csv` (CSVLogger) | `logs/metrics.csv` (CSVLogger) | `training_history.json` | `training_history.json` |
+| **Loss curve** | `loss_curve.png` | `loss_curve.png` | `loss_curve.png` | `loss_curve.png` | `loss_curve.png` |
+| **Other plots** | Confusion matrix, PR curves (Ultralytics auto) | Per-class dice scores | Per-class accuracy | — | — |
+| **Hyperparams** | `hparams.yaml` | `hparams.yaml` | `hparams.yaml` | `hparams.yaml` | `hparams.yaml` |
 
-### Checkpointing
-
-| Run | Model | Best | Periodic | Last |
-|-----|-------|------|----------|------|
-| 1 | YOLO | `best.pt` (auto) | Every N epochs (`--save-every`, default 50) | `last.pt` (auto) |
-| 2-3 | U-Net++ | `best-*.ckpt` (PL `ModelCheckpoint`) | Every N epochs (`--save-every`, default 50) | `last.ckpt` (auto) |
-| 4 | SAM | `best.pth` (manual) | Every N epochs (`--save-every`, default 50) | — |
-| 5 | Cellpose | Auto (Cellpose internal) | Auto (Cellpose internal) | — |
+Val_loss and mAP during training are computed on **raw model output** (no post-processing). Custom post-processing (`raw_to_target`, `fill_holes`, etc.) only runs during final evaluation via `evaluate.py`.
 
 ### Dated Run Subfolders
 
-Every training run creates a unique dated subfolder: `YYYY-MM-DD_NNN` (auto-incrementing NNN for same-day runs). All hyperparameters are saved to `hparams.yaml` for reproducibility.
+Every training run creates a unique dated subfolder: `YYYY-MM-DD_NNN` (auto-incrementing NNN for same-day runs).
 
 ```
 output/runs/
-├── yolo/yolo11m-seg_A/
-│   ├── 2026-03-15_001/weights/best.pt, hparams.yaml
-│   └── 2026-03-17_001/weights/best.pt, hparams.yaml  (retrain)
-├── unet/unetplusplus_resnet34_A_multilabel_c4/
+├── yolo/yolo26m-seg/
+│   └── 2026-03-15_001/weights/best.pt, hparams.yaml
+├── unet/unetplusplus_resnet34_multilabel_A/
 │   └── 2026-03-15_001/checkpoints/best-*.ckpt, hparams.yaml
-├── sam/sam_vit_b_A_c5/
+├── unet/unetplusplus_resnet34_semantic7c_A/
+│   └── 2026-03-15_001/checkpoints/best-*.ckpt, hparams.yaml
+├── sam/sam_vit_b_c6/
 │   └── 2026-03-15_001/best.pth, hparams.yaml
-└── cellpose/cellpose_v3_{ClassName}_A_c5/
+└── cellpose/cellpose_v3_{ClassName}_c6/
     └── 2026-03-16_001/models/*, hparams.yaml
 ```
 
-Implemented via `make_run_subfolder()` and `save_hparams()` in `src/config.py`. SLURM eval scripts and `run_grid_training.py` use glob patterns (`*/`) to find the latest checkpoint across dated subfolders.
-
-### Training Outputs
-
-| Run | Model | Output Files |
-|-----|-------|-------------|
-| 1 | YOLO | `results.csv`, confusion_matrix, PR curves, loss curves, label plots (Ultralytics auto) |
-| 2-3 | U-Net++ | `metrics.csv`, `loss_curve.png`, best + last + periodic checkpoints |
-| 4 | SAM | `training_history.json`, `loss_curve.png`, best + periodic checkpoints |
-| 5 | Cellpose | `training_history.json`, `loss_curve.png`, `test_results.json` |
+Implemented via `make_run_subfolder()` and `save_hparams()` in `src/config.py`.
 
 ### Configurable Training Flags
 
@@ -329,23 +476,29 @@ All training scripts support these CLI flags (where applicable):
 
 | Flag | Scripts | Default | Description |
 |------|---------|---------|-------------|
-| `--epochs` | All | 300 (150 Cellpose) | Max training epochs |
+| `--epochs` | All | 200 (100 for Cellpose) | Max training epochs (`DEFAULT_EPOCHS=200` in config.py) |
 | `--batch-size` | All | 16 (8 for SAM/Cellpose) | Batch size |
-| `--lr` | U-Net++, SAM, Cellpose | varies | Learning rate |
+| `--lr` | U-Net++, SAM, Cellpose | 1e-4 (U-Net++/SAM), 0.01 (Cellpose) | Learning rate |
 | `--backbone-lr` | U-Net++ | 1e-5 | Backbone/encoder LR (differential) |
-| `--weight-decay` | U-Net++, SAM | 1e-4 | Weight decay |
+| `--weight-decay` | U-Net++, SAM, Cellpose | 1e-4 (U-Net++/SAM), 0.01 (Cellpose) | Weight decay |
 | `--patience` | YOLO, U-Net++, SAM | 15 | Early stopping patience |
 | `--optimizer` | U-Net++, SAM | adamw | Optimizer (adamw/adam/sgd) |
 | `--scheduler` | U-Net++, SAM | cosine | LR scheduler (cosine/step/plateau) |
 | `--eta-min` | U-Net++, SAM | 1e-7 | Minimum LR for cosine scheduler |
-| `--pos-weight` | U-Net++ | [1,2,5,1] or [1,2,5,1,5] | BCE pos_weight per class |
+| `--pos-weight` | U-Net++ binary | per-class defaults | BCE pos_weight override (binary mode) |
 | `--bce-weight` | U-Net++, SAM | 1.0 | BCE loss weight |
 | `--dice-weight` | U-Net++, SAM | 1.0 | Dice loss weight |
 | `--save-every` | YOLO, U-Net++, SAM | 50 | Periodic checkpoint interval (epochs) |
-| `--num-classes` | All | 4 | Number of target classes (4 or 5) |
-| `--mask-missing` | U-Net++ | off | Enable validity masking for missing classes |
-| `--img-size` | All | 1024 | Input image size |
+| `--num-classes` | YOLO, SAM, Cellpose | 6 | Number of raw annotation classes |
+| `--img-size` | All | 1024 (512 for Cellpose) | Input image size |
 | `--seed` | All | 42 | Random seed |
+| `--version` | Cellpose | 3 | Cellpose version (2 or 3) |
+| `--class-id` | U-Net++ binary, Cellpose | None | Target class ID for per-class training |
+| `--all-classes` | U-Net++ binary, Cellpose | off | Train separate models for each class |
+| `--rescale` | Cellpose | True | Enable diameter-based rescaling |
+| `--scale-range` | Cellpose | 0.6 | Random rescaling range (0.6 → factors 0.7-1.3) |
+| `--nimg-per-epoch` | Cellpose | None (all images) | Images per epoch (subsample for speed) |
+| `--unfreeze-prompt-encoder` | SAM | off | Unfreeze prompt encoder (default: frozen) |
 
 ### Evaluation Pipeline
 
@@ -366,7 +519,14 @@ python evaluate.py --model {yolo,unet,sam,cellpose} --strategy A --num-classes {
 1. `fill_holes` — Fill artifact holes in masks. Ring-aware for endodermis (class 2) and exodermis (class 4): splits ring into outer boundary and central hole, fills only small artifact holes in the ring band, preserves the structural central hole.
 2. `cleanup_whole_root` — Morphological close + keep largest connected component (class 0).
 3. `clip_aerenchyma` — Clip aerenchyma (class 1) to inside whole root boundary.
-4. `yolo_to_target` — Endodermis ring subtraction (YOLO only, since YOLO trains on raw annotation classes).
+4. `raw_to_target` — Endodermis/exodermis ring subtraction (all models trained on raw classes).
+
+**Default post-processing steps per model** (in `DEFAULT_STEPS` dict):
+- **YOLO**: fill_holes, cleanup_whole_root, clip_aerenchyma, raw_to_target
+- **U-Net++ multilabel**: fill_holes, cleanup_whole_root, clip_aerenchyma, raw_to_target
+- **U-Net++ semantic**: fill_holes, cleanup_whole_root, clip_aerenchyma (rings already derived via paint order)
+- **SAM**: fill_holes, cleanup_whole_root, clip_aerenchyma, raw_to_target
+- **Cellpose**: fill_holes, cleanup_whole_root, clip_aerenchyma, raw_to_target
 
 Output per run: `metrics.json`, `per_sample.csv`, comparison plots (per-class, summary, species+microscope — PNG only), `vis/` overlay PNGs (original image, GT overlay, prediction overlay).
 
@@ -375,7 +535,7 @@ Output per run: `metrics.json`, `per_sample.csv`, comparison plots (per-class, s
 - **Learning rate**: Cosine annealing; lower LR for pretrained backbone (1e-5), higher for new heads (1e-3 to 1e-4)
 - **Mixed precision (AMP)**: fp16 on A100
 - **Batch size**: 8-16 depending on model; maximize within 80GB VRAM
-- **Strategy naming**: CLI uses `--strategy A`/`B`/`C` everywhere (legacy `strategy1`/`strategy2`/`strategy3` also accepted by `get_split()`)
+- **1 GPU per job**: All models train on a single A100
 
 ---
 
@@ -523,12 +683,11 @@ Interactive GUI for visualizing and correcting YOLO polygon annotations.
 
 1. **Dataset**: Multi-species annotated dataset for root barrier segmentation (Fig 1)
 2. **Benchmark**: Unified model segments root barriers across species and microscopes — Strategy A, 4-model comparison (Fig 2, Table 1)
-3. **Cereal transfer**: Root anatomy transfers between cereal species — Strategy B1-B3, YOLO + U-Net++ (Fig 3)
-4. **Monocot → dicot**: Transfer from cereals to tomato — Strategy B4 (Fig 4)
-5. **Explainability**: Learned representations encode biologically meaningful features — embeddings, GradCAM, channel importance (Fig 5)
-6. **Deployment**: Unseen microscope (Zeiss) and extreme OOD (Striga) — zero-shot from best Strategy A model (Fig 6)
-7. **Augmentation ablation**: Channel dropout/shuffle enable cross-domain robustness (Fig 7)
-8. **Downstream biology**: Automated aerenchyma and barrier composition quantification matches expert annotations (Fig 8)
+3. **Generalization**: Monocot-only vs dicot-only vs unified model — Strategy B (Fig 3)
+4. **Explainability**: Learned representations encode biologically meaningful features — embeddings, GradCAM, channel importance (Fig 4)
+5. **Deployment**: Unseen microscope (Zeiss) — zero-shot from best Strategy A model (Fig 5)
+6. **Augmentation ablation**: Channel dropout/shuffle enable cross-domain robustness (Fig 6)
+7. **Downstream biology**: Automated aerenchyma and barrier composition quantification matches expert annotations (Fig 7)
 
 ### Figure Summary
 
@@ -536,12 +695,11 @@ Interactive GUI for visualizing and correcting YOLO polygon annotations.
 |--------|-------------|
 | Fig 1 | Root anatomy, dataset diversity, annotation protocol |
 | Fig 2 | The unified model works across all species and microscopes |
-| Fig 3 | Root anatomy is partially conserved across cereals |
-| Fig 4 | Transfer across the monocot-dicot divide |
-| Fig 5 | The model learns biologically meaningful features |
-| Fig 6 | Deployment to new platforms and species |
-| Fig 7 | Channel dropout/shuffle enable cross-domain generalization |
-| Fig 8 | Automated measurements match expert annotations |
+| Fig 3 | Unified model vs specialist (monocot-only / dicot-only) models |
+| Fig 4 | The model learns biologically meaningful features |
+| Fig 5 | Deployment to new platforms and species |
+| Fig 6 | Channel dropout/shuffle enable cross-domain generalization |
+| Fig 7 | Automated measurements match expert annotations |
 
 ---
 
@@ -619,36 +777,13 @@ rsync -avz hpc2:~/plants/output/runs/sam/ ~/Documents/Siobhan_Lab/plants/output/
 
 ### SAM Training
 
-- **On-the-fly encoding** — image encoder (frozen) runs every batch instead of pre-computing embeddings, enabling full image augmentation (flips, rotations, noise, channel dropout/shuffle) every epoch
-- **Multi-GPU DDP** — supports `torchrun --nproc_per_node=N`; SLURM script requests 2 GPUs by default
-- **Prompt augmentation** — point prompts and box jitter are re-randomized every `__getitem__` call
-- **Batch size** — 8 per GPU (16 effective with 2 GPUs)
-- **DataLoader workers** — 4 per GPU (`--num-workers 4`)
-- **Single-GPU fallback** — works with plain `python train_sam.py` (auto-detects DDP)
+- **1 GPU** — runs with plain `python train_sam.py` (DDP support available but not used)
+- **Batch size** — 8
+- **DataLoader workers** — 4 (`--num-workers 4`)
 
 ### Cellpose Training
 
-- **Image size** — 512 (not 1024; 4x faster per sample)
-- **Data caching** — images and annotations loaded once via `preload_cellpose_data()`, per-class labels built from cache via `build_class_labels()` (no disk I/O per class)
-- **Per-class models** — trains 5 separate models (Whole Root, Aerenchyma, Endodermis, Vascular, Exodermis), 150 epochs each
 - **SLURM structure** — `run_cellpose.sh` submits 5 parallel training jobs (one per class via `--class-id N`) + a 6th dependent eval job (`--dependency=afterok:id1:id2:...`) using `sbatch --parsable`
-- **`nimg_per_epoch=200`** — subsamples training images per epoch for speed
 - **Numpy truthiness fix** — `train_losses`/`test_losses` checked with `is not None and len(...) > 0` instead of bare `if` (Cellpose returns numpy arrays)
 - **AP scores fix** — `cellpose.metrics.average_precision()` returns multi-dimensional arrays (samples × IoU thresholds); must use `ap_scores.mean(axis=-1)` for per-sample AP
-
-### Augmentation Summary
-
-| Augmentation | U-Net++ | SAM | YOLO | Cellpose |
-|-------------|---------|-----|------|----------|
-| Flips / rotations | Albumentations | Albumentations | Ultralytics built-in | Cellpose built-in |
-| Affine / elastic | Yes | Yes | Ultralytics built-in | No |
-| Brightness / contrast / gamma | Yes | Yes | HSV value only (0.2) | No |
-| Gaussian noise / blur | Yes | Yes | No | No |
-| Coarse dropout | Yes | Yes | No | No |
-| **Channel dropout** (p=0.2) | **Yes** | **Yes** | **No** | **No** |
-| **Channel shuffle** (p=0.2) | **Yes** | **Yes** | **No** | **No** |
-| Mosaic / Mixup | No | No | Yes | No |
-| Applied via | `get_train_transform()` | `AugmentedSAMDataset` | `model.train()` kwargs | `train.train_seg()` internal |
-| Re-randomized each epoch | Yes | Yes | Yes | Yes |
-
-**Limitation**: YOLO and Cellpose do **not** support channel dropout/shuffle. Both frameworks use black-box training loops that don't allow injecting custom per-epoch augmentation. This is noted as a limitation in the paper — the ablation study (Fig 7) compares augmentation impact only on U-Net++/SAM.
+- **No confidence scores** — Cellpose does not output per-instance confidence; scores are set to 1.0 during evaluation

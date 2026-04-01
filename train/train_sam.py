@@ -6,10 +6,10 @@ every epoch.  Supports multi-GPU via DistributedDataParallel (DDP).
 
 Usage:
     # Single GPU
-    python train_sam.py --strategy A
+    python train_sam.py
 
     # Multi-GPU (e.g. 2 GPUs)
-    torchrun --nproc_per_node=2 train_sam.py --strategy A
+    torchrun --nproc_per_node=2 train_sam.py
 """
 
 import sys
@@ -41,7 +41,6 @@ from src.config import (
     make_run_subfolder,
     save_hparams,
 )
-from src.dataset import SampleRegistry
 from src.models.sam_dataset import SAMDataset
 from src.splits import get_split, print_split_summary
 
@@ -76,7 +75,7 @@ class AugmentedSAMDataset(SAMDataset):
 
     def __init__(self, samples, img_size=1024, points_per_mask=3,
                  use_box_prompt=True, use_point_prompt=True,
-                 cache_size=64, num_classes=4, augment=True):
+                 cache_size=64, num_classes=6, augment=True):
         super().__init__(
             samples, img_size=img_size, points_per_mask=points_per_mask,
             use_box_prompt=use_box_prompt, use_point_prompt=use_point_prompt,
@@ -147,10 +146,15 @@ class AugmentedSAMDataset(SAMDataset):
         return result
 
 
+# Per-class pos_weight for BCE (same as U-Net multilabel)
+# [Root, Aer, O.Endo, I.Endo, O.Exo, I.Exo]
+SAM_POS_WEIGHTS = [1.0, 2.0, 5.0, 1.0, 5.0, 1.0]
+
+
 # ── Training / Validation ────────────────────────────────────────────────────
 
 def train_one_epoch(model, dataloader, optimizer, device, dice_loss_fn, scaler,
-                    bce_weight=1.0, dice_weight=1.0):
+                    bce_weight=1.0, dice_weight=1.0, pos_weights=None):
     model.train()
     # Keep image encoder in eval mode (frozen, batch norm etc.)
     mod = model.module if isinstance(model, DDP) else model
@@ -166,6 +170,7 @@ def train_one_epoch(model, dataloader, optimizer, device, dice_loss_fn, scaler,
         point_coords = batch["point_coords"].to(device)
         point_labels = batch["point_labels"].to(device)
         boxes = batch["box"].to(device)
+        class_ids = batch["class_id"]  # (B,) int
 
         losses = []
         with torch.amp.autocast("cuda"):
@@ -194,7 +199,14 @@ def train_one_epoch(model, dataloader, optimizer, device, dice_loss_fn, scaler,
                     mode="bilinear", align_corners=False,
                 ).squeeze(1)
                 target = gt_masks[i:i+1]
-                bce = F.binary_cross_entropy_with_logits(pred_mask, target)
+
+                # Per-class pos_weight for BCE
+                if pos_weights is not None:
+                    pw = torch.tensor([pos_weights[class_ids[i].item()]],
+                                      device=device, dtype=pred_mask.dtype)
+                    bce = F.binary_cross_entropy_with_logits(pred_mask, target, pos_weight=pw)
+                else:
+                    bce = F.binary_cross_entropy_with_logits(pred_mask, target)
                 dice = dice_loss_fn(pred_mask, target)
                 losses.append(bce_weight * bce + dice_weight * dice)
 
@@ -213,7 +225,7 @@ def train_one_epoch(model, dataloader, optimizer, device, dice_loss_fn, scaler,
 
 @torch.no_grad()
 def validate(model, dataloader, device, dice_loss_fn,
-             bce_weight=1.0, dice_weight=1.0):
+             bce_weight=1.0, dice_weight=1.0, pos_weights=None):
     mod = model.module if isinstance(model, DDP) else model
     mod.eval()
     total_loss = 0.0
@@ -226,6 +238,7 @@ def validate(model, dataloader, device, dice_loss_fn,
         point_coords = batch["point_coords"].to(device)
         point_labels = batch["point_labels"].to(device)
         boxes = batch["box"].to(device)
+        class_ids = batch["class_id"]
 
         with torch.amp.autocast("cuda"):
             embeddings = mod.image_encoder(images)
@@ -249,7 +262,13 @@ def validate(model, dataloader, device, dice_loss_fn,
                     mode="bilinear", align_corners=False,
                 ).squeeze(1)
                 target = gt_masks[i:i+1]
-                bce = F.binary_cross_entropy_with_logits(pred_mask, target)
+
+                if pos_weights is not None:
+                    pw = torch.tensor([pos_weights[class_ids[i].item()]],
+                                      device=device, dtype=pred_mask.dtype)
+                    bce = F.binary_cross_entropy_with_logits(pred_mask, target, pos_weight=pw)
+                else:
+                    bce = F.binary_cross_entropy_with_logits(pred_mask, target)
                 dice = dice_loss_fn(pred_mask, target)
                 total_loss += (bce_weight * bce + dice_weight * dice).item()
                 n_samples += 1
@@ -261,9 +280,6 @@ def validate(model, dataloader, device, dice_loss_fn,
 
 def main():
     parser = argparse.ArgumentParser(description="SAM fine-tuning")
-    parser.add_argument("--strategy", default="A",
-                        choices=["A", "B", "C"])
-    parser.add_argument("--species", default=None)
     parser.add_argument("--sam-type", default="vit_b",
                         choices=["vit_b", "vit_l", "vit_h"])
     parser.add_argument("--checkpoint", type=str, default=None,
@@ -284,10 +300,10 @@ def main():
                         help="Weight for BCE loss term")
     parser.add_argument("--dice-weight", type=float, default=1.0,
                         help="Weight for Dice loss term")
-    parser.add_argument("--num-classes", type=int, default=4, choices=[4, 5],
-                        help="Number of target classes (4=standard, 5=with exodermis)")
+    parser.add_argument("--num-classes", type=int, default=6, choices=[6],
+                        help="Number of raw annotation classes (always 6)")
     parser.add_argument("--unfreeze-prompt-encoder", action="store_true")
-    parser.add_argument("--save-every", type=int, default=50,
+    parser.add_argument("--save-every", type=int, default=10,
                         help="Save periodic checkpoint every N epochs (0 to disable)")
     parser.add_argument("--num-workers", type=int, default=4,
                         help="DataLoader workers per GPU")
@@ -362,8 +378,7 @@ def main():
                     find_unused_parameters=True)
 
     # ── Data ──
-    registry = SampleRegistry()
-    split = get_split(args.strategy, registry, seed=args.seed, species=args.species)
+    split = get_split()
     if is_main_process():
         print_split_summary(split)
 
@@ -417,9 +432,7 @@ def main():
     scaler = torch.amp.GradScaler("cuda")
 
     # ── Training loop ──
-    run_name = f"sam_{args.sam_type}_{args.strategy}_c{args.num_classes}"
-    if args.species:
-        run_name += f"_{args.species}"
+    run_name = f"sam_{args.sam_type}_c{args.num_classes}"
     base_run_dir = OUTPUT_DIR / "runs" / "sam" / run_name
     if is_main_process():
         run_dir = make_run_subfolder(base_run_dir)
@@ -439,9 +452,11 @@ def main():
             print(f"\nEpoch {epoch+1}/{args.epochs}")
 
         train_loss = train_one_epoch(model, train_dl, optimizer, device, dice_loss_fn, scaler,
-                                     bce_weight=args.bce_weight, dice_weight=args.dice_weight)
+                                     bce_weight=args.bce_weight, dice_weight=args.dice_weight,
+                                     pos_weights=SAM_POS_WEIGHTS)
         val_loss = validate(model, val_dl, device, dice_loss_fn,
-                            bce_weight=args.bce_weight, dice_weight=args.dice_weight)
+                            bce_weight=args.bce_weight, dice_weight=args.dice_weight,
+                            pos_weights=SAM_POS_WEIGHTS)
         if args.scheduler == "plateau":
             scheduler.step(val_loss)
         else:
@@ -484,7 +499,7 @@ def main():
         ax.plot(history["val_loss"], label="Val Loss")
         ax.set_xlabel("Epoch")
         ax.set_ylabel("Loss")
-        ax.set_title(f"SAM ({args.sam_type}) Training Loss — {args.strategy}")
+        ax.set_title(f"SAM ({args.sam_type}) Training Loss")
         ax.legend()
         ax.grid(True, alpha=0.3)
         fig.savefig(run_dir / "loss_curve.png", dpi=150, bbox_inches="tight")

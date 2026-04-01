@@ -1,6 +1,10 @@
-"""PyTorch Dataset for U-Net semantic/multilabel segmentation training."""
+"""PyTorch Datasets for U-Net segmentation training.
 
-from pathlib import Path
+UNetSemanticDataset: 7-class semantic masks (bg + 6 anatomical regions).
+UNetMultilabelDataset: 6-channel multilabel masks (all raw annotation classes at once).
+UNetBinaryDataset: Per-class binary masks (one raw annotation class at a time).
+"""
+
 from typing import Callable, Dict, List, Optional
 
 import albumentations as A
@@ -11,45 +15,39 @@ from torch.utils.data import Dataset
 
 from ..annotation_utils import (
     parse_yolo_annotations,
-    polygons_to_multilabel_mask,
-    polygons_to_semantic_mask,
+    polygons_to_raw_binary_masks,
+    polygons_to_raw_semantic_mask,
 )
-from ..config import SPECIES_VALID_CLASSES, SampleRecord
+from ..config import SampleRecord
 from ..preprocessing import load_sample_normalized
 
 
-class UNetDataset(Dataset):
-    """Dataset for segmentation with U-Net / U-Net++.
+class UNetSemanticDataset(Dataset):
+    """Dataset for 7-class semantic segmentation (bg + 6 anatomical regions).
 
-    Supports two modes:
-        "semantic": Returns (H, W) int64 mask (0=bg, 1-N=classes). Mutually exclusive.
-        "multilabel": Returns (C, H, W) float32 mask. Independent binary channels (sigmoid).
+    Uses polygons_to_raw_semantic_mask() which paints from largest to smallest:
+        0 = background
+        1 = epidermis (whole root not covered by inner structures)
+        2 = aerenchyma
+        3 = endodermis ring (outer - inner via paint order)
+        4 = vascular (inner endo area)
+        5 = exodermis ring (outer - inner via paint order)
+        6 = cortex (between inner exo and outer endo)
 
-    Args:
-        samples: List of SampleRecord.
-        transform: Albumentations Compose pipeline.
-        img_size: Target image size (square).
-        mode: "semantic" or "multilabel".
-        num_classes: Number of target classes (4 or 5).
-        mask_missing: If True, return a per-channel validity mask for masked loss.
+    Returns (H, W) int64 mask for cross-entropy loss.
     """
+
+    NUM_CLASSES = 7  # bg + 6 regions
 
     def __init__(
         self,
         samples: List[SampleRecord],
         transform: Optional[A.Compose] = None,
         img_size: int = 1024,
-        mode: str = "semantic",
-        num_classes: int = 4,
-        mask_missing: bool = False,
     ):
-        assert mode in ("semantic", "multilabel"), f"Unknown mode: {mode}"
         self.samples = samples
         self.transform = transform
         self.img_size = img_size
-        self.mode = mode
-        self.num_classes = num_classes
-        self.mask_missing = mask_missing
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -61,72 +59,103 @@ class UNetDataset(Dataset):
         img = load_sample_normalized(sample)  # (H, W, 3) float32 [0,1]
         h, w = img.shape[:2]
 
-        # Load annotations
+        # Load annotations → 7-class semantic mask
         anns = parse_yolo_annotations(sample.annotation_path, w, h)
+        sem_mask = polygons_to_raw_semantic_mask(anns, h, w)  # (H, W) int32
 
-        if self.mode == "semantic":
-            result = self._get_semantic(img, anns, h, w, sample.uid)
-        else:
-            result = self._get_multilabel(img, anns, h, w, sample.uid)
-
-        # Add per-channel validity mask when mask_missing is enabled
-        if self.mask_missing:
-            valid_classes = SPECIES_VALID_CLASSES.get(sample.species, set(range(self.num_classes)))
-            valid_mask = torch.zeros(self.num_classes, dtype=torch.float32)
-            for c in range(self.num_classes):
-                if c in valid_classes:
-                    valid_mask[c] = 1.0
-            result["valid_mask"] = valid_mask
-
-        return result
-
-    def _get_semantic(self, img, anns, h, w, uid):
-        sem_mask = polygons_to_semantic_mask(anns, h, w, num_classes=self.num_classes)  # (H, W) int32
-
-        # Resize to target
-        img = cv2.resize(img, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
+        # Resize
+        img = cv2.resize(img, (self.img_size, self.img_size),
+                         interpolation=cv2.INTER_LINEAR)
         sem_mask = cv2.resize(
             sem_mask.astype(np.uint8), (self.img_size, self.img_size),
             interpolation=cv2.INTER_NEAREST,
         ).astype(np.int32)
 
-        # Apply augmentation
+        # Augmentation
         if self.transform is not None:
             transformed = self.transform(image=img, mask=sem_mask)
             img = transformed["image"]
             sem_mask = transformed["mask"]
 
-        # Convert to tensors
-        img_tensor = torch.from_numpy(img.copy()).permute(2, 0, 1).float()  # (3, H, W)
-        mask_tensor = torch.from_numpy(sem_mask.copy()).long()               # (H, W)
+        img_tensor = torch.from_numpy(img.copy()).permute(2, 0, 1).float()
+        mask_tensor = torch.from_numpy(sem_mask.copy()).long()
 
-        return {"image": img_tensor, "mask": mask_tensor, "uid": uid}
+        return {"image": img_tensor, "mask": mask_tensor, "uid": sample.uid}
 
-    def _get_multilabel(self, img, anns, h, w, uid):
-        nc = self.num_classes
-        ml_mask = polygons_to_multilabel_mask(anns, h, w, num_classes=nc)  # (C, H, W) float32
 
-        # Resize to target
-        img = cv2.resize(img, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
-        # Resize each channel of multilabel mask with nearest neighbor
-        resized_mask = np.zeros((nc, self.img_size, self.img_size), dtype=np.float32)
-        for c in range(nc):
-            resized_mask[c] = cv2.resize(
-                ml_mask[c], (self.img_size, self.img_size),
-                interpolation=cv2.INTER_NEAREST,
-            )
+class UNetMultilabelDataset(Dataset):
+    """Dataset for 6-channel multilabel segmentation.
 
-        # Apply augmentation: albumentations handles (H, W, C) masks
+    Returns all 6 raw annotation class masks stacked as (6, H, W) float32.
+    Used by a single multilabel U-Net++ with sigmoid activation.
+
+    Channels (raw annotation classes):
+        0 = Whole Root
+        1 = Aerenchyma
+        2 = Outer Endodermis
+        3 = Inner Endodermis
+        4 = Outer Exodermis
+        5 = Inner Exodermis
+
+    Channels can overlap (e.g., outer endo contains inner endo area).
+    """
+
+    NUM_CLASSES = 6
+
+    def __init__(
+        self,
+        samples: List[SampleRecord],
+        transform: Optional[A.Compose] = None,
+        img_size: int = 1024,
+    ):
+        self.samples = samples
+        self.transform = transform
+        self.img_size = img_size
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        sample = self.samples[idx]
+
+        # Load image
+        img = load_sample_normalized(sample)  # (H, W, 3) float32 [0,1]
+        h, w = img.shape[:2]
+
+        # Load annotations → all 6 binary masks
+        anns = parse_yolo_annotations(sample.annotation_path, w, h)
+        binary_masks = polygons_to_raw_binary_masks(anns, h, w)  # dict {0-5: (H,W)}
+
+        # Stack into (6, H, W)
+        mask_stack = np.stack([binary_masks[c] for c in range(6)])  # (6, H, W) uint8
+
+        # Resize
+        img = cv2.resize(img, (self.img_size, self.img_size),
+                         interpolation=cv2.INTER_LINEAR)
+        resized_masks = np.stack([
+            cv2.resize(mask_stack[c], (self.img_size, self.img_size),
+                       interpolation=cv2.INTER_NEAREST)
+            for c in range(6)
+        ])  # (6, H, W) uint8
+
+        # Augmentation — use first mask channel for albumentations,
+        # then apply same spatial transform to all channels
         if self.transform is not None:
-            # Transpose mask to (H, W, C) for albumentations
-            mask_hwc = resized_mask.transpose(1, 2, 0)  # (H, W, C)
-            transformed = self.transform(image=img, mask=mask_hwc)
+            # Build additional_targets for all 6 mask channels
+            additional_targets = {f"mask{i}": "mask" for i in range(1, 6)}
+            aug = A.Compose(
+                self.transform.transforms,
+                additional_targets=additional_targets,
+            )
+            kwargs = {"image": img, "mask": resized_masks[0]}
+            for i in range(1, 6):
+                kwargs[f"mask{i}"] = resized_masks[i]
+            transformed = aug(**kwargs)
             img = transformed["image"]
-            mask_hwc = transformed["mask"]
-            resized_mask = mask_hwc.transpose(2, 0, 1)  # (C, H, W)
+            resized_masks = np.stack([transformed["mask"]] +
+                                     [transformed[f"mask{i}"] for i in range(1, 6)])
 
-        # Convert to tensors
-        img_tensor = torch.from_numpy(img.copy()).permute(2, 0, 1).float()    # (3, H, W)
-        mask_tensor = torch.from_numpy(resized_mask.copy()).float()            # (C, H, W)
+        img_tensor = torch.from_numpy(img.copy()).permute(2, 0, 1).float()
+        mask_tensor = torch.from_numpy(resized_masks.copy()).float()  # (6, H, W)
 
-        return {"image": img_tensor, "mask": mask_tensor, "uid": uid}
+        return {"image": img_tensor, "mask": mask_tensor, "uid": sample.uid}

@@ -43,6 +43,7 @@ from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
+import tifffile
 from PyQt5.QtCore import Qt, QPoint, QPointF, QRectF, QTimer, QEvent
 from PyQt5.QtGui import (
     QImage, QPixmap, QPainter, QPen, QColor, QBrush,
@@ -1447,7 +1448,7 @@ class AnnotationEditor(QMainWindow):
             progress.setValue(i)
             QApplication.processEvents()
 
-            # Load annotation polygons (no image loading needed)
+            # Load annotation polygons using actual image dimensions
             stem = self._file_stem(sample)
             ann_file = ann_dir / f"{stem}.txt" if ann_dir else sample.annotation_path
             if not ann_file or not ann_file.exists():
@@ -1455,7 +1456,16 @@ class AnnotationEditor(QMainWindow):
                 continue
 
             try:
-                polys = parse_yolo_annotations(ann_file, 1024, 1024)
+                # Read image dimensions from first available TIF channel (metadata only)
+                h, w = 1024, 1024
+                for ch_name in ("DAPI", "FITC", "TRITC"):
+                    ch_path = sample.image_dir / f"{sample.sample_name}_{ch_name}.tif"
+                    if ch_path.exists():
+                        with tifffile.TiffFile(str(ch_path)) as tif:
+                            page = tif.pages[0]
+                            h, w = page.shape[:2]
+                        break
+                polys = parse_yolo_annotations(ann_file, w, h)
             except Exception:
                 errors += 1
                 continue
@@ -1463,7 +1473,7 @@ class AnnotationEditor(QMainWindow):
             if not polys:
                 continue
 
-            violations = run_qc_checks(polys, 1024, 1024)
+            violations = run_qc_checks(polys, h, w)
             if violations:
                 self._set_sample_qc_status(sample, "failed", violations)
                 failed += 1

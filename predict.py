@@ -125,16 +125,16 @@ def run_inference_unet(checkpoint: str, samples, img_size: int,
     if unet_mode == "multilabel":
         # Try loading with the appropriate module class
         try:
-            from train.train_unet import MultiLabelSegmentationModule
+            from train.archive.train_unet import MultiLabelSegmentationModule
             model = MultiLabelSegmentationModule.load_from_checkpoint(
                 checkpoint, map_location=device)
         except RuntimeError:
             # Checkpoint may be from train_unet_5c.py (MultiLabel5CModule)
-            from train.train_unet_5c import MultiLabel5CModule
+            from train.archive.train_unet_5c import MultiLabel5CModule
             model = MultiLabel5CModule.load_from_checkpoint(
                 checkpoint, map_location=device)
     else:
-        from train.train_unet import SegmentationModule
+        from train.archive.train_unet import SegmentationModule
         model = SegmentationModule.load_from_checkpoint(
             checkpoint, map_location=device)
     model.eval()
@@ -374,7 +374,7 @@ def main():
     parser.add_argument("--unet-mode", default="multilabel",
                         choices=["semantic", "multilabel"],
                         help="U-Net segmentation mode (only used with --model unet)")
-    parser.add_argument("--num-classes", type=int, default=4, choices=[4, 5],
+    parser.add_argument("--num-classes", type=int, default=5, choices=[4, 5],
                         help="Number of target classes (only used with --model unet)")
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
     parser.add_argument("--conf-thresh", type=float, default=0.25)

@@ -16,7 +16,7 @@ def export_yolo_dataset(
     splits: Dict[str, List[SampleRecord]],
     output_dir: Path = None,
     img_size: int = 1024,
-    num_classes: int = 4,
+    num_classes: int = 6,
 ) -> Path:
     """Export samples to YOLO directory structure.
 
@@ -26,10 +26,9 @@ def export_yolo_dataset(
             labels/train/  labels/val/  labels/test/
             data.yaml
 
-    YOLO keeps the original 4 annotation classes (endodermis subtraction
-    is done post-inference). When num_classes=4, annotation lines with
-    class IDs 4 or 5 (exodermis) are filtered out. Images are composited
-    to uint8 RGB PNG.
+    YOLO trains on the original 6 raw annotation classes (endodermis and
+    exodermis ring subtraction is done post-inference via yolo_to_target).
+    Images are composited to uint8 RGB PNG.
 
     Returns:
         Path to data.yaml.
@@ -37,8 +36,8 @@ def export_yolo_dataset(
     if output_dir is None:
         output_dir = OUTPUT_DIR / "yolo_dataset"
 
-    # YOLO uses the original annotated classes (0-3 for 4-class, 0-5 for keeping all)
-    # Filter out exodermis classes (4, 5) when num_classes == 4
+    # YOLO uses the original annotated classes (0-5 for all 6 raw classes)
+    # Filter out exodermis classes (4, 5) only when explicitly requesting 4 classes
     filter_exo = (num_classes <= 4)
 
     # Create directory structure
@@ -71,8 +70,11 @@ def export_yolo_dataset(
             else:
                 shutil.copy2(sample.annotation_path, label_path)
 
-    # Create data.yaml — YOLO uses the original annotated classes (0-3)
-    yolo_classes = {k: v for k, v in ANNOTATED_CLASSES.items() if k <= 3}
+    # Create data.yaml — YOLO uses the original annotated classes
+    if num_classes <= 4:
+        yolo_classes = {k: v for k, v in ANNOTATED_CLASSES.items() if k <= 3}
+    else:
+        yolo_classes = dict(ANNOTATED_CLASSES)  # all 6 raw classes (0-5)
     data_yaml = {
         "path": str(output_dir.resolve()),
         "train": "images/train",

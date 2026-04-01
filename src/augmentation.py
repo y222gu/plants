@@ -36,10 +36,6 @@ def get_train_transform(
         A.GaussianBlur(blur_limit=(3, 7), p=0.2),
         A.GaussNoise(std_range=(0.01, 0.08), p=0.4),
         A.RandomGamma(gamma_limit=(70, 150), p=0.3),
-        A.CoarseDropout(
-            num_holes_range=(3, 8), hole_height_range=(0.02, 0.06),
-            hole_width_range=(0.02, 0.06), p=0.3,
-        ),
         A.ChannelDropout(
             channel_drop_range=(1, 1), p=p_channel_dropout,
         ),
@@ -96,22 +92,3 @@ def apply_transform_with_masks(
 
     transformed_masks = np.stack([result[key] for key in mask_keys])
     return result["image"], transformed_masks
-
-
-def apply_transform_semantic(
-    transform: A.Compose,
-    image: np.ndarray,
-    mask: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Apply transform to image and semantic mask.
-
-    Args:
-        transform: Albumentations pipeline.
-        image: (H, W, 3) float32 image.
-        mask: (H, W) int32 semantic mask.
-
-    Returns:
-        (transformed_image, transformed_mask)
-    """
-    result = transform(image=image, mask=mask)
-    return result["image"], result["mask"]

@@ -58,7 +58,7 @@ def _compute_sample_metrics(
     pred_labels: np.ndarray,
     gt_masks: np.ndarray,
     gt_labels: np.ndarray,
-    num_classes: int = 4,
+    num_classes: int = 5,
 ) -> dict:
     """Compute per-class IoU and Dice for a single sample."""
     results = {}
@@ -91,7 +91,7 @@ def save_visualizations(
     predictions: dict,
     vis_dir: Path,
     max_dim: int = 800,
-    num_classes: int = 4,
+    num_classes: int = 5,
 ):
     """Save side-by-side GT vs prediction overlay images with per-class metrics."""
     vis_dir.mkdir(parents=True, exist_ok=True)
@@ -398,10 +398,10 @@ def predict_unet(checkpoint: str, samples, img_size: int,
                   unet_mode: str = "semantic") -> dict:
     """Run U-Net inference and return predictions."""
     if unet_mode == "multilabel":
-        from train.train_unet import MultiLabelSegmentationModule
+        from train.archive.train_unet import MultiLabelSegmentationModule
         model = MultiLabelSegmentationModule.load_from_checkpoint(checkpoint)
     else:
-        from train.train_unet import SegmentationModule
+        from train.archive.train_unet import SegmentationModule
         model = SegmentationModule.load_from_checkpoint(checkpoint)
     model.eval()
     model.cuda()
@@ -435,7 +435,7 @@ def predict_unet(checkpoint: str, samples, img_size: int,
 
 
 def predict_sam(checkpoint: str, samples, img_size: int,
-                sam_type: str = "vit_b", num_classes: int = 4) -> dict:
+                sam_type: str = "vit_b", num_classes: int = 5) -> dict:
     """Run SAM inference with GT-derived prompts and return predictions.
 
     Uses oracle bounding boxes from GT as prompts (standard SAM evaluation).
@@ -541,7 +541,7 @@ def predict_sam(checkpoint: str, samples, img_size: int,
 
 
 def predict_cellpose(checkpoint_dir: str, samples, img_size: int,
-                     num_classes: int = 4) -> dict:
+                     num_classes: int = 5) -> dict:
     """Run Cellpose per-class inference and merge predictions.
 
     Expects per-class models in checkpoint_dir with naming pattern:
@@ -645,8 +645,9 @@ def load_predictions_from_dir(pred_dir: Path, samples) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Unified model evaluation")
-    parser.add_argument("--data-dir", default="data/",
-                        help="Data directory with image/ and annotation/ subfolders")
+    parser.add_argument("--data-dir", default=None,
+                        help="Custom data directory with image/ and annotation/ subfolders "
+                             "(default: uses data/train, data/val, data/test structure)")
     parser.add_argument("--model", default=None,
                         choices=["yolo", "unet", "sam", "cellpose"],
                         help="Model type (required unless --plot-only or --from-predictions)")
@@ -671,8 +672,8 @@ def main():
                         help="Skip segmentation metric computation")
     parser.add_argument("--no-plots", action="store_true",
                         help="Skip metric plot generation")
-    parser.add_argument("--num-classes", type=int, default=4, choices=[4, 5],
-                        help="Number of target classes (4=standard, 5=with exodermis)")
+    parser.add_argument("--num-classes", type=int, default=5, choices=[4, 5],
+                        help="Number of target classes (5=all classes, 4=without exodermis)")
     parser.add_argument("--plot-only", type=str, default=None,
                         help="Skip inference; regenerate plots from an existing metrics JSON file")
 
@@ -688,14 +689,9 @@ def main():
                         help="Disable ALL post-processing steps")
 
     # Split filtering
-    parser.add_argument("--strategy", default=None,
-                        choices=["A", "B", "C"],
-                        help="Dataset split strategy (use with --split)")
     parser.add_argument("--split", default="test",
                         choices=["train", "val", "test"],
                         help="Which split to evaluate on (default: test)")
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Random seed for split generation (default: 42)")
     args = parser.parse_args()
 
     # ── Plot-only mode ──
@@ -723,27 +719,27 @@ def main():
         if args.model == "unet":
             model_tag = f"unet_{args.unet_mode}_c{args.num_classes}"
 
-    # Discover all samples with annotations in data-dir
-    data_dir = Path(args.data_dir)
-    registry = SampleRegistry(data_dir=data_dir, require_annotations=True)
-    samples = registry.samples
-    if not samples:
-        print(f"No annotated samples found in {data_dir}")
-        print("Expected: {data-dir}/image/{Species}/{Microscope}/{Exp}/{Sample}/ "
-              "with matching annotation .txt files in {data-dir}/annotation/")
-        return
-
-    # Filter to a specific split if strategy is provided
-    if args.strategy:
-        split = get_split(args.strategy, registry=registry, seed=args.seed)
+    # Discover samples
+    if args.data_dir:
+        # Custom data directory (flat structure with image/ and annotation/)
+        data_dir = Path(args.data_dir)
+        registry = SampleRegistry(data_dir=data_dir, require_annotations=True)
+        samples = registry.samples
+        if not samples:
+            print(f"No annotated samples found in {data_dir}")
+            print("Expected: {data-dir}/image/{Species}/{Microscope}/{Exp}/{Sample}/ "
+                  "with matching annotation .txt files in {data-dir}/annotation/")
+            return
+        print(f"Evaluating {args.model} on {len(samples)} samples from {data_dir}")
+    else:
+        # Use physical train/val/test split directories
+        split = get_split()
         samples = split.get(args.split, [])
         if not samples:
-            print(f"No samples in {args.strategy} {args.split} split")
+            print(f"No samples in {args.split} split")
             return
-        model_tag = f"{model_tag}_{args.strategy}_{args.split}"
-        print(f"Evaluating {args.model} on {len(samples)} {args.split} samples ({args.strategy})")
-    else:
-        print(f"Evaluating {args.model} on {len(samples)} samples (all)")
+        model_tag = f"{model_tag}_{args.split}"
+        print(f"Evaluating {args.model} on {len(samples)} {args.split} samples")
 
     # ── Get predictions ──
     if args.from_predictions:

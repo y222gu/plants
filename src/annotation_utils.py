@@ -71,7 +71,7 @@ def polygons_to_instance_masks(
     annotations: List[Dict],
     h: int,
     w: int,
-    num_classes: int = 4,
+    num_classes: int = 5,
 ) -> Dict[str, np.ndarray]:
     """Convert YOLO annotations to instance masks with target class mapping.
 
@@ -180,7 +180,7 @@ def polygons_to_semantic_mask(
     annotations: List[Dict],
     h: int,
     w: int,
-    num_classes: int = 4,
+    num_classes: int = 5,
 ) -> np.ndarray:
     """Convert YOLO annotations to a semantic segmentation mask.
 
@@ -246,7 +246,7 @@ def polygons_to_multilabel_mask(
     annotations: List[Dict],
     h: int,
     w: int,
-    num_classes: int = 4,
+    num_classes: int = 5,
 ) -> np.ndarray:
     """Convert YOLO annotations to multi-label mask with independent channels.
 
@@ -317,21 +317,159 @@ def polygons_to_multilabel_mask(
     return multilabel
 
 
+def polygons_to_raw_semantic_mask(
+    annotations: List[Dict],
+    h: int,
+    w: int,
+) -> np.ndarray:
+    """Convert YOLO annotations to a 7-class semantic mask using raw annotation classes.
+
+    Paints filled polygons from largest to smallest so that inner regions
+    overwrite outer regions, producing 7 mutually exclusive anatomical regions:
+
+        0 = background
+        1 = epidermis (whole root area not covered by other structures)
+        2 = aerenchyma (holes in cortex)
+        3 = endodermis ring (outer endo minus inner endo, via paint order)
+        4 = vascular (inner endo area)
+        5 = exodermis ring (outer exo minus inner exo, via paint order)
+        6 = cortex (inner exo minus outer endo minus aerenchyma, via paint order)
+
+    Paint order: whole root → outer exo → inner exo → outer endo → inner endo → aerenchyma.
+    Each later paint overwrites earlier labels at overlapping pixels.
+
+    Returns:
+        (H, W) int32 semantic mask with labels 0-6.
+    """
+    sem = np.zeros((h, w), dtype=np.int32)
+
+    # Collect polygons by annotation class
+    class_polys = {i: [] for i in range(6)}
+    for ann in annotations:
+        cid = ann["class_id"]
+        if cid in class_polys:
+            class_polys[cid].append(ann["polygon"])
+
+    # Paint order: largest region first, smaller regions overwrite
+    # 1. Whole root (class 0) → label 1
+    for poly in class_polys[0]:
+        mask = polygon_to_mask(poly, h, w)
+        sem[mask > 0] = 1
+
+    # 2. Outer exo (class 4) → label 5
+    for poly in class_polys[4]:
+        mask = polygon_to_mask(poly, h, w)
+        sem[mask > 0] = 5
+
+    # 3. Inner exo (class 5) → label 6 (cortex region)
+    for poly in class_polys[5]:
+        mask = polygon_to_mask(poly, h, w)
+        sem[mask > 0] = 6
+
+    # 4. Outer endo (class 2) → label 3
+    for poly in class_polys[2]:
+        mask = polygon_to_mask(poly, h, w)
+        sem[mask > 0] = 3
+
+    # 5. Inner endo (class 3) → label 4 (vascular)
+    for poly in class_polys[3]:
+        mask = polygon_to_mask(poly, h, w)
+        sem[mask > 0] = 4
+
+    # 6. Aerenchyma (class 1) → label 2 (painted last, overwrites cortex)
+    for poly in class_polys[1]:
+        mask = polygon_to_mask(poly, h, w)
+        sem[mask > 0] = 2
+
+    return sem
+
+
+def polygons_to_raw_binary_masks(
+    annotations: List[Dict],
+    h: int,
+    w: int,
+) -> Dict[int, np.ndarray]:
+    """Convert YOLO annotations to per-class binary masks (one per raw annotation class).
+
+    Returns dict mapping raw annotation class ID (0-5) to (H, W) uint8 binary mask.
+    Each mask is the union of all polygons for that class.
+    """
+    masks = {}
+    class_polys = {i: [] for i in range(6)}
+    for ann in annotations:
+        cid = ann["class_id"]
+        if cid in class_polys:
+            class_polys[cid].append(ann["polygon"])
+
+    for cid in range(6):
+        combined = np.zeros((h, w), dtype=np.uint8)
+        for poly in class_polys[cid]:
+            mask = polygon_to_mask(poly, h, w)
+            combined = np.clip(combined + mask, 0, 1)
+        masks[cid] = combined
+
+    return masks
+
+
+def polygons_to_raw_instance_masks(
+    annotations: List[Dict],
+    h: int,
+    w: int,
+) -> Dict[str, np.ndarray]:
+    """Convert YOLO annotations to instance masks using raw annotation classes.
+
+    No ring subtraction — each polygon becomes one instance with its raw class ID (0-5).
+    This is the same representation used by YOLO and U-Net binary.
+
+    Returns:
+        Dict with:
+            masks: (N, H, W) uint8 binary masks
+            labels: (N,) int32 raw class IDs (0-5)
+            boxes: (N, 4) float32 [x1, y1, x2, y2] bounding boxes
+    """
+    masks_list = []
+    labels_list = []
+
+    for ann in annotations:
+        mask = polygon_to_mask(ann["polygon"], h, w)
+        if mask.sum() > 0:
+            masks_list.append(mask)
+            labels_list.append(ann["class_id"])
+
+    if not masks_list:
+        return {
+            "masks": np.zeros((0, h, w), dtype=np.uint8),
+            "labels": np.zeros(0, dtype=np.int32),
+            "boxes": np.zeros((0, 4), dtype=np.float32),
+        }
+
+    masks = np.stack(masks_list)
+    labels = np.array(labels_list, dtype=np.int32)
+    boxes = masks_to_boxes(masks)
+
+    return {"masks": masks, "labels": labels, "boxes": boxes}
+
+
 def load_sample_annotations(
     sample: SampleRecord,
     img_h: int,
     img_w: int,
-    num_classes: int = 4,
+    num_classes: int = 5,
+    raw_classes: bool = False,
 ) -> Dict[str, np.ndarray]:
     """Load and convert annotations for a sample to instance masks.
 
     Args:
         sample: SampleRecord with annotation_path.
         img_h, img_w: Image dimensions.
-        num_classes: Number of target classes (4 or 5).
+        num_classes: Number of target classes (4 or 5). Ignored when raw_classes=True.
+        raw_classes: If True, return raw annotation classes (0-5) without
+            ring subtraction. Each polygon becomes one instance.
 
     Returns:
         Dict with masks, labels, boxes arrays.
     """
     anns = parse_yolo_annotations(sample.annotation_path, img_w, img_h)
+    if raw_classes:
+        return polygons_to_raw_instance_masks(anns, img_h, img_w)
     return polygons_to_instance_masks(anns, img_h, img_w, num_classes=num_classes)

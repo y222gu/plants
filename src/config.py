@@ -12,8 +12,9 @@ import yaml
 _config_file = Path(__file__).resolve()
 BASE_DIR = _config_file.parent.parent  # plants/ directory
 DATA_DIR = BASE_DIR / "data"
-IMAGE_DIR = DATA_DIR / "image"
-ANNOTATION_DIR = DATA_DIR / "annotation"
+TRAIN_DIR = DATA_DIR / "train"
+VAL_DIR = DATA_DIR / "val"
+TEST_DIR = DATA_DIR / "test"
 PREVIEW_DIR = BASE_DIR / "preview"
 OUTPUT_DIR = BASE_DIR / "output"  # training runs, exports, checkpoints
 
@@ -49,22 +50,20 @@ TARGET_CLASSES_5 = {
     4: "Exodermis",    # ring: outer - inner (tomato only)
 }
 
-NUM_CLASSES = len(TARGET_CLASSES)
-NUM_CLASSES_5 = len(TARGET_CLASSES_5)
+NUM_CLASSES = len(TARGET_CLASSES_5)
 
-
-def get_target_classes(num_classes: int = 4) -> dict:
+def get_target_classes(num_classes: int = 5) -> dict:
     """Return target class dict for the given number of classes (4 or 5)."""
     return TARGET_CLASSES_5 if num_classes >= 5 else TARGET_CLASSES
 
 
 # Which target classes are valid (annotated) per species.
-# Cereals lack exodermis (4); tomato lacks aerenchyma (1).
+# All species now have complete annotations for all 5 target classes.
 SPECIES_VALID_CLASSES = {
-    "Millet":  {0, 1, 2, 3},
-    "Rice":    {0, 1, 2, 3},
-    "Sorghum": {0, 1, 2, 3},
-    "Tomato":  {0, 2, 3, 4},
+    "Millet":  {0, 1, 2, 3, 4},
+    "Rice":    {0, 1, 2, 3, 4},
+    "Sorghum": {0, 1, 2, 3, 4},
+    "Tomato":  {0, 1, 2, 3, 4},
 }
 
 # ── Visualization colors (BGR for OpenCV, RGB for matplotlib) ─────────────────

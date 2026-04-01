@@ -14,11 +14,11 @@ from ..preprocessing import load_sample_normalized
 
 
 def _load_one_sample(sample: 'SampleRecord', img_size: int, target_class: Optional[int],
-                     num_classes: int = 4):
+                     num_classes: int = 6):
     """Load and process a single sample (for parallel loading)."""
     img = load_sample_normalized(sample)
     h, w = img.shape[:2]
-    ann = load_sample_annotations(sample, h, w, num_classes=num_classes)
+    ann = load_sample_annotations(sample, h, w, raw_classes=True)
     masks = ann["masks"]
     cls_labels = ann["labels"]
 
@@ -44,7 +44,7 @@ def prepare_cellpose_data(
     img_size: int = 1024,
     target_class: Optional[int] = None,
     num_workers: int = 8,
-    num_classes: int = 4,
+    num_classes: int = 5,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Prepare images and label masks for Cellpose training.
 
@@ -87,18 +87,18 @@ def prepare_cellpose_data(
 def preload_cellpose_data(
     samples: List[SampleRecord],
     img_size: int = 1024,
-    num_classes: int = 4,
+    num_classes: int = 6,
     num_workers: int = 8,
 ) -> List[Tuple[np.ndarray, List[np.ndarray], List[int]]]:
     """Load images and annotations once, returning per-sample cached data.
 
     Returns list of (img_uint8, masks_list, labels_list) tuples where
-    masks_list contains all instance masks and labels_list their class IDs.
+    masks_list contains all instance masks and labels_list their raw class IDs (0-5).
     """
     def _load_one(sample):
         img = load_sample_normalized(sample)
         h, w = img.shape[:2]
-        ann = load_sample_annotations(sample, h, w, num_classes=num_classes)
+        ann = load_sample_annotations(sample, h, w, raw_classes=True)
         img = cv2.resize(img, (img_size, img_size), interpolation=cv2.INTER_LINEAR)
         img_uint8 = (np.clip(img, 0, 1) * 255).astype(np.uint8)
         resized_masks = []

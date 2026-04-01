@@ -135,7 +135,7 @@ class SegmentationMetrics:
     redundant computation during grouped reporting.
     """
 
-    def __init__(self, num_classes: int = 4, class_names: Optional[Dict[int, str]] = None):
+    def __init__(self, num_classes: int = 5, class_names: Optional[Dict[int, str]] = None):
         self.num_classes = num_classes
         self.class_names = class_names or {i: f"class_{i}" for i in range(num_classes)}
         self._records: List[Dict] = []
@@ -311,7 +311,6 @@ class SegmentationMetrics:
             "pixel_accuracy": pixel_accuracy,
         }
 
-    @staticmethod
     @staticmethod
     def _class_mask(masks: np.ndarray, labels: np.ndarray, cls_id: int,
                     shape: tuple = None) -> np.ndarray:

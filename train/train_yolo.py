@@ -1,8 +1,7 @@
 """YOLOv8/v11-seg training script.
 
 Usage:
-    python train_yolo.py --model yolo11m-seg --strategy A
-    python train_yolo.py --model yolo11m-seg --strategy B --img-size 640
+    python train_yolo.py --model yolo11m-seg
     python train_yolo.py --model yolo11m-seg --epochs 150 --batch-size 2
 """
 
@@ -23,26 +22,21 @@ from src.config import (
     make_run_subfolder,
     save_hparams,
 )
-from src.dataset import SampleRegistry
 from src.formats.yolo_format import export_yolo_dataset
 from src.splits import get_split, print_split_summary
 
 
 def main():
     parser = argparse.ArgumentParser(description="YOLO instance segmentation training")
-    parser.add_argument("--model", default="yolo11m-seg",
-                        help="YOLO model variant (e.g. yolov8m-seg, yolo11m-seg)")
-    parser.add_argument("--strategy", default="A",
-                        choices=["A", "B", "C"])
-    parser.add_argument("--species", default=None,
-                        help="Species for strategy3")
+    parser.add_argument("--model", default="yolo26m-seg",
+                        help="YOLO model variant (e.g. yolo11m-seg, yolo26m-seg)")
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
     parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument("--patience", type=int, default=DEFAULT_PATIENCE)
-    parser.add_argument("--num-classes", type=int, default=4, choices=[4],
-                        help="Number of target classes (YOLO supports 4 only)")
-    parser.add_argument("--save-every", type=int, default=50,
+    parser.add_argument("--num-classes", type=int, default=6, choices=[4, 6],
+                        help="Number of raw annotation classes (6=all classes, 4=cereals only)")
+    parser.add_argument("--save-every", type=int, default=10,
                         help="Save periodic checkpoint every N epochs (-1 to disable)")
     parser.add_argument("--gpus", type=int, default=1,
                         help="Number of GPUs (Ultralytics handles DDP internally)")
@@ -56,16 +50,11 @@ def main():
     args = parser.parse_args()
 
     # Setup
-    registry = SampleRegistry()
-    print(registry.summary())
-
-    split = get_split(args.strategy, registry, seed=args.seed, species=args.species)
+    split = get_split()
     print_split_summary(split)
 
     # Export to YOLO format (skip if already exported with matching counts)
-    run_name = f"{args.model}_{args.strategy}"
-    if args.species:
-        run_name += f"_{args.species}"
+    run_name = f"{args.model}"
     export_dir = OUTPUT_DIR / "yolo_dataset" / run_name
     yaml_path = export_dir / "data.yaml"
 
@@ -128,14 +117,19 @@ def main():
         workers=8,
         exist_ok=True,
         plots=True,
-        # Augmentation (most handled by Ultralytics, but disable hue)
-        hsv_h=0.0,  # no hue augmentation for fluorescence
-        hsv_s=0.0,  # no saturation augmentation
-        hsv_v=0.2,  # mild value/brightness
+        # Augmentation — match shared albumentations pipeline
+        hsv_h=0.0,       # no hue augmentation (fluorescence)
+        hsv_s=0.0,       # no saturation augmentation (fluorescence)
+        hsv_v=0.2,       # mild brightness
+        degrees=45.0,    # rotation ±45° (matches Affine rotate=(-45,45))
+        translate=0.1,   # translation ±10% (matches Affine translate_percent)
+        scale=0.3,       # scale 0.7-1.3 (matches Affine scale=(0.7,1.3))
+        shear=10.0,      # shear ±10° (matches Affine shear=(-10,10))
         flipud=0.5,
         fliplr=0.5,
-        mosaic=0.5,
-        mixup=0.1,
+        bgr=0.2,         # BGR channel swap (similar to ChannelShuffle p=0.2)
+        mosaic=0.0,      # disabled for fair comparison
+        mixup=0.0,       # disabled for fair comparison
     )
 
     # Plot loss curves from YOLO results CSV

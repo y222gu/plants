@@ -75,7 +75,7 @@ def draw_masks_overlay(img_uint8: np.ndarray, masks: np.ndarray,
 
 # ── Legend bar ────────────────────────────────────────────────────────────────
 
-def make_legend_bar(width: int, height: int = 32, num_classes: int = 4) -> np.ndarray:
+def make_legend_bar(width: int, height: int = 32, num_classes: int = 5) -> np.ndarray:
     """Create a class-legend bar image (RGB uint8)."""
     legend_font = load_font(14)
     legend = np.zeros((height, width, 3), dtype=np.uint8)
