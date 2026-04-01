@@ -131,11 +131,14 @@ def make_run_subfolder(parent_dir: Path) -> Path:
     parent_dir.mkdir(parents=True, exist_ok=True)
 
     existing = sorted(parent_dir.glob(f"{today}_*"))
-    if existing:
-        last = existing[-1].name
-        seq = int(last.split("_")[-1]) + 1
-    else:
-        seq = 1
+    seq = 0
+    for d in existing:
+        suffix = d.name.split("_")[-1]
+        try:
+            seq = max(seq, int(suffix))
+        except ValueError:
+            continue
+    seq += 1
 
     subfolder = parent_dir / f"{today}_{seq:03d}"
     subfolder.mkdir(parents=True, exist_ok=True)
