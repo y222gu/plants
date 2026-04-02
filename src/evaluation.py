@@ -11,6 +11,7 @@ from .annotation_utils import (
     parse_yolo_annotations,
     polygon_to_mask,
     polygons_to_instance_masks,
+    polygons_to_raw_instance_masks,
 )
 from .config import SampleRecord
 
@@ -19,7 +20,7 @@ from .config import SampleRecord
 class PredictionResult:
     """Standard prediction format for all models."""
     masks: np.ndarray        # (N, H, W) uint8 binary
-    labels: np.ndarray       # (N,) int32 target class IDs
+    labels: np.ndarray       # (N,) int32 class IDs (raw annotation classes 0-5)
     scores: np.ndarray       # (N,) float32 confidence scores
 
 
@@ -28,14 +29,9 @@ def convert_yolo_predictions(
     img_h: int,
     img_w: int,
 ) -> PredictionResult:
-    """Convert YOLO polygon predictions to standard format.
-
-    YOLO predictions keep 4 original classes. We apply the same
-    endodermis subtraction as for GT annotations.
-    """
+    """Convert YOLO polygon predictions to standard format (raw classes 0-5)."""
     anns = parse_yolo_annotations(pred_path, img_w, img_h)
-    # Add default score=1.0 if not present, YOLO stores confidence in separate file
-    result = polygons_to_instance_masks(anns, img_h, img_w)
+    result = polygons_to_raw_instance_masks(anns, img_h, img_w)
     n = len(result["labels"])
     return PredictionResult(
         masks=result["masks"],

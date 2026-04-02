@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 
 from src.annotation_utils import load_sample_annotations
 from src.config import (
+    ANNOTATED_CLASSES,
     DEFAULT_IMG_SIZE,
     OUTPUT_DIR,
     TARGET_CLASS_COLORS_RGB,
@@ -58,12 +59,14 @@ def _compute_sample_metrics(
     pred_labels: np.ndarray,
     gt_masks: np.ndarray,
     gt_labels: np.ndarray,
-    num_classes: int = 5,
+    num_classes: int = 6,
+    class_names: dict = None,
 ) -> dict:
     """Compute per-class IoU and Dice for a single sample."""
     results = {}
-    target_classes = get_target_classes(num_classes)
-    for cls_id, cls_name in target_classes.items():
+    if class_names is None:
+        class_names = ANNOTATED_CLASSES if num_classes == 6 else get_target_classes(num_classes)
+    for cls_id, cls_name in class_names.items():
         gt_idx = np.where(gt_labels == cls_id)[0]
         pred_idx = np.where(pred_labels == cls_id)[0]
         if len(gt_masks) > 0 and len(gt_idx) > 0:
@@ -108,7 +111,7 @@ def save_visualizations(
         h, w = img.shape[:2]
         img_uint8 = to_uint8(img)
 
-        gt = load_sample_annotations(sample, h, w, num_classes=num_classes)
+        gt = load_sample_annotations(sample, h, w, raw_classes=(num_classes == 6))
 
         sample_metrics = _compute_sample_metrics(
             pred.masks, pred.labels, gt["masks"], gt["labels"], num_classes=num_classes,
@@ -394,20 +397,15 @@ def predict_yolo(checkpoint: str, samples, img_size: int) -> dict:
     return predictions
 
 
-def predict_unet(checkpoint: str, samples, img_size: int,
-                  unet_mode: str = "semantic") -> dict:
-    """Run U-Net inference and return predictions."""
-    if unet_mode == "multilabel":
-        from train.archive.train_unet import MultiLabelSegmentationModule
-        model = MultiLabelSegmentationModule.load_from_checkpoint(checkpoint)
-    else:
-        from train.archive.train_unet import SegmentationModule
-        model = SegmentationModule.load_from_checkpoint(checkpoint)
+def predict_unet_multilabel(checkpoint: str, samples, img_size: int) -> dict:
+    """Run U-Net++ multilabel inference and return predictions (6 raw classes)."""
+    from train.train_unet_binary import MultilabelSegModule
+    model = MultilabelSegModule.load_from_checkpoint(checkpoint)
     model.eval()
     model.cuda()
 
     predictions = {}
-    for sample in tqdm(samples, desc="U-Net inference"):
+    for sample in tqdm(samples, desc="U-Net multilabel inference"):
         img = load_sample_normalized(sample)
         h, w = img.shape[:2]
         img_resized = cv2.resize(img, (img_size, img_size), interpolation=cv2.INTER_LINEAR)
@@ -416,26 +414,52 @@ def predict_unet(checkpoint: str, samples, img_size: int,
         with torch.no_grad():
             logits = model(tensor)
 
-        if unet_mode == "multilabel":
-            probs = torch.sigmoid(logits).squeeze(0).cpu().numpy()
-            nc = probs.shape[0]
-            ml_mask = np.zeros((nc, h, w), dtype=np.float32)
-            for c in range(nc):
-                ml_mask[c] = cv2.resize(probs[c], (w, h), interpolation=cv2.INTER_LINEAR)
-            pred = convert_multilabel_to_instances(ml_mask)
-        else:
-            sem_mask = logits.argmax(dim=1).squeeze().cpu().numpy()
-            sem_mask = cv2.resize(sem_mask.astype(np.uint8), (w, h),
-                                  interpolation=cv2.INTER_NEAREST).astype(np.int32)
-            pred = convert_semantic_to_instances(sem_mask)
+        probs = torch.sigmoid(logits).squeeze(0).cpu().numpy()  # (6, img_size, img_size)
+        nc = probs.shape[0]
 
-        predictions[sample.uid] = pred
+        masks_list = []
+        labels_list = []
+        scores_list = []
+
+        for c in range(nc):
+            prob_full = cv2.resize(probs[c], (w, h), interpolation=cv2.INTER_LINEAR)
+            binary = (prob_full > 0.5).astype(np.uint8)
+
+            if c == 1:
+                # Aerenchyma: split into individual instances via connected components
+                min_area = max(50, int(h * w * 0.0001))
+                n_components, component_map = cv2.connectedComponents(binary)
+                for comp_id in range(1, n_components):
+                    mask = (component_map == comp_id).astype(np.uint8)
+                    if mask.sum() >= min_area:
+                        masks_list.append(mask)
+                        labels_list.append(c)
+                        scores_list.append(float(probs[c][probs[c] > 0.5].mean()) if (probs[c] > 0.5).any() else 0.5)
+            else:
+                # Single instance per class
+                if binary.sum() > 0:
+                    masks_list.append(binary)
+                    labels_list.append(c)
+                    scores_list.append(float(probs[c][probs[c] > 0.5].mean()) if (probs[c] > 0.5).any() else 0.5)
+
+        if masks_list:
+            predictions[sample.uid] = PredictionResult(
+                masks=np.array(masks_list, dtype=np.uint8),
+                labels=np.array(labels_list, dtype=np.int32),
+                scores=np.array(scores_list, dtype=np.float32),
+            )
+        else:
+            predictions[sample.uid] = PredictionResult(
+                masks=np.zeros((0, h, w), dtype=np.uint8),
+                labels=np.zeros(0, dtype=np.int32),
+                scores=np.zeros(0, dtype=np.float32),
+            )
 
     return predictions
 
 
 def predict_sam(checkpoint: str, samples, img_size: int,
-                sam_type: str = "vit_b", num_classes: int = 5) -> dict:
+                sam_type: str = "vit_b", num_classes: int = 6) -> dict:
     """Run SAM inference with GT-derived prompts and return predictions.
 
     Uses oracle bounding boxes from GT as prompts (standard SAM evaluation).
@@ -450,7 +474,7 @@ def predict_sam(checkpoint: str, samples, img_size: int,
     for sample in tqdm(samples, desc="SAM inference"):
         img = load_sample_normalized(sample)
         h, w = img.shape[:2]
-        gt = load_sample_annotations(sample, h, w, num_classes=num_classes)
+        gt = load_sample_annotations(sample, h, w, raw_classes=True)
         gt_masks = gt["masks"]
         gt_labels = gt["labels"]
 
@@ -541,7 +565,7 @@ def predict_sam(checkpoint: str, samples, img_size: int,
 
 
 def predict_cellpose(checkpoint_dir: str, samples, img_size: int,
-                     num_classes: int = 5) -> dict:
+                     num_classes: int = 6) -> dict:
     """Run Cellpose per-class inference and merge predictions.
 
     Expects per-class models in checkpoint_dir with naming pattern:
@@ -550,12 +574,12 @@ def predict_cellpose(checkpoint_dir: str, samples, img_size: int,
     from cellpose import models
 
     checkpoint_dir = Path(checkpoint_dir)
-    target_classes = get_target_classes(num_classes)
+    raw_classes = ANNOTATED_CLASSES
 
     # Find per-class model paths
     # Structure: checkpoint_dir/cellpose_v*_{ClassName}_*/YYYY-MM-DD_NNN/models/*
     class_models = {}
-    for cls_id, cls_name in target_classes.items():
+    for cls_id, cls_name in raw_classes.items():
         pattern = f"cellpose_*_{cls_name}_*"
         matches = sorted(checkpoint_dir.glob(pattern))
         if not matches:
@@ -649,7 +673,7 @@ def main():
                         help="Custom data directory with image/ and annotation/ subfolders "
                              "(default: uses data/train, data/val, data/test structure)")
     parser.add_argument("--model", default=None,
-                        choices=["yolo", "unet", "sam", "cellpose"],
+                        choices=["yolo", "unet_multilabel", "sam", "cellpose"],
                         help="Model type (required unless --plot-only or --from-predictions)")
     parser.add_argument("--checkpoint", default=None,
                         help="Path to model checkpoint")
@@ -658,9 +682,6 @@ def main():
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
     parser.add_argument("--output", type=str, default=None,
                         help="Output JSON path for metrics")
-    parser.add_argument("--unet-mode", default="semantic",
-                        choices=["semantic", "multilabel"],
-                        help="U-Net mode: semantic (softmax) or multilabel (sigmoid)")
     parser.add_argument("--sam-type", default="vit_b",
                         choices=["vit_b", "vit_l", "vit_h"],
                         help="SAM model type (only used with --model sam)")
@@ -672,8 +693,8 @@ def main():
                         help="Skip segmentation metric computation")
     parser.add_argument("--no-plots", action="store_true",
                         help="Skip metric plot generation")
-    parser.add_argument("--num-classes", type=int, default=5, choices=[4, 5],
-                        help="Number of target classes (5=all classes, 4=without exodermis)")
+    parser.add_argument("--num-classes", type=int, default=6,
+                        help="Number of classes (6=raw annotation classes)")
     parser.add_argument("--plot-only", type=str, default=None,
                         help="Skip inference; regenerate plots from an existing metrics JSON file")
 
@@ -716,8 +737,6 @@ def main():
         if not args.model or not args.checkpoint:
             parser.error("--model and --checkpoint are required unless --plot-only or --from-predictions is used")
         model_tag = args.model
-        if args.model == "unet":
-            model_tag = f"unet_{args.unet_mode}_c{args.num_classes}"
 
     # Discover samples
     if args.data_dir:
@@ -745,17 +764,18 @@ def main():
     if args.from_predictions:
         pred_dir = Path(args.from_predictions)
         predictions = load_predictions_from_dir(pred_dir, samples)
-    elif args.model == "unet":
-        predictions = predict_unet(args.checkpoint, samples, args.img_size,
-                                   unet_mode=args.unet_mode)
+    elif args.model == "unet_multilabel":
+        predictions = predict_unet_multilabel(args.checkpoint, samples, args.img_size)
     elif args.model == "sam":
         predictions = predict_sam(args.checkpoint, samples, args.img_size,
                                   sam_type=args.sam_type, num_classes=args.num_classes)
     elif args.model == "cellpose":
         predictions = predict_cellpose(args.checkpoint, samples, args.img_size,
                                        num_classes=args.num_classes)
-    else:
+    elif args.model == "yolo":
         predictions = predict_yolo(args.checkpoint, samples, args.img_size)
+    else:
+        parser.error(f"Unknown model: {args.model}")
 
     # Post-processing pipeline
     if args.no_postprocess:
@@ -769,19 +789,38 @@ def main():
     )
     predictions = pp.run_all(predictions)
 
-    # ── Metrics ──
-    out_dir = OUTPUT_DIR / "evaluation"
+    # ── Output directory: save inside the run folder ──
+    if args.checkpoint:
+        ckpt_path = Path(args.checkpoint)
+        # Walk up from checkpoint to find the dated run folder (e.g. 2026-04-01_001/)
+        # Checkpoint could be at: .../2026-04-01_001/weights/best.pt
+        #                     or: .../2026-04-01_001/checkpoints/best-*.ckpt
+        #                     or: .../2026-04-01_001/best.pth
+        run_dir = ckpt_path.parent
+        while run_dir != run_dir.parent:
+            # Dated folder pattern: YYYY-MM-DD_NNN
+            if run_dir.name[:4].isdigit() and "-" in run_dir.name:
+                break
+            run_dir = run_dir.parent
+        else:
+            run_dir = ckpt_path.parent
+        out_dir = run_dir / "evaluation"
+    elif args.from_predictions:
+        out_dir = Path(args.from_predictions) / "evaluation"
+    else:
+        out_dir = OUTPUT_DIR / "evaluation"
     out_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Evaluation outputs will be saved to: {out_dir}")
 
     per_sample_rows = []
     results = None
 
     if not args.no_metrics:
         print("Computing metrics...")
-        target_classes = get_target_classes(args.num_classes)
+        class_names = ANNOTATED_CLASSES if args.num_classes == 6 else get_target_classes(args.num_classes)
         metrics = SegmentationMetrics(
             num_classes=args.num_classes,
-            class_names=target_classes,
+            class_names=class_names,
         )
 
         for sample in tqdm(samples, desc="Loading GT & scoring"):
@@ -795,7 +834,8 @@ def main():
                 img = load_sample_normalized(sample)
                 h, w = img.shape[:2]
 
-            gt = load_sample_annotations(sample, h, w, num_classes=args.num_classes)
+            gt = load_sample_annotations(sample, h, w,
+                                        raw_classes=(args.num_classes == 6))
 
             metrics.add_sample(
                 pred_masks=pred.masks,
@@ -809,7 +849,7 @@ def main():
             )
 
             sm = _compute_sample_metrics(pred.masks, pred.labels, gt["masks"], gt["labels"],
-                                        num_classes=args.num_classes)
+                                        num_classes=args.num_classes, class_names=class_names)
             row = {
                 "sample_id": sample.uid,
                 "species": sample.species,

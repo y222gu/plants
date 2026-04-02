@@ -32,7 +32,7 @@ def main():
                         help="YOLO model variant (e.g. yolo11m-seg, yolo26m-seg)")
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
     parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
-    parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--patience", type=int, default=30)
     parser.add_argument("--num-classes", type=int, default=6, choices=[4, 6],
                         help="Number of raw annotation classes (6=all classes, 4=cereals only)")
@@ -119,7 +119,7 @@ def main():
         exist_ok=True,
         plots=True,
         cos_lr=True,              # cosine annealing (better than linear decay)
-        mask_ratio=4,             # mask resolution = img_size/4 (default)
+        mask_ratio=1,             # mask resolution = img_size/1 (full resolution)
         # Augmentation — match shared albumentations pipeline
         hsv_h=0.0,               # no hue augmentation (fluorescence)
         hsv_s=0.0,               # no saturation augmentation (fluorescence)
