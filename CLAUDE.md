@@ -45,12 +45,12 @@ YOLO polygon format: `class_id x1 y1 x2 y2 ... xn yn` (normalized 0-1 coordinate
 | 1 | Aerenchyma | Air-filled holes in cortex | Cereals only (zero in tomato) |
 | 2 | Outer Endodermis | Outer ring of endodermis | All |
 | 3 | Inner Endodermis | Inner ring -- encloses vascular region | All |
-| 4 | Outer Exodermis | Outer ring of exodermis | Tomato only (zero in cereals) |
-| 5 | Inner Exodermis | Inner ring of exodermis | Tomato only (zero in cereals) |
+| 4 | Outer Exodermis | Outer ring of exodermis | All |
+| 5 | Inner Exodermis | Inner ring of exodermis | All |
 
 All samples annotated for all 6 classes. Biologically absent classes have zero polygons -- this is real biology, not missing data. Models should learn zero area for absent classes (no special handling needed).
 
-### Target Classes (derived in post-processing)
+### Target Classes (downstream only — derived via `--convert-classes`)
 
 | Target | Region | Derivation |
 |--------|--------|-----------|
@@ -98,10 +98,22 @@ All samples annotated for all 6 classes. Biologically absent classes have zero p
 | Tomato | C10 | 65 | Dicot (M82 WT) |
 | Tomato | Olympus | 480 | Dicot (multiple genotypes) |
 
-### Strategy A -- Benchmark (unified model)
-- **Train**: All 4 species, Olympus + C10 | **Val**: 10% experiments | **Test**: ~20% held-out experiments
-- Zeiss excluded -- reserved for zero-shot deployment
-- All models train on 6 raw annotation classes; ring subtraction in post-processing
+### Strategy A -- Splits (unified model)
+
+| Species | Microscope | Train | Val | Test | Total |
+|---------|------------|------:|----:|-----:|------:|
+| Millet | Olympus | 67 | 29 | 14 | 110 |
+| Rice | C10 | 38 | 6 | 6 | 50 |
+| Rice | Olympus | 402 | 49 | 51 | 502 |
+| Rice | Zeiss | 0 | 0 | 35 | 35 |
+| Sorghum | C10 | 25 | 11 | 8 | 44 |
+| Sorghum | Olympus | 320 | 38 | 27 | 385 |
+| Tomato | C10 | 44 | 11 | 10 | 65 |
+| Tomato | Olympus | 393 | 60 | 27 | 480 |
+| **Total** | | **1289** | **204** | **178** | **1671** |
+
+- Zeiss (35 samples) fully held out -- zero-shot evaluation only
+- All models train on 6 raw annotation classes
 
 ### Strategy B -- Generalization
 - **B-mono**: Train on monocots only, test on monocot test set
@@ -142,8 +154,12 @@ All samples annotated for all 6 classes. Biologically absent classes have zero p
 
 ### Key Model Details
 
-- **YOLO**: Pre-exports uint8 PNGs to `output/yolo_dataset/`; NMS-free; Ultralytics manages augmentation
-- **U-Net++ multilabel**: 6 sigmoid channels (can overlap); `raw_to_target` ring subtraction in post-processing
+- **YOLO**: Pre-exports uint8 PNGs to `output/yolo_dataset/`; NMS-free; Ultralytics manages augmentation; evaluates on 6 raw classes
+  - **Must use `overlap_mask=False`** for overlapping annotations (filled polygons like ours). See finding below.
+  - `overlap_mask=True` (Ultralytics default) causes the model to learn ring-like masks instead of filled polygons — `polygons2masks_overlap()` paints GT masks onto a single canvas sorted by area, so larger structures (Whole Root, Outer Endo) lose overlapping pixels to smaller ones during training loss computation. The model then predicts rings because that's what it was supervised on.
+  - `overlap_mask=False` gives each instance its own separate GT mask channel, so the model learns correct filled polygons.
+  - Contour-fill (`_fill_mask_contours`) is applied at inference as a safety net — no-op on already-filled masks, recovers filled polygons from ring-like masks if needed.
+- **U-Net++ multilabel**: 6 sigmoid channels (can overlap); evaluates on 6 raw classes; `raw_to_target` available via `--convert-classes` for downstream
 - **U-Net++ semantic**: 7 mutually exclusive classes (bg + 6 regions) via softmax; rings derived by paint order
 - **SAM**: Frozen encoder; trains mask decoder only (4.4%); prompts = 3 random foreground points + bbox with 5% jitter; requires prompts at inference (eval uses oracle GT boxes)
 - **Cellpose**: Per-class models (`--class-id N` or `--all-classes`); images preloaded as uint8; trains on 256x256 crops; no confidence scores (set to 1.0)
@@ -186,20 +202,78 @@ Every run creates `output/runs/{model}/{config}/YYYY-MM-DD_NNN/` via `make_run_s
 
 ### Evaluation Pipeline
 
+Each model evaluates on its own training class space by default (via `get_model_classes(model)`):
+- **YOLO / U-Net++ multilabel**: 6 raw annotation classes (`ANNOTATED_CLASSES`, `CLASS_COLORS_RGB`)
+- **U-Net++ semantic / SAM / Cellpose**: TBD (to be defined per model later)
+
 ```
-python evaluate.py --model {yolo,unet,sam,cellpose} --strategy A --num-classes {4,5} --checkpoint <path> [--no-postprocess] [--no-vis]
+# Default: no post-processing, no class conversion — raw predictions evaluated directly
+python evaluate.py --model yolo --checkpoint <path>
+
+# Opt-in post-processing (fill_holes, cleanup_whole_root, clip_aerenchyma)
+python evaluate.py --model yolo --checkpoint <path> --postprocess
+python evaluate.py --model yolo --checkpoint <path> --postprocess fill_holes cleanup_whole_root
+
+# Opt-in class conversion for downstream tasks (raw 6 → target 5 via ring subtraction)
+python evaluate.py --model yolo --checkpoint <path> --convert-classes
 ```
 
-Use `--no-postprocess` for fair benchmark comparison.
-
-**Post-processing** (`src/postprocessing.py`): fill_holes -> cleanup_whole_root -> clip_aerenchyma -> raw_to_target
-- `fill_holes` is ring-aware for endodermis/exodermis (preserves structural central hole)
-- U-Net++ semantic skips `raw_to_target` (rings derived via paint order)
+**Three independent stages** (all OFF by default):
+1. **Post-processing** (`--postprocess`): fill_holes, cleanup_whole_root, clip_aerenchyma
+2. **Class conversion** (`--convert-classes`): raw_to_target ring subtraction (separate from post-processing)
+3. Both can be combined: `--postprocess --convert-classes`
 
 **Output**: `metrics.json`, `per_sample.csv`, comparison plots (PNG), `vis/` overlay PNGs
 
 ### Metrics
 - mAP@0.5 and mAP@0.5:0.95 (COCO-style), IoU, Dice, Precision/Recall -- per class, per species, per microscope
+
+---
+
+## Key Finding: `overlap_mask` in YOLO Segment
+
+**Problem**: Ultralytics `overlap_mask=True` (default) stores GT masks as a single painted canvas via `polygons2masks_overlap()`, sorted by area (largest first). Overlapping pixels are assigned to the last-painted (smallest) instance. For nested annotations like ours (Whole Root ⊃ Outer Exo ⊃ Inner Exo ⊃ Outer Endo ⊃ Inner Endo), the training loss supervises ring-like GT for outer structures, so the model learns to predict rings instead of filled polygons.
+
+**Impact on 7 derived biological classes (test set, 178 samples)**:
+
+| Derived Class | overlap=True IoU | overlap=False IoU | overlap=True Dice | overlap=False Dice |
+|--------------|------:|------:|------:|------:|
+| Whole Root | 0.623 | **0.981** | 0.768 | **0.990** |
+| Epidermis | 0.516 | **0.681** | 0.681 | **0.810** |
+| Exodermis | 0.598 | **0.822** | 0.748 | **0.902** |
+| Cortex | 0.811 | 0.811 | 0.896 | 0.896 |
+| Aerenchyma | 0.674 | **0.695** | 0.805 | **0.820** |
+| Endodermis | 0.892 | 0.888 | 0.943 | 0.941 |
+| Vascular | 0.976 | **0.980** | 0.988 | **0.990** |
+| **Mean** | 0.727 | **0.837** | 0.833 | **0.907** |
+
+**Takeaway**: Always use `overlap_mask=False` when training YOLO segment on overlapping/nested annotations. The largest gains are on outer containing structures (Whole Root, Epidermis, Exodermis). Inner structures (Vascular, Endodermis) are unaffected since they have no inner overlaps.
+
+---
+
+## Hyperparameter Strategy
+
+No systematic grid search. YOLO default hyperparameters (AdamW, cosine LR) are well-validated. Key choices justified by domain knowledge:
+- **No hue/saturation augmentation** — fluorescence channels have fixed meaning
+- **`overlap_mask=False`** — required for nested annotations (empirically validated above)
+- **Channel swap (`bgr=0.2`)** — encourages channel-invariant features
+
+Ablation experiments (Fig 6) focus on domain-relevant factors (channel dropout/shuffle, overlap_mask) rather than standard hyperparameters. Compute budget prioritized for generalization experiments (Strategy B, Zeiss zero-shot).
+
+### Augmentation Ablation Plan (Fig 6)
+
+Run on the **best model only** (determined after Strategy A benchmark of all 4 models). If reviewer requests, add one more architecture as supplementary. The ablation tests a data hypothesis ("do channel augmentations help for fluorescence?"), not an architecture hypothesis — results should generalize across models.
+
+**4 conditions on Strategy A split:**
+
+| Condition | ChannelDropout (p=0.2) | ChannelShuffle (p=0.2) / bgr=0.2 |
+|-----------|:---:|:---:|
+| Full augmentation (baseline) | ON | ON |
+| No channel aug | OFF | OFF |
+| Dropout only | ON | OFF |
+| Shuffle only | OFF | ON |
+
+Report per-class IoU/Dice on 7 derived biological classes. Expect channel augmentation to help generalization across microscopes (different channel intensity profiles) and species.
 
 ---
 
@@ -258,6 +332,19 @@ Per-sample: aerenchyma ratio & count, endodermis/vascular channel intensities. C
 ---
 
 ## Color Convention
+
+### Raw Annotation Classes (`CLASS_COLORS_RGB` — YOLO, U-Net++ multilabel)
+
+| Class | Name | Color |
+|-------|------|-------|
+| 0 | Whole Root | Blue (0,0,255) |
+| 1 | Aerenchyma | Yellow (255,255,0) |
+| 2 | Outer Endodermis | Green (0,255,0) |
+| 3 | Inner Endodermis | Red (255,0,0) |
+| 4 | Outer Exodermis | Orange (255,128,0) |
+| 5 | Inner Exodermis | Purple (128,0,255) |
+
+### Target Classes (`TARGET_CLASS_COLORS_RGB` — downstream / other models)
 
 | Class | Name | Color |
 |-------|------|-------|

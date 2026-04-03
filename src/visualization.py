@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 from PIL import Image, ImageDraw, ImageFont
 
-from .config import TARGET_CLASS_COLORS_RGB, get_target_classes
+from .config import CLASS_COLORS_RGB, TARGET_CLASS_COLORS_RGB, get_target_classes, get_model_classes, get_model_colors
 
 import matplotlib
 matplotlib.use("Agg")
@@ -42,11 +42,18 @@ def pil_text(img: np.ndarray, text: str, xy: tuple,
 
 def draw_masks_overlay(img_uint8: np.ndarray, masks: np.ndarray,
                        labels: np.ndarray, scores: np.ndarray = None,
-                       alpha: float = 0.45) -> np.ndarray:
+                       alpha: float = 0.45,
+                       color_map: dict = None) -> np.ndarray:
     """Draw instance masks with semi-transparent fill + contours.
+
+    Args:
+        color_map: RGB color dict keyed by class ID. Pass get_model_colors(model)
+                   to match the model's class space. Defaults to TARGET_CLASS_COLORS_RGB.
 
     Draws largest masks first so smaller ones appear on top.
     """
+    if color_map is None:
+        color_map = TARGET_CLASS_COLORS_RGB
     result = img_uint8.copy()
     if len(masks) == 0:
         return result
@@ -58,7 +65,7 @@ def draw_masks_overlay(img_uint8: np.ndarray, masks: np.ndarray,
     for idx in order:
         mask = masks[idx]
         cls_id = int(labels[idx])
-        color = TARGET_CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
+        color = color_map.get(cls_id, (128, 128, 128))
         overlay[mask > 0] = color
 
     result = cv2.addWeighted(result, 1 - alpha, overlay, alpha, 0)
@@ -66,7 +73,7 @@ def draw_masks_overlay(img_uint8: np.ndarray, masks: np.ndarray,
     for idx in order:
         mask = masks[idx]
         cls_id = int(labels[idx])
-        color = TARGET_CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
+        color = color_map.get(cls_id, (128, 128, 128))
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cv2.drawContours(result, contours, -1, color, 2)
 
@@ -75,16 +82,26 @@ def draw_masks_overlay(img_uint8: np.ndarray, masks: np.ndarray,
 
 # ── Legend bar ────────────────────────────────────────────────────────────────
 
-def make_legend_bar(width: int, height: int = 32, num_classes: int = 5) -> np.ndarray:
-    """Create a class-legend bar image (RGB uint8)."""
+def make_legend_bar(width: int, height: int = 32,
+                    class_names: dict = None,
+                    color_map: dict = None) -> np.ndarray:
+    """Create a class-legend bar image (RGB uint8).
+
+    Args:
+        class_names: {cls_id: name} dict. Pass get_model_classes(model).
+        color_map: {cls_id: (R,G,B)} dict. Pass get_model_colors(model).
+    """
+    if class_names is None:
+        class_names = get_target_classes(5)
+    if color_map is None:
+        color_map = TARGET_CLASS_COLORS_RGB
     legend_font = load_font(14)
     legend = np.zeros((height, width, 3), dtype=np.uint8)
     pil_legend = Image.fromarray(legend)
     draw = ImageDraw.Draw(pil_legend)
     x_offset = 10
-    classes = get_target_classes(num_classes)
-    for cls_id, cls_name in classes.items():
-        color = TARGET_CLASS_COLORS_RGB.get(cls_id, (128, 128, 128))
+    for cls_id, cls_name in class_names.items():
+        color = color_map.get(cls_id, (128, 128, 128))
         draw.rectangle([x_offset, 6, x_offset + 20, 26], fill=color)
         draw.text((x_offset + 25, 8), cls_name, font=legend_font, fill=(255, 255, 255))
         bbox = legend_font.getbbox(cls_name)
@@ -122,21 +139,53 @@ def downscale_for_vis(img_uint8: np.ndarray, masks: np.ndarray,
 
 # ── Publication-quality matplotlib setup ──────────────────────────────────────
 
-# Color-blind-friendly palette (adapted from Wong 2011, Nature Methods)
-PUB_CLASS_COLORS = {
+# Color-blind-friendly palettes (adapted from Wong 2011, Nature Methods)
+
+# For yolo / unet_multilabel: 6 raw annotation classes
+PUB_CLASS_COLORS_RAW = {
+    "Whole Root":        "#0072B2",
+    "Aerenchyma":        "#E69F00",
+    "Outer Endodermis":  "#009E73",
+    "Inner Endodermis":  "#D55E00",
+    "Outer Exodermis":   "#56B4E9",
+    "Inner Exodermis":   "#CC79A7",
+}
+PUB_HATCHES_RAW = {
+    "Whole Root":        "",
+    "Aerenchyma":        "//",
+    "Outer Endodermis":  "\\\\",
+    "Inner Endodermis":  "xx",
+    "Outer Exodermis":   "..",
+    "Inner Exodermis":   "++",
+}
+
+# For sam / cellpose: 5 target classes (other models TBD)
+PUB_CLASS_COLORS_TARGET = {
     "Whole Root":   "#0072B2",
     "Aerenchyma":   "#E69F00",
     "Endodermis":   "#009E73",
     "Vascular":     "#CC79A7",
     "Exodermis":    "#56B4E9",
 }
-PUB_HATCHES = {
+PUB_HATCHES_TARGET = {
     "Whole Root":   "",
     "Aerenchyma":   "//",
     "Endodermis":   "\\\\",
     "Vascular":     "xx",
     "Exodermis":    "..",
 }
+
+
+def get_model_pub_colors(model: str) -> dict:
+    """Return publication box-plot color dict matching a model's class names."""
+    if model in ("yolo", "unet_multilabel"):
+        return PUB_CLASS_COLORS_RAW
+    return PUB_CLASS_COLORS_TARGET
+
+
+# Legacy aliases
+PUB_CLASS_COLORS = PUB_CLASS_COLORS_TARGET
+PUB_HATCHES = PUB_HATCHES_TARGET
 
 
 def setup_pub_style():

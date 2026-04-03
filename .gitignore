@@ -16,3 +16,5 @@
 # Ignore all .pyc files
 *.pyc
 *notes.txt
+/lambda_output
+/hpc2_output

@@ -282,14 +282,17 @@ STEPS = [
 # Keep old name as alias for backwards compatibility
 yolo_to_target = raw_to_target
 
-# Default steps per model type (all models trained on raw classes need ring subtraction)
+# Post-processing steps are OFF by default for all models.
+# Use --enable-pp to opt in (e.g. --enable-pp fill_holes cleanup_whole_root).
+# Class conversion (raw_to_target) is a separate step from post-processing;
+# use --convert-classes to opt in (for downstream tasks that need target classes).
 DEFAULT_STEPS: Dict[str, List[str]] = {
-    "yolo":           ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "raw_to_target"],
-    "unet_multilabel": ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "raw_to_target"],
-    "unet_semantic":  ["fill_holes", "cleanup_whole_root", "clip_aerenchyma"],
-    "unet":           ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "raw_to_target"],
-    "sam":            ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "raw_to_target"],
-    "cellpose":       ["fill_holes", "cleanup_whole_root", "clip_aerenchyma", "raw_to_target"],
+    "yolo":           [],
+    "unet_multilabel": [],
+    "unet_semantic":  [],
+    "unet":           [],
+    "sam":            [],
+    "cellpose":       [],
 }
 
 _STEP_MAP = {name: fn for name, fn, _ in STEPS}

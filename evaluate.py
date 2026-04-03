@@ -29,7 +29,8 @@ from src.config import (
     ANNOTATED_CLASSES,
     DEFAULT_IMG_SIZE,
     OUTPUT_DIR,
-    TARGET_CLASS_COLORS_RGB,
+    get_model_classes,
+    get_model_colors,
     get_target_classes,
 )
 from src.dataset import SampleRegistry
@@ -46,11 +47,11 @@ from src.preprocessing import load_sample_normalized, to_uint8
 from src.visualization import (
     draw_masks_overlay,
     downscale_for_vis,
+    get_model_pub_colors,
     load_font,
     make_legend_bar,
     pil_text,
     setup_pub_style,
-    PUB_CLASS_COLORS,
 )
 
 
@@ -59,13 +60,12 @@ def _compute_sample_metrics(
     pred_labels: np.ndarray,
     gt_masks: np.ndarray,
     gt_labels: np.ndarray,
-    num_classes: int = 6,
     class_names: dict = None,
 ) -> dict:
     """Compute per-class IoU and Dice for a single sample."""
     results = {}
     if class_names is None:
-        class_names = ANNOTATED_CLASSES if num_classes == 6 else get_target_classes(num_classes)
+        class_names = ANNOTATED_CLASSES
     for cls_id, cls_name in class_names.items():
         gt_idx = np.where(gt_labels == cls_id)[0]
         pred_idx = np.where(pred_labels == cls_id)[0]
@@ -93,11 +93,15 @@ def save_visualizations(
     samples,
     predictions: dict,
     vis_dir: Path,
+    model: str,
     max_dim: int = 800,
-    num_classes: int = 5,
 ):
     """Save side-by-side GT vs prediction overlay images with per-class metrics."""
     vis_dir.mkdir(parents=True, exist_ok=True)
+
+    class_names = get_model_classes(model)
+    color_map = get_model_colors(model)
+    num_classes = len(class_names)
 
     title_font = load_font(22)
     metric_font = load_font(15)
@@ -114,7 +118,8 @@ def save_visualizations(
         gt = load_sample_annotations(sample, h, w, raw_classes=(num_classes == 6))
 
         sample_metrics = _compute_sample_metrics(
-            pred.masks, pred.labels, gt["masks"], gt["labels"], num_classes=num_classes,
+            pred.masks, pred.labels, gt["masks"], gt["labels"],
+            class_names=class_names,
         )
 
         img_small, gt_masks, new_h, new_w = downscale_for_vis(img_uint8, gt["masks"], max_dim)
@@ -123,10 +128,12 @@ def save_visualizations(
         # Draw overlays
         orig_vis = pil_text(img_small.copy(), "Original", (10, 8), title_font,
                             fill=(255, 255, 255), outline=(0, 0, 0))
-        gt_vis = draw_masks_overlay(img_small, gt_masks, gt["labels"])
+        gt_vis = draw_masks_overlay(img_small, gt_masks, gt["labels"],
+                                    color_map=color_map)
         gt_vis = pil_text(gt_vis, "Ground Truth", (10, 8), title_font,
                           fill=(255, 255, 255), outline=(0, 0, 0))
-        pred_vis = draw_masks_overlay(img_small, pred_masks, pred.labels)
+        pred_vis = draw_masks_overlay(img_small, pred_masks, pred.labels,
+                                      color_map=color_map)
         pred_vis = pil_text(pred_vis, "Prediction", (10, 8), title_font,
                             fill=(255, 255, 255), outline=(0, 0, 0))
 
@@ -134,7 +141,7 @@ def save_visualizations(
         y_offset = 40
         for cls_id in sorted(sample_metrics.keys()):
             m = sample_metrics[cls_id]
-            color = TARGET_CLASS_COLORS_RGB.get(cls_id, (255, 255, 255))
+            color = color_map.get(cls_id, (255, 255, 255))
             iou_str = f"{m['iou']:.2f}" if not np.isnan(m['iou']) else "N/A"
             dice_str = f"{m['dice']:.2f}" if not np.isnan(m['dice']) else "N/A"
             text = f"{m['name']}: IoU={iou_str}  Dice={dice_str}"
@@ -147,7 +154,8 @@ def save_visualizations(
         combined = np.concatenate(
             [orig_vis, divider, gt_vis, divider, pred_vis], axis=1
         )
-        legend = make_legend_bar(combined.shape[1])
+        legend = make_legend_bar(combined.shape[1], class_names=class_names,
+                                 color_map=color_map)
         combined = np.concatenate([combined, legend], axis=0)
 
         out_path = vis_dir / f"{sample.uid}.png"
@@ -157,10 +165,12 @@ def save_visualizations(
 
 
 def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
+                                  model: str = "yolo",
                                   per_sample_rows: list = None):
     """Save publication-quality box plots comparing per-sample metrics."""
     setup_pub_style()
     plt.rcParams['hatch.color'] = 'white'
+    pub_colors = get_model_pub_colors(model)
     plt.rcParams['hatch.linewidth'] = 1.0
 
     class_names = list(results["overall"]["per_class_IoU"].keys())
@@ -274,7 +284,7 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
 
     cls_iou_keys = [f"{c}_IoU" for c in class_names]
     cls_dice_keys = [f"{c}_Dice" for c in class_names]
-    cls_colors = [PUB_CLASS_COLORS.get(c, "#999999") for c in class_names]
+    cls_colors = [pub_colors.get(c, "#999999") for c in class_names]
 
     from matplotlib.patches import Patch
 
@@ -293,7 +303,7 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
     axes[1, 0].annotate("Dice", xy=(-0.22, 0.5), xycoords="axes fraction",
                          fontsize=10, fontweight="bold", ha="center", va="center",
                          rotation=90)
-    handles = [Patch(facecolor=PUB_CLASS_COLORS.get(c, "#999999"),
+    handles = [Patch(facecolor=pub_colors.get(c, "#999999"),
                      edgecolor="#555555", hatch="///", label=c) for c in class_names]
     fig.legend(handles=handles, loc="lower center", ncol=len(class_names),
                frameon=False, bbox_to_anchor=(0.5, -0.02))
@@ -343,7 +353,7 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
         axes[1].set_title("Per-class Dice by Species / Microscope")
         for ax in axes:
             ax.tick_params(axis="x", rotation=25)
-        handles = [Patch(facecolor=PUB_CLASS_COLORS.get(c, "#999999"),
+        handles = [Patch(facecolor=pub_colors.get(c, "#999999"),
                          edgecolor="#555555", hatch="///", label=c) for c in class_names]
         fig.legend(handles=handles, loc="lower center", ncol=len(class_names),
                    frameon=False, bbox_to_anchor=(0.5, -0.02))
@@ -357,6 +367,22 @@ def save_metric_comparison_plots(results: dict, out_dir: Path, model_tag: str,
 
 
 # ── Inference functions ───────────────────────────────────────────────────────
+
+def _fill_mask_contours(mask: np.ndarray) -> np.ndarray:
+    """Fill external contours of a mask to reconstruct a filled polygon.
+
+    YOLO's prototype mechanism produces ring-like masks for overlapping
+    structures (due to overlap_mask training). Filling the outer contour
+    recovers the intended filled polygon. This is a no-op on masks that
+    are already filled.
+    """
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return mask
+    filled = np.zeros_like(mask)
+    cv2.drawContours(filled, contours, -1, 1, thickness=cv2.FILLED)
+    return filled
+
 
 def predict_yolo(checkpoint: str, samples, img_size: int) -> dict:
     """Run YOLO inference and return predictions."""
@@ -382,7 +408,7 @@ def predict_yolo(checkpoint: str, samples, img_size: int) -> dict:
             for i in range(len(masks)):
                 smooth = cv2.resize(masks[i].astype(np.float32), (w, h),
                                     interpolation=cv2.INTER_LINEAR)
-                resized[i] = (smooth > 0.5).astype(np.uint8)
+                resized[i] = _fill_mask_contours((smooth > 0.5).astype(np.uint8))
             masks = resized
         else:
             h, w = img.shape[:2]
@@ -693,26 +719,25 @@ def main():
                         help="Skip segmentation metric computation")
     parser.add_argument("--no-plots", action="store_true",
                         help="Skip metric plot generation")
-    parser.add_argument("--num-classes", type=int, default=6,
-                        help="Number of classes (6=raw annotation classes)")
     parser.add_argument("--plot-only", type=str, default=None,
                         help="Skip inference; regenerate plots from an existing metrics JSON file")
 
-    # Post-processing toggles
-    step_names = [name for name, _, _ in STEPS]
-    parser.add_argument("--enable-pp", nargs="*", default=[], metavar="STEP",
-                        choices=step_names,
-                        help=f"Force-enable post-processing steps: {step_names}")
-    parser.add_argument("--disable-pp", nargs="*", default=[], metavar="STEP",
-                        choices=step_names,
-                        help=f"Force-disable post-processing steps: {step_names}")
-    parser.add_argument("--no-postprocess", action="store_true",
-                        help="Disable ALL post-processing steps")
+    # Post-processing and class conversion (both OFF by default)
+    pp_step_names = [name for name, _, _ in STEPS if name != "raw_to_target"]
+    parser.add_argument("--postprocess", nargs="*", default=None, metavar="STEP",
+                        choices=pp_step_names,
+                        help="Enable post-processing steps (default: none). "
+                             f"No args = all steps; or pick from: {pp_step_names}")
+    parser.add_argument("--convert-classes", action="store_true",
+                        help="Convert raw classes to target classes (raw_to_target). "
+                             "Off by default. For downstream tasks only.")
 
     # Split filtering
     parser.add_argument("--split", default="test",
                         choices=["train", "val", "test"],
                         help="Which split to evaluate on (default: test)")
+    parser.add_argument("--save-predictions", type=str, default=None,
+                        help="Save predicted masks as YOLO .txt files to this directory")
     args = parser.parse_args()
 
     # ── Plot-only mode ──
@@ -768,26 +793,57 @@ def main():
         predictions = predict_unet_multilabel(args.checkpoint, samples, args.img_size)
     elif args.model == "sam":
         predictions = predict_sam(args.checkpoint, samples, args.img_size,
-                                  sam_type=args.sam_type, num_classes=args.num_classes)
+                                  sam_type=args.sam_type)
     elif args.model == "cellpose":
-        predictions = predict_cellpose(args.checkpoint, samples, args.img_size,
-                                       num_classes=args.num_classes)
+        predictions = predict_cellpose(args.checkpoint, samples, args.img_size)
     elif args.model == "yolo":
         predictions = predict_yolo(args.checkpoint, samples, args.img_size)
     else:
         parser.error(f"Unknown model: {args.model}")
 
-    # Post-processing pipeline
-    if args.no_postprocess:
-        disable = [name for name, _, _ in STEPS]
-    else:
-        disable = args.disable_pp
-    pp = PostProcessor(
-        model=args.model,
-        enable=args.enable_pp,
-        disable=disable,
-    )
+    # Post-processing pipeline (OFF by default)
+    enable_steps = []
+    if args.postprocess is not None:
+        if len(args.postprocess) == 0:
+            # --postprocess with no args: enable all PP steps (not class conversion)
+            enable_steps = [name for name, _, _ in STEPS if name != "raw_to_target"]
+        else:
+            enable_steps = list(args.postprocess)
+    if args.convert_classes:
+        enable_steps.append("raw_to_target")
+    pp = PostProcessor(model=args.model, enable=enable_steps)
     predictions = pp.run_all(predictions)
+
+    # ── Save predictions as YOLO .txt files ──
+    if args.save_predictions:
+        def mask_to_polygon(mask, simplify_epsilon=2.0):
+            contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if not contours:
+                return np.array([])
+            contour = max(contours, key=cv2.contourArea)
+            simplified = cv2.approxPolyDP(contour, simplify_epsilon, True)
+            return simplified.reshape(-1, 2).astype(np.float32)
+
+        pred_out = Path(args.save_predictions)
+        pred_out.mkdir(parents=True, exist_ok=True)
+        for uid, pred in predictions.items():
+            masks, labels = pred.masks, pred.labels
+            if len(masks) == 0:
+                open(pred_out / f"{uid}.txt", "w").close()
+                continue
+            h, w = masks.shape[1], masks.shape[2]
+            with open(pred_out / f"{uid}.txt", "w") as f:
+                for i in range(len(masks)):
+                    polygon = mask_to_polygon(masks[i])
+                    if len(polygon) < 3:
+                        continue
+                    cls_id = int(labels[i])
+                    coords = []
+                    for pt in polygon:
+                        coords.append(f"{pt[0] / w:.6f}")
+                        coords.append(f"{pt[1] / h:.6f}")
+                    f.write(f"{cls_id} " + " ".join(coords) + "\n")
+        print(f"Saved {len(predictions)} prediction .txt files to {pred_out}")
 
     # ── Output directory: save inside the run folder ──
     if args.checkpoint:
@@ -815,11 +871,15 @@ def main():
     per_sample_rows = []
     results = None
 
+    # Resolve class space from model
+    class_names = get_model_classes(args.model)
+    num_classes = len(class_names)
+    raw_classes = (num_classes == 6)
+
     if not args.no_metrics:
         print("Computing metrics...")
-        class_names = ANNOTATED_CLASSES if args.num_classes == 6 else get_target_classes(args.num_classes)
         metrics = SegmentationMetrics(
-            num_classes=args.num_classes,
+            num_classes=num_classes,
             class_names=class_names,
         )
 
@@ -834,8 +894,7 @@ def main():
                 img = load_sample_normalized(sample)
                 h, w = img.shape[:2]
 
-            gt = load_sample_annotations(sample, h, w,
-                                        raw_classes=(args.num_classes == 6))
+            gt = load_sample_annotations(sample, h, w, raw_classes=raw_classes)
 
             metrics.add_sample(
                 pred_masks=pred.masks,
@@ -849,7 +908,7 @@ def main():
             )
 
             sm = _compute_sample_metrics(pred.masks, pred.labels, gt["masks"], gt["labels"],
-                                        num_classes=args.num_classes, class_names=class_names)
+                                        class_names=class_names)
             row = {
                 "sample_id": sample.uid,
                 "species": sample.species,
@@ -891,6 +950,7 @@ def main():
     # ── Plots ──
     if not args.no_plots and results is not None:
         save_metric_comparison_plots(results, out_dir, model_tag,
+                                     model=args.model,
                                      per_sample_rows=per_sample_rows)
 
     # ── Visualizations ──
@@ -899,7 +959,7 @@ def main():
             vis_dir = Path(args.vis_dir)
         else:
             vis_dir = OUTPUT_DIR / "evaluation" / f"vis_{model_tag}"
-        save_visualizations(samples, predictions, vis_dir, num_classes=args.num_classes)
+        save_visualizations(samples, predictions, vis_dir, model=args.model)
 
 
 if __name__ == "__main__":

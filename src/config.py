@@ -53,8 +53,36 @@ TARGET_CLASSES_5 = {
 NUM_CLASSES = len(TARGET_CLASSES_5)
 
 def get_target_classes(num_classes: int = 5) -> dict:
-    """Return target class dict for the given number of classes (4 or 5)."""
+    """Return class dict by count. Prefer get_model_classes() for model-specific lookup."""
+    if num_classes == 6:
+        return ANNOTATED_CLASSES
     return TARGET_CLASSES_5 if num_classes >= 5 else TARGET_CLASSES
+
+
+def get_model_classes(model: str) -> dict:
+    """Return the class dict a model is trained and evaluated on.
+
+    yolo:            6 raw annotation classes (Whole Root … Inner Exodermis).
+    unet_multilabel: 6 raw annotation classes.
+    unet_semantic:   TODO — 7 semantic classes (bg + 6 regions), define later.
+    sam:             TODO — define later.
+    cellpose:        TODO — define later.
+    """
+    if model in ("yolo", "unet_multilabel"):
+        return ANNOTATED_CLASSES
+    # Placeholder — other models will be added later
+    return TARGET_CLASSES_5
+
+
+def get_model_colors(model: str) -> dict:
+    """Return the RGB color dict matching a model's class space.
+
+    yolo / unet_multilabel: CLASS_COLORS_RGB (6 annotated class colors).
+    Others: TARGET_CLASS_COLORS_RGB (5 target class colors) — to be refined.
+    """
+    if model in ("yolo", "unet_multilabel"):
+        return CLASS_COLORS_RGB
+    return TARGET_CLASS_COLORS_RGB
 
 
 # Which target classes are valid (annotated) per species.
