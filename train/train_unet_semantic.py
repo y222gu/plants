@@ -48,7 +48,7 @@ from src.config import (
     make_run_subfolder,
     save_hparams,
 )
-from src.models.unet_dataset import UNetSemanticDataset
+from src.unet_dataset import UNetSemanticDataset
 from src.splits import get_split, print_split_summary
 
 NUM_CLASSES = 7  # bg + 6 anatomical regions

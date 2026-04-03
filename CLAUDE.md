@@ -136,6 +136,17 @@ All samples annotated for all 6 classes. Biologically absent classes have zero p
 | 14-21 | All 4 models | B-dico | Dicot generalization |
 | 22+ | Best model | A (ablation) | Augmentation ablation |
 
+### YOLO Training Runs
+
+| Run | Local path (.../yolo26m-seg/) | Strategy | overlap_mask | Total epochs | Best epoch (P15) | Best epoch (P30) | mAP50-95(M) |
+|-----|------|----------|:---:|------:|------:|------:|------:|
+| 1 | 2026-04-02_001 | A | True | 137 | 53 | 132 | 0.790 |
+| 2 | 2026-04-02_002 | A | False | 99 | 51 | 68 | 0.921 |
+| 3 | 2026-04-03_002 | B-mono | False | 116 | 59 | 59 | 0.919 |
+| 4 | 2026-04-03_003 | B-dico | False | 72 | 57 | 57 | 0.989 |
+
+Patience=15 vs 30 finds the same best checkpoint for B-mono and B-dico. For Strategy A (overlap=False), the difference is 0.0008 mAP — negligible. patience=15 is sufficient.
+
 ### Model Summary
 
 | Model | Architecture | Params | Frozen | Input | Epochs | Batch | Loss |

@@ -44,7 +44,7 @@ from src.config import (
     make_run_subfolder,
     save_hparams,
 )
-from src.models.unet_dataset import UNetMultilabelDataset
+from src.unet_dataset import UNetMultilabelDataset
 from src.splits import get_split, print_split_summary
 
 NUM_CLASSES = 6  # raw annotation classes 0-5

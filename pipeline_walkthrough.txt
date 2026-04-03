@@ -1,0 +1,215 @@
+YOLO Pipeline: End-to-End Walkthrough
+======================================
+
+Step 1: Training (train/train_yolo.py or models/yolo_model.py)
+---------------------------------------------------------------
+
+What happens:
+
+train/train_yolo.py (CLI entry point)
+    │
+    ├── src/splits.py::get_split(strategy="A")
+    │     Reads data/train/, data/val/, data/test/ directories
+    │     Returns {train: [1289 SampleRecords], val: [204], test: [178]}
+    │
+    ├── src/yolo_dataset.py::export_yolo_dataset()
+    │     For each sample:
+    │       src/preprocessing.py::load_sample_normalized()
+    │         Reads 3 TIFs (DAPI, FITC, TRITC) → percentile normalize → [0,1] float32
+    │         Composites to RGB → resize to 1024 → save as uint8 PNG
+    │       Copies annotation .txt files as-is (6 raw classes, YOLO polygon format)
+    │     Writes data.yaml with nc=6, names={0:"Whole Root",...,5:"Inner Exodermis"}
+    │     Output: output/yolo_dataset/yolo26m-seg/images/ + labels/ + data.yaml
+    │
+    ├── Ultralytics YOLO.train()
+    │     Reads data.yaml → loads PNGs + .txt labels
+    │     overlap_mask=False: each GT instance gets its own binary mask channel
+    │       (NOT painted onto shared canvas → model learns FILLED polygons)
+    │     mask_ratio=1: mask loss at full 1024 resolution
+    │     Augmentation: rotation, flip, scale, shear, brightness, bgr channel swap
+    │     Loss: box + seg + cls + dfl + sem (Ultralytics internal)
+    │     Saves: weights/best.pt, weights/last.pt, weights/epoch{N}.pt
+    │
+    ├── on_fit_epoch_end callback (every epoch)
+    │     Logs Ultralytics metrics (loss, mAP) → TensorBoard
+    │     Every 10 epochs: runs _compute_val_iou_dice()
+    │       Loads val samples → YOLO inference → contour-fill → pixel IoU/Dice
+    │       Logs per-class IoU/Dice → TensorBoard + val_iou_dice.csv
+    │
+    └── Output: output/runs/yolo/yolo26m-seg/YYYY-MM-DD_NNN/
+          weights/best.pt, results.csv, tensorboard/, val_iou_dice.csv
+
+What the model learns: 6 filled polygon masks — one per raw annotation class.
+With overlap_mask=False, Whole Root is the entire root area (filled), Outer
+Endodermis is a filled circle, etc. They overlap.
+
+
+Step 2: Prediction (models/yolo_model.py::YOLOSegModel.predict_sample)
+-----------------------------------------------------------------------
+
+What happens per sample:
+
+Input: SampleRecord (3 TIF paths + annotation path)
+    │
+    ├── src/preprocessing.py::load_sample_normalized()
+    │     3 TIFs → percentile normalize → [0,1] float32 RGB (H,W,3)
+    │     to_uint8() → [0,255] uint8 → BGR for Ultralytics
+    │
+    ├── YOLO model inference (imgsz=1024)
+    │     Output: N detected instances, each with:
+    │       - binary mask (at model resolution)
+    │       - class ID (0-5)
+    │       - confidence score
+    │
+    ├── Resize masks to original image dimensions
+    │     cv2.resize with INTER_LINEAR → threshold at 0.5
+    │
+    ├── eval_shared_classes/target_classes.py::fill_contours()
+    │     For each mask: findContours(RETR_EXTERNAL) → drawContours(FILLED)
+    │     Safety net: recovers filled polygons from ring-like masks
+    │     No-op if masks are already filled (overlap_false model)
+    │
+    └── Output: PredictionResult(masks=(N,H,W) uint8, labels=(N,) int32, scores=(N,) float32)
+          Labels are raw class IDs: 0=Whole Root, 1=Aerenchyma, 2=Outer Endo, etc.
+
+
+Step 3: Metrics on Native 6 Raw Classes (during training)
+----------------------------------------------------------
+
+Used during training validation (val_iou_every=10 in train/train_yolo.py):
+
+For each val sample:
+    Predict → PredictionResult (6 raw classes, filled)
+    Load GT → load_sample_annotations(raw_classes=True) → 6 raw filled polygons
+
+    Per raw class (0-5):
+      pred_mask = merge all pred instances of this class → binary
+      gt_mask = merge all GT instances of this class → binary
+      IoU = intersection / union
+      Dice = 2 * intersection / (pred_area + gt_area)
+
+Reports: per-class IoU/Dice for Whole Root, Aerenchyma, Outer Endo,
+         Inner Endo, Outer Exo, Inner Exo
+
+These are the model's native metrics — how well it predicts the exact
+classes it was trained on.
+
+
+Step 4: Metrics on 7 Shared Biological Classes (eval_shared_classes/)
+----------------------------------------------------------------------
+
+Used for paper-ready cross-model comparison:
+
+eval_shared_classes/evaluate.py (CLI)
+    │
+    ├── models/yolo_model.py::predict_batch()
+    │     Runs Step 2 on all test samples → {uid: PredictionResult}
+    │
+    ├── eval_shared_classes/metrics.py::compute_bio_metrics()
+    │     For each sample:
+    │       │
+    │       ├── model.pred_to_bio(pred, h, w)
+    │       │     eval_shared_classes/target_classes.py::pred_to_filled_raw()
+    │       │       Merge instances per raw class → fill contours → 6 filled masks
+    │       │     eval_shared_classes/target_classes.py::derive_7_classes()
+    │       │       Whole Root  = class 0
+    │       │       Epidermis   = class 0 - class 4
+    │       │       Exodermis   = class 4 - class 5
+    │       │       Cortex      = class 5 - class 2 (includes aerenchyma area)
+    │       │       Aerenchyma  = class 1
+    │       │       Endodermis  = class 2 - class 3
+    │       │       Vascular    = class 3
+    │       │     → {0: mask, 1: mask, ..., 6: mask}
+    │       │
+    │       ├── model.gt_to_bio(sample, h, w)
+    │       │     Same derivation from GT annotations (already filled polygons)
+    │       │
+    │       └── Per bio class: accumulate intersection, union, areas
+    │
+    │     Aggregate across all samples → per-class IoU/Dice
+    │     → {"iou": {class_name: value}, "dice": {...}, "mean_iou", "mean_dice"}
+    │
+    ├── eval_shared_classes/visualization.py::save_7class_visualizations()
+    │     For each sample: 2-row x 8-col grid
+    │       Row 1 (GT):   [Whole Root | Epidermis | Exodermis | Cortex | Aer | Endo | Vasc | mIoU]
+    │       Row 2 (Pred):  same, with per-class IoU labels
+    │
+    └── Output: metrics JSON + visualization PNGs
+
+
+How the files connect:
+======================
+
+src/                              Shared utilities (data, preprocessing, annotations)
+  ├── config.py                   Class definitions, paths, colors
+  ├── preprocessing.py            TIF loading → normalized float32
+  ├── annotation_utils.py         .txt → polygon → mask
+  ├── splits.py                   Train/val/test split logic
+  ├── yolo_dataset.py             Export to Ultralytics directory format
+  ├── unet_dataset.py             PyTorch Dataset for U-Net training
+  ├── evaluation.py               PredictionResult dataclass
+  ├── metrics.py                  SegmentationMetrics (raw-class mAP/IoU)
+  ├── postprocessing.py           PostProcessor (fill_holes, cleanup, clip)
+  ├── visualization.py            Raw-class overlay drawing
+  └── augmentation.py             Albumentations pipeline
+
+models/                           Model wrappers (each model owns its full pipeline)
+  ├── base.py                     ABC: predict_sample, predict_batch, load_gt, pred_to_bio, train
+  ├── yolo_model.py               YOLO: inference + contour-fill + training config
+  ├── unet_binary_model.py        U-Net binary/multilabel (stub)
+  └── unet_semantic_model.py      U-Net semantic (stub)
+
+eval_shared_classes/              Cross-model comparison on 7 biological classes
+  ├── target_classes.py           derive_7_classes(): 6 raw filled → 7 bio regions
+  ├── metrics.py                  compute_bio_metrics(): IoU/Dice on 7 classes
+  ├── visualization.py            GT vs Pred grids for 7 classes
+  ├── compare.py                  Side-by-side multi-model table
+  └── evaluate.py                 CLI entry point
+
+train/                            Standalone training CLIs
+  ├── train_yolo.py               YOLO training (same hyperparams as models/yolo_model.py)
+  ├── train_unet_binary.py        U-Net binary training
+  └── train_unet_semantic.py      U-Net semantic training
+
+
+The key separation:
+  models/               handles each model's native class space (6 raw for YOLO)
+  eval_shared_classes/  converts any model's output to the same 7 biological
+                        classes so all models can be compared fairly
+
+The conversion logic is in target_classes.py::derive_7_classes() — the
+single source of truth.
+
+
+Raw annotation classes (what YOLO trains on):
+  0 = Whole Root (filled polygon — entire root boundary)
+  1 = Aerenchyma (individual hole instances in cortex)
+  2 = Outer Endodermis (filled polygon — outer endo boundary)
+  3 = Inner Endodermis (filled polygon — inner endo boundary = vascular edge)
+  4 = Outer Exodermis (filled polygon — outer exo boundary)
+  5 = Inner Exodermis (filled polygon — inner exo boundary)
+
+7 shared biological classes (what all models are compared on):
+  0 = Whole Root    = raw class 0
+  1 = Epidermis     = raw class 0 - raw class 4
+  2 = Exodermis     = raw class 4 - raw class 5 (ring)
+  3 = Cortex        = raw class 5 - raw class 2 (includes aerenchyma area)
+  4 = Aerenchyma    = raw class 1
+  5 = Endodermis    = raw class 2 - raw class 3 (ring)
+  6 = Vascular      = raw class 3
+
+
+CLI usage:
+==========
+
+# Train YOLO (from project root):
+python train/train_yolo.py --model yolo26m-seg --epochs 200 --batch-size 32 --strategy A
+
+# Evaluate on 7 shared classes:
+python -m eval_shared_classes.evaluate --model yolo --checkpoint path/to/best.pt
+
+# Compare two models:
+python -m eval_shared_classes.evaluate --compare yolo:path1.pt unet_binary:path2.pt
+
+# Monitor training:
+tensorboard --logdir output/runs/yolo/ --bind_all

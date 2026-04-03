@@ -8,8 +8,8 @@ import cv2
 import numpy as np
 import yaml
 
-from ..config import ANNOTATED_CLASSES, OUTPUT_DIR, SampleRecord
-from ..preprocessing import load_sample_normalized, to_uint8
+from .config import ANNOTATED_CLASSES, OUTPUT_DIR, SampleRecord
+from .preprocessing import load_sample_normalized, to_uint8
 
 
 def export_yolo_dataset(

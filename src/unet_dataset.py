@@ -13,13 +13,13 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from ..annotation_utils import (
+from .annotation_utils import (
     parse_yolo_annotations,
     polygons_to_raw_binary_masks,
     polygons_to_raw_semantic_mask,
 )
-from ..config import SampleRecord
-from ..preprocessing import load_sample_normalized
+from .config import SampleRecord
+from .preprocessing import load_sample_normalized
 
 
 class UNetSemanticDataset(Dataset):
