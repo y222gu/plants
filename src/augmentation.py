@@ -10,13 +10,15 @@ def get_train_transform(
     img_size: int = 1024,
     p_channel_dropout: float = 0.2,
     p_channel_shuffle: float = 0.2,
+    p_hue_sat: float = 0.0,
 ) -> A.Compose:
     """Training augmentation pipeline for fluorescence microscopy.
 
-    Does NOT use hue/saturation jitter (meaningless for fluorescence).
+    Does NOT use hue/saturation jitter by default (meaningless for fluorescence).
     Includes channel dropout and shuffle for microscope generalization.
+    Set p_hue_sat > 0 to test hue/saturation augmentation impact.
     """
-    return A.Compose([
+    transforms = [
         A.RandomRotate90(p=0.5),
         A.HorizontalFlip(p=0.5),
         A.VerticalFlip(p=0.5),
@@ -36,12 +38,19 @@ def get_train_transform(
         A.GaussianBlur(blur_limit=(3, 7), p=0.2),
         A.GaussNoise(std_range=(0.01, 0.08), p=0.4),
         A.RandomGamma(gamma_limit=(70, 150), p=0.3),
+    ]
+    if p_hue_sat > 0:
+        transforms.append(A.HueSaturationValue(
+            hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=p_hue_sat,
+        ))
+    transforms.extend([
         A.ChannelDropout(
             channel_drop_range=(1, 1), p=p_channel_dropout,
         ),
         A.ChannelShuffle(p=p_channel_shuffle),
         A.Resize(img_size, img_size),
     ])
+    return A.Compose(transforms)
 
 
 def get_val_transform(img_size: int = 1024) -> A.Compose:

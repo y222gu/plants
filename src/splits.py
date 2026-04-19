@@ -3,7 +3,7 @@
 from collections import defaultdict
 from typing import Dict, List, Optional
 
-from .config import TRAIN_DIR, VAL_DIR, TEST_DIR, SampleRecord
+from .config import TRAIN_DIR, VAL_DIR, TEST_DIR, ONESHOT_DIR, SampleRecord
 from .dataset import SampleRegistry
 
 MONOCOT_SPECIES = {"Millet", "Rice", "Sorghum"}
@@ -14,6 +14,7 @@ STRATEGY_SPECIES = {
     "A": None,
     "B-mono": MONOCOT_SPECIES,
     "B-dico": DICOT_SPECIES,
+    "oneshot": None,
 }
 
 
@@ -44,6 +45,14 @@ def get_split(
         raise ValueError(f"Unknown strategy '{strategy}'. Choose from: {list(STRATEGY_SPECIES.keys())}")
 
     strategy_filter = STRATEGY_SPECIES[strategy]
+
+    # Oneshot strategy: use oneshot dir as "test", empty train/val
+    if strategy == "oneshot":
+        reg = SampleRegistry(data_dir=ONESHOT_DIR, require_annotations=True)
+        samples = reg.samples
+        if species:
+            samples = [s for s in samples if s.species == species]
+        return {"train": [], "val": [], "test": samples}
 
     split: Dict[str, List[SampleRecord]] = {}
     for subset, data_dir in [("train", TRAIN_DIR), ("val", VAL_DIR), ("test", TEST_DIR)]:

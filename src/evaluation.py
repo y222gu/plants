@@ -242,3 +242,52 @@ def convert_multilabel_to_instances(
     )
 
 
+def convert_microsam_predictions(
+    class_masks: Dict[int, np.ndarray],
+    h: int,
+    w: int,
+) -> PredictionResult:
+    """Convert micro-SAM per-class AIS output to standard format.
+
+    Each per-class micro-SAM model produces an integer instance mask via
+    automatic instance segmentation (UNETR decoder + watershed). This
+    function combines the 6 per-class masks into a unified PredictionResult.
+
+    Args:
+        class_masks: Dict mapping raw class IDs (0-5) to (H, W) integer
+            instance masks from AIS. Background = 0, instances = 1, 2, ...
+        h, w: Image dimensions.
+
+    Returns:
+        PredictionResult with one binary mask per instance, labeled with
+        its raw annotation class ID. Confidence = 1.0 (AIS has no scores).
+    """
+    masks_list = []
+    labels_list = []
+    scores_list = []
+
+    for cls_id in sorted(class_masks.keys()):
+        inst_mask = class_masks[cls_id]
+        for inst_id in np.unique(inst_mask):
+            if inst_id == 0:
+                continue
+            binary = (inst_mask == inst_id).astype(np.uint8)
+            if binary.sum() > 0:
+                masks_list.append(binary)
+                labels_list.append(cls_id)
+                scores_list.append(1.0)
+
+    if not masks_list:
+        return PredictionResult(
+            masks=np.zeros((0, h, w), dtype=np.uint8),
+            labels=np.zeros(0, dtype=np.int32),
+            scores=np.zeros(0, dtype=np.float32),
+        )
+
+    return PredictionResult(
+        masks=np.stack(masks_list),
+        labels=np.array(labels_list, dtype=np.int32),
+        scores=np.array(scores_list, dtype=np.float32),
+    )
+
+

@@ -14,13 +14,7 @@ from src.annotation_utils import load_sample_annotations
 from src.splits import get_split, print_split_summary
 
 
-def fill_contours(mask):
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not contours:
-        return mask
-    filled = np.zeros_like(mask)
-    cv2.drawContours(filled, contours, -1, 1, thickness=cv2.FILLED)
-    return filled
+from src.model_classes import fill_contours
 
 
 def compute_val_iou_dice(model, val_samples, img_size):

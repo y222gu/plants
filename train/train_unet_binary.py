@@ -29,7 +29,7 @@ import segmentation_models_pytorch as smp
 import torch
 import torch.nn.functional as F
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
-from pytorch_lightning.loggers import CSVLogger
+from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 from torch.utils.data import DataLoader
 
 from src.augmentation import get_train_transform, get_val_transform
@@ -50,8 +50,8 @@ from src.splits import get_split, print_split_summary
 NUM_CLASSES = 6  # raw annotation classes 0-5
 
 # Per-class pos_weight: higher for thin/rare structures
-DEFAULT_POS_WEIGHTS = [1.0, 2.0, 5.0, 1.0, 5.0, 1.0]
-#                      Root  Aer  O.Endo I.Endo O.Exo I.Exo
+DEFAULT_POS_WEIGHTS = [1.0, 10.0, 5.0, 1.0, 5.0, 1.0]
+#                      Root  Aer   O.Endo I.Endo O.Exo I.Exo
 
 
 # ── Optimizer / scheduler factories ──────────────────────────────────────────
@@ -179,7 +179,7 @@ def main():
                         help="Encoder backbone (e.g. resnet50, resnet101, efficientnet-b4)")
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
     parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
-    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
+    parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--lr", type=float, default=DEFAULT_LR)
     parser.add_argument("--backbone-lr", type=float, default=1e-5)
     parser.add_argument("--patience", type=int, default=DEFAULT_PATIENCE)
@@ -233,14 +233,25 @@ def main():
         dice_weight=args.dice_weight,
     )
 
-    run_name = f"{args.arch}_{args.encoder}_multilabel_{args.strategy}"
+    # Run name: model_pretrain_classweight_augmentation_loss_strategy
+    pw = args.pos_weight if args.pos_weight else [1.0, 10.0, 5.0, 1.0, 5.0, 1.0]
+    weight_tag = "equalw" if all(w == 1.0 for w in pw) else "defaultw"
+
+    run_name = f"{args.arch}_{args.encoder}_imagenet_{weight_tag}_fullaug_bcedice_multilabel_{args.strategy}"
     base_run_dir = OUTPUT_DIR / "runs" / "unet" / run_name
     run_dir = make_run_subfolder(base_run_dir)
     save_hparams(run_dir, args)
 
     class EpochLogger(Callback):
-        """Print epoch summary to stdout (visible in SLURM logs)."""
+        """Print epoch summary + compute val IoU/Dice every N epochs."""
+        def __init__(self, val_dl, val_iou_every=10, run_dir=None):
+            self.val_dl = val_dl
+            self.val_iou_every = val_iou_every
+            self.run_dir = run_dir
+            self.iou_csv_written = False
+
         def on_train_epoch_end(self, trainer, pl_module):
+            import csv as csv_mod
             metrics = trainer.callback_metrics
             epoch = trainer.current_epoch
             parts = [f"Epoch {epoch:3d}"]
@@ -249,8 +260,61 @@ def main():
                     parts.append(f"{key}={metrics[key]:.4f}")
             print(" | ".join(parts), flush=True)
 
+            if self.val_iou_every > 0 and (epoch + 1) % self.val_iou_every == 0:
+                print(f"  Computing val IoU/Dice (epoch {epoch + 1})...")
+                pl_module.eval()
+                class_inter = [0] * NUM_CLASSES
+                class_union = [0] * NUM_CLASSES
+                class_pred_sum = [0] * NUM_CLASSES
+                class_gt_sum = [0] * NUM_CLASSES
+
+                with torch.no_grad():
+                    for batch in self.val_dl:
+                        images = batch["image"].to(pl_module.device)
+                        masks = batch["mask"].to(pl_module.device)
+                        preds = (torch.sigmoid(pl_module(images)) > 0.5).float()
+                        for c in range(NUM_CLASSES):
+                            gt_c = masks[:, c].bool()
+                            pred_c = preds[:, c].bool()
+                            class_inter[c] += int((gt_c & pred_c).sum())
+                            class_union[c] += int((gt_c | pred_c).sum())
+                            class_pred_sum[c] += int(pred_c.sum())
+                            class_gt_sum[c] += int(gt_c.sum())
+
+                pl_module.train()
+
+                row = {"epoch": epoch + 1}
+                for c in range(NUM_CLASSES):
+                    name = ANNOTATED_CLASSES[c]
+                    iou = class_inter[c] / class_union[c] if class_union[c] > 0 else float("nan")
+                    denom = class_pred_sum[c] + class_gt_sum[c]
+                    dice = 2 * class_inter[c] / denom if denom > 0 else float("nan")
+                    row[f"{name}_IoU"] = round(iou, 4)
+                    row[f"{name}_Dice"] = round(dice, 4)
+                    print(f"    {name:25s}  IoU={iou:.4f}  Dice={dice:.4f}")
+                    if trainer.logger:
+                        for lg in (trainer.logger if isinstance(trainer.logger, list) else [trainer.logger]):
+                            if hasattr(lg, 'experiment') and hasattr(lg.experiment, 'add_scalar'):
+                                lg.experiment.add_scalar(f"val_IoU/{name}", iou, epoch)
+                                lg.experiment.add_scalar(f"val_Dice/{name}", dice, epoch)
+
+                valid_ious = [class_inter[c] / class_union[c] for c in range(NUM_CLASSES)
+                              if class_union[c] > 0]
+                mean_iou = sum(valid_ious) / len(valid_ious) if valid_ious else float("nan")
+                row["mean_IoU"] = round(mean_iou, 4)
+                print(f"    Mean IoU={mean_iou:.4f}")
+
+                if self.run_dir:
+                    iou_path = self.run_dir / "val_iou_dice.csv"
+                    with open(iou_path, "a", newline="") as f:
+                        writer = csv_mod.DictWriter(f, fieldnames=row.keys())
+                        if not self.iou_csv_written:
+                            writer.writeheader()
+                            self.iou_csv_written = True
+                        writer.writerow(row)
+
     callbacks = [
-        EpochLogger(),
+        EpochLogger(val_dl=val_dl, val_iou_every=args.save_every, run_dir=run_dir),
         ModelCheckpoint(
             dirpath=str(run_dir / "checkpoints"),
             filename="best-{epoch}-{val_loss:.4f}",
@@ -274,7 +338,10 @@ def main():
             save_top_k=-1,
         ))
 
-    logger = CSVLogger(str(run_dir), name="logs")
+    logger = [
+        CSVLogger(str(run_dir), name="logs"),
+        TensorBoardLogger(str(run_dir), name="tensorboard"),
+    ]
 
     trainer = pl.Trainer(
         max_epochs=args.epochs,
@@ -285,7 +352,7 @@ def main():
         callbacks=callbacks,
         logger=logger,
         log_every_n_steps=10,
-        deterministic=True,
+        deterministic=False,
     )
 
     trainer.fit(model, train_dl, val_dl)
@@ -296,7 +363,8 @@ def main():
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    metrics_file = Path(logger.log_dir) / "metrics.csv"
+    csv_logger = logger[0] if isinstance(logger, list) else logger
+    metrics_file = Path(csv_logger.log_dir) / "metrics.csv"
     if metrics_file.exists():
         df = pd.read_csv(metrics_file)
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -331,9 +399,10 @@ def main():
         plt.close(fig)
         print(f"Loss curve saved to {plot_path}")
 
-    # Test
+    # Test — evaluate without logging to TensorBoard (avoid polluting training curves)
     print("\n" + "=" * 60)
     print("EVALUATING ON TEST SET")
+    trainer.logger = False
     test_results = trainer.test(model, test_dl, ckpt_path="best")
     print(f"Test results: {test_results}")
 

@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import argparse, csv, cv2, numpy as np
+import argparse, csv, cv2, numpy as np, random
 from ultralytics import YOLO
 from torch.utils.tensorboard import SummaryWriter
 
@@ -23,15 +23,7 @@ from src.annotation_utils import load_sample_annotations
 from src.splits import get_split, print_split_summary
 
 
-def fill_contours(mask):
-    """Fill external contours to reconstruct filled polygon from ring-like mask.
-    No-op on already-filled masks."""
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not contours:
-        return mask
-    filled = np.zeros_like(mask)
-    cv2.drawContours(filled, contours, -1, 1, thickness=cv2.FILLED)
-    return filled
+from src.model_classes import fill_contours
 
 
 def compute_val_iou_dice(model, val_samples, img_size):
@@ -65,9 +57,15 @@ def compute_val_iou_dice(model, val_samples, img_size):
     iou, dice = {}, {}
     for cls_id, name in ANNOTATED_CLASSES.items():
         s = per_class[cls_id]
-        iou[name] = s["inter"] / s["union"] if s["union"] > 0 else 0.0
+        if s["union"] > 0:
+            iou[name] = s["inter"] / s["union"]
+        else:
+            iou[name] = float("nan")  # both empty → exclude from mean
         denom = s["pred"] + s["gt"]
-        dice[name] = 2 * s["inter"] / denom if denom > 0 else 0.0
+        if denom > 0:
+            dice[name] = 2 * s["inter"] / denom
+        else:
+            dice[name] = float("nan")
     return iou, dice
 
 
@@ -77,7 +75,7 @@ def main():
                         help="YOLO model variant (e.g. yolo11m-seg, yolo26m-seg)")
     parser.add_argument("--img-size", type=int, default=DEFAULT_IMG_SIZE)
     parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
-    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--patience", type=int, default=15)
     parser.add_argument("--num-classes", type=int, default=6, choices=[4, 6],
                         help="Number of raw annotation classes (6=all, 4=cereals only)")
@@ -94,6 +92,8 @@ def main():
     parser.add_argument("--force-export", action="store_true",
                         help="Force re-export even if dataset exists")
     parser.add_argument("--strategy", default="A", help="Split strategy (A, B-mono, B-dico)")
+    parser.add_argument("--channel-dropout", type=float, default=0.0,
+                        help="Probability of zeroing a random channel per image (0=off)")
     args = parser.parse_args()
 
     # ── Data split ──────────────────────────────────────────────────────────
@@ -139,6 +139,24 @@ def main():
     model = YOLO(args.resume if args.resume else args.model)
     device = list(range(args.gpus)) if args.gpus > 1 else 0
 
+    # ── Channel dropout via monkey-patching (YOLO has no built-in support) ──
+    if args.channel_dropout > 0:
+        from ultralytics.models.yolo.segment.train import SegmentationTrainer
+        _orig_preprocess = SegmentationTrainer.preprocess_batch
+        _dropout_p = args.channel_dropout
+        def _preprocess_with_dropout(self, batch):
+            batch = _orig_preprocess(self, batch)
+            if "img" in batch:
+                imgs = batch["img"]
+                B, C = imgs.shape[0], imgs.shape[1]
+                for i in range(B):
+                    if random.random() < _dropout_p:
+                        ch = random.randint(0, C - 1)
+                        imgs[i, ch] = 0
+            return batch
+        SegmentationTrainer.preprocess_batch = _preprocess_with_dropout
+        print(f"Channel dropout enabled: p={args.channel_dropout}")
+
     # ── TensorBoard + custom IoU/Dice callback ──────────────────────────────
     tb_writer = SummaryWriter(str(run_dir / "tensorboard"))
     print(f"TensorBoard logs: {run_dir / 'tensorboard'}")
@@ -163,8 +181,8 @@ def main():
             print(f"\n  Computing val IoU/Dice (epoch {epoch + 1})...")
             eval_model = YOLO(trainer.best if Path(trainer.best).exists() else trainer.last)
             iou, dice = compute_val_iou_dice(eval_model, val_samples, args.img_size)
-            mean_iou = np.mean(list(iou.values()))
-            mean_dice = np.mean(list(dice.values()))
+            mean_iou = np.nanmean(list(iou.values()))
+            mean_dice = np.nanmean(list(dice.values()))
             print(f"  Val Mean IoU: {mean_iou:.4f}  Mean Dice: {mean_dice:.4f}")
             for cls_name in iou:
                 print(f"    {cls_name:25s}  IoU={iou[cls_name]:.4f}  Dice={dice[cls_name]:.4f}")
