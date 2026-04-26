@@ -98,19 +98,28 @@ class HFViTBackbone(nn.Module):
 
     def forward_intermediates(self, x, indices, return_prefix_tokens=False,
                               intermediates_only=True, norm=True):
-        """Return a list of (B, N, C) patch-token tensors at block `indices`.
+        """Return a list of patch-token tensors at block `indices`.
 
-        Matches timm's API contract for the subset of args we use.
+        With `return_prefix_tokens=False`: returns list of (B, N, C) patch tokens.
+        With `return_prefix_tokens=True`: returns list of (patch_BNC, cls_B1C)
+        tuples — CLS only (register tokens are dropped since DPT readout
+        projection only uses CLS in Meta's implementation).
         """
         out = self.model(pixel_values=x, output_hidden_states=True)
         hidden = out.hidden_states  # tuple, length = num_blocks + 1
         feats = []
         for i in indices:
             h = hidden[i + 1]  # after block i (0-indexed)
-            # Strip CLS + register tokens
             if h.shape[1] > self.num_prefix:
-                h = h[:, self.num_prefix:, :]
-            feats.append(h)
+                patch = h[:, self.num_prefix:, :]
+                cls = h[:, :1, :]  # CLS is always first prefix token
+            else:
+                patch = h
+                cls = None
+            if return_prefix_tokens:
+                feats.append((patch, cls))
+            else:
+                feats.append(patch)
         return feats
 
     @property
@@ -123,10 +132,14 @@ class HFViTBackbone(nn.Module):
 # ══════════════════════════════════════════════════════════════════════
 
 class DPTDecoder(nn.Module):
-    """Simple DPT-style decoder for plain ViT encoders.
+    """Simplified DPT-style decoder for plain ViT encoders.
 
-    Takes multi-layer ViT features (all at 1/patch_size resolution) and
-    progressively upsamples to full resolution.
+    NOT the original DPT — this one skips the Reassemble multi-resolution
+    pyramid. Takes multi-layer ViT features (all at 1/patch_size
+    resolution), projects to a common channel count, and runs 3 residual
+    refinement passes at the same resolution before upsampling.
+
+    For the full Ranftl-style DPT with spatial pyramid, see DPTDecoderFull.
 
     Reference: Ranftl et al., "Vision Transformers for Dense Prediction", ICCV 2021.
     """
@@ -255,6 +268,277 @@ class SegDINOMLPDecoder(nn.Module):
         return x
 
 
+class ResidualConvUnit(nn.Module):
+    """Residual convolutional unit used inside DPT's FeatureFusionBlock.
+
+    Two 3×3 convs with GELU, residually added to the input. Following
+    Ranftl et al. 2021 / DINOv2 depth DPT (which uses BN in between).
+    """
+
+    def __init__(self, channels):
+        super().__init__()
+        self.conv1 = nn.Conv2d(channels, channels, 3, padding=1)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.conv2 = nn.Conv2d(channels, channels, 3, padding=1)
+        self.bn2 = nn.BatchNorm2d(channels)
+        self.act = nn.GELU()
+
+    def forward(self, x):
+        y = self.act(x)
+        y = self.conv1(y)
+        y = self.bn1(y)
+        y = self.act(y)
+        y = self.conv2(y)
+        y = self.bn2(y)
+        return x + y
+
+
+class FeatureFusionBlock(nn.Module):
+    """DPT fusion block: (optional skip) + residual conv → 2× upsample.
+
+    - With a skip: res_skip(skip) + interp(prev) → res_out → upsample 2×.
+    - Without a skip (only for the deepest level): res_out(prev) → upsample 2×.
+    """
+
+    def __init__(self, channels):
+        super().__init__()
+        self.res_skip = ResidualConvUnit(channels)
+        self.res_out = ResidualConvUnit(channels)
+
+    def forward(self, *inputs):
+        if len(inputs) == 2:
+            skip, prev = inputs
+            prev = F.interpolate(prev, size=skip.shape[2:],
+                                 mode='bilinear', align_corners=False)
+            x = self.res_skip(skip) + prev
+        else:
+            x = inputs[0]
+        x = self.res_out(x)
+        x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
+        return x
+
+
+class ResidualConvUnitMeta(nn.Module):
+    """Meta DINOv2 DPT residual conv unit: pre-activation, ReLU, bias=False.
+
+    Order: act → conv → BN → act → conv → BN, residual add.
+    """
+
+    def __init__(self, channels):
+        super().__init__()
+        self.conv1 = nn.Conv2d(channels, channels, 3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.conv2 = nn.Conv2d(channels, channels, 3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(channels)
+        self.act = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        y = self.act(x)
+        y = self.conv1(y)
+        y = self.bn1(y)
+        y = self.act(y)
+        y = self.conv2(y)
+        y = self.bn2(y)
+        return x + y
+
+
+class FeatureFusionBlockMeta(nn.Module):
+    """Meta DINOv2 DPT FeatureFusionBlock (uses ReLU, bias-free ResConvUnits)."""
+
+    def __init__(self, channels):
+        super().__init__()
+        self.res_skip = ResidualConvUnitMeta(channels)
+        self.res_out = ResidualConvUnitMeta(channels)
+
+    def forward(self, *inputs):
+        if len(inputs) == 2:
+            skip, prev = inputs
+            prev = F.interpolate(prev, size=skip.shape[2:],
+                                 mode='bilinear', align_corners=False)
+            x = self.res_skip(skip) + prev
+        else:
+            x = inputs[0]
+        x = self.res_out(x)
+        x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
+        return x
+
+
+class DPTDecoderMeta(nn.Module):
+    """Meta DINOv2-exact DPT decoder (Reassemble with pyramid channels).
+
+    Differences vs our simpler `DPTDecoderFull`:
+      1. `post_process_channels = [96, 192, 384, 768]` — shallowest tap has
+         fewest channels, deepest has most (classic CNN-pyramid allocation).
+         After per-level 3×3 convs, everything is mapped to `channels=256`
+         for fusion.
+      2. ResidualConvUnit uses ReLU (not GELU) and `bias=False` convs, matching
+         Meta's mmseg-based implementation.
+      3. Output head mirrors Meta's HeadDepth: two Conv3×3 stages reducing
+         256 → 128 → 32, after which the wrapping model applies a Conv1×1
+         classifier to 7 classes.
+
+    Reference:
+      facebookresearch/dinov2/.../decode_heads/dpt_head.py (DPTHead + mmseg
+      FeatureFusionBlock with norm_cfg=BN, act_cfg=ReLU defaults).
+    """
+
+    def __init__(self, embed_dim, feature_indices, patch_size=14,
+                 post_process_channels=(96, 192, 384, 768), channels=256,
+                 readout_type="ignore"):
+        super().__init__()
+        if len(feature_indices) != 4:
+            raise ValueError(f"DPTDecoderMeta requires exactly 4 feature taps, got {len(feature_indices)}")
+        if readout_type not in ("ignore", "project"):
+            raise ValueError(f"readout_type must be 'ignore' or 'project', got {readout_type}")
+        self.feature_indices = feature_indices
+        self.readout_type = readout_type
+        self.embed_dim = embed_dim
+        ppc = list(post_process_channels)
+
+        # CLS readout projections (Meta DINOv2 default: 2C → C via Linear + GELU).
+        # Only constructed when readout_type == "project".
+        if readout_type == "project":
+            self.readout_projects = nn.ModuleList([
+                nn.Sequential(nn.Linear(2 * embed_dim, embed_dim), nn.GELU())
+                for _ in range(4)
+            ])
+
+        # Reassemble step 1: per-tap 1×1 projection from embed_dim to ppc[i]
+        self.reassemble_projects = nn.ModuleList([
+            nn.Conv2d(embed_dim, ppc[i], kernel_size=1) for i in range(4)
+        ])
+
+        # Reassemble step 2: per-tap spatial resample (shallowest → deepest)
+        self.resize_layers = nn.ModuleList([
+            nn.ConvTranspose2d(ppc[0], ppc[0], kernel_size=4, stride=4, padding=0),  # 4×UP
+            nn.ConvTranspose2d(ppc[1], ppc[1], kernel_size=2, stride=2, padding=0),  # 2×UP
+            nn.Identity(),                                                             # keep
+            nn.Conv2d(ppc[3], ppc[3], kernel_size=3, stride=2, padding=1),            # 2×DOWN
+        ])
+
+        # Post-process: per-tap 3×3 conv to unify channels → `channels` (256).
+        # bias=False because BatchNorm follows in the fusion path.
+        self.post_process = nn.ModuleList([
+            nn.Sequential(
+                nn.Conv2d(ppc[i], channels, kernel_size=3, padding=1, bias=False),
+                nn.BatchNorm2d(channels),
+            ) for i in range(4)
+        ])
+
+        # Fusion blocks (all at `channels`)
+        self.fusions = nn.ModuleList([FeatureFusionBlockMeta(channels) for _ in range(4)])
+
+        # Output head mirroring Meta's HeadDepth (minus the final 1×1 for depth)
+        self.out_conv = nn.Sequential(
+            nn.Conv2d(channels, channels // 2, 3, padding=1, bias=False),
+            nn.BatchNorm2d(channels // 2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels // 2, 32, 3, padding=1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+        )
+        self.out_channels = 32   # wrapping model's Conv1×1 head consumes 32 → num_classes
+
+    def forward(self, features):
+        """`features` is either:
+          - list of 4 patch-token tensors (readout_type="ignore"), or
+          - list of 4 (patch_tokens, cls_token) pairs (readout_type="project").
+        Patch tokens may be (B, N, C) or (B, C, H, W); CLS is (B, 1, C).
+        """
+        feats = []
+        for i, f in enumerate(features):
+            if self.readout_type == "project":
+                patch, cls = f
+                # Bring patch to (B, N, C) for Linear projection with CLS
+                if patch.dim() == 4:
+                    B, C, H, W = patch.shape
+                    patch_bnc = patch.permute(0, 2, 3, 1).reshape(B, H * W, C)
+                else:
+                    patch_bnc = patch  # (B, N, C)
+                # Tile CLS to every patch position then concat along channel
+                cls_tiled = cls.expand(-1, patch_bnc.shape[1], -1)              # (B, N, C)
+                merged = torch.cat([patch_bnc, cls_tiled], dim=-1)              # (B, N, 2C)
+                proj = self.readout_projects[i](merged)                         # (B, N, C)
+                feats.append(_tokens_to_bchw(proj))
+            else:
+                feats.append(_tokens_to_bchw(f))
+        # Reassemble: project + resize
+        r = [self.resize_layers[i](self.reassemble_projects[i](feats[i])) for i in range(4)]
+        # Post-process to unified 256 channels
+        p = [self.post_process[i](r[i]) for i in range(4)]
+        # Progressive fusion from deepest to shallowest
+        x = self.fusions[3](p[3])              # 37×37  → 74×74
+        x = self.fusions[2](p[2], x)           # + 74×74 skip,  → 148×148
+        x = self.fusions[1](p[1], x)           # + 148×148 skip, → 296×296
+        x = self.fusions[0](p[0], x)           # + 296×296 skip, → 592×592
+        x = self.out_conv(x)                   # 256 → 128 → 32
+        return x
+
+
+class DPTDecoderFull(nn.Module):
+    """Full DPT decoder with Reassemble multi-resolution pyramid.
+
+    Follows Ranftl et al. 2021 ("Vision Transformers for Dense Prediction")
+    and the DINOv2 depth-estimation head implementation.
+
+    Pipeline for a 74×74 patch grid (DINOv2-S @ 1024 padded to 1036):
+      - Tap 0 (shallowest) → 1×1 proj → 4× transposed conv → 296×296
+      - Tap 1              → 1×1 proj → 2× transposed conv → 148×148
+      - Tap 2              → 1×1 proj → identity            →  74×74
+      - Tap 3 (deepest)    → 1×1 proj → 2× strided conv    →  37×37
+      - FFB on tap 3                    → 74×74
+      - FFB with tap 2 skip             → 148×148
+      - FFB with tap 1 skip             → 296×296
+      - FFB with tap 0 skip             → 592×592
+      - Output head (Conv3×3 → Conv1×1) halves channels again.
+    """
+
+    def __init__(self, embed_dim, feature_indices, patch_size=14, out_channels=256):
+        super().__init__()
+        if len(feature_indices) != 4:
+            raise ValueError(f"DPTDecoderFull requires exactly 4 feature taps, got {len(feature_indices)}")
+        self.feature_indices = feature_indices
+        c = out_channels
+
+        # 1×1 projection to common channels (per tap)
+        self.projects = nn.ModuleList([
+            nn.Conv2d(embed_dim, c, kernel_size=1) for _ in range(4)
+        ])
+
+        # Reassemble: different spatial op per tap (shallowest first)
+        self.resize_layers = nn.ModuleList([
+            nn.ConvTranspose2d(c, c, kernel_size=4, stride=4, padding=0),  # tap 0: 4× UP
+            nn.ConvTranspose2d(c, c, kernel_size=2, stride=2, padding=0),  # tap 1: 2× UP
+            nn.Identity(),                                                   # tap 2: keep
+            nn.Conv2d(c, c, kernel_size=3, stride=2, padding=1),             # tap 3: 2× DOWN
+        ])
+
+        # 4 fusion blocks; fusions[3] (deepest) has no skip
+        self.fusions = nn.ModuleList([FeatureFusionBlock(c) for _ in range(4)])
+
+        # Shallow output head: refine then halve channels for compatibility
+        # with the Conv1×1 classifier added by the wrapping model.
+        self.out_conv = nn.Sequential(
+            nn.Conv2d(c, c // 2, 3, padding=1),
+            nn.BatchNorm2d(c // 2),
+            nn.GELU(),
+        )
+        self.out_channels = c // 2   # so wrapping model's head matches
+
+    def forward(self, features):
+        # features: 4 tensors (B, N, C) or (B, C, H, W)
+        feats = [_tokens_to_bchw(f) for f in features]
+        # Project + reassemble to 4 different resolutions
+        r = [self.resize_layers[i](self.projects[i](feats[i])) for i in range(4)]
+        # Progressive fusion from deepest to shallowest
+        x = self.fusions[3](r[3])              # 37×37  → 74×74
+        x = self.fusions[2](r[2], x)           # + 74×74 skip,  → 148×148
+        x = self.fusions[1](r[1], x)           # + 148×148 skip, → 296×296
+        x = self.fusions[0](r[0], x)           # + 296×296 skip, → 592×592
+        x = self.out_conv(x)                   # refine + halve channels
+        return x
+
+
 # ══════════════════════════════════════════════════════════════════════
 # Model
 # ══════════════════════════════════════════════════════════════════════
@@ -267,11 +551,13 @@ class TimmSemanticModel(nn.Module):
     """
 
     def __init__(self, encoder_name, decoder_type="unetplusplus",
-                 pretrained=True, img_size=1024, num_classes=7):
+                 pretrained=True, img_size=1024, num_classes=7,
+                 cls_readout="ignore"):
         super().__init__()
         self.encoder_name = encoder_name
         self.decoder_type = decoder_type
         self.img_size = img_size
+        self.cls_readout = cls_readout
         self.is_hf = encoder_name.startswith("hf:")
         self.is_vit = self.is_hf or ('vit' in encoder_name) or ('dino' in encoder_name)
 
@@ -295,8 +581,8 @@ class TimmSemanticModel(nn.Module):
                 patch_size = self.encoder.patch_embed.patch_size[0]
 
             # Which 4 blocks to tap depends on the decoder:
-            #   dpt / segdino_mlp : 4 evenly-spaced layers (captures low→high)
-            #   ms_linear         : last 4 layers (Meta's +ms recipe)
+            #   dpt / dpt_full / segdino_mlp : 4 evenly-spaced layers (low→high)
+            #   ms_linear                    : last 4 layers (Meta's +ms recipe)
             if decoder_type == "ms_linear":
                 self.feature_indices = [n_blocks - 4, n_blocks - 3,
                                         n_blocks - 2, n_blocks - 1]
@@ -314,6 +600,22 @@ class TimmSemanticModel(nn.Module):
                     feature_indices=self.feature_indices,
                     patch_size=patch_size,
                     out_channels=256,
+                )
+            elif decoder_type == "dpt_full":
+                self.decoder = DPTDecoderFull(
+                    embed_dim=embed_dim,
+                    feature_indices=self.feature_indices,
+                    patch_size=patch_size,
+                    out_channels=256,
+                )
+            elif decoder_type == "dpt_meta":
+                self.decoder = DPTDecoderMeta(
+                    embed_dim=embed_dim,
+                    feature_indices=self.feature_indices,
+                    patch_size=patch_size,
+                    post_process_channels=(96, 192, 384, 768),
+                    channels=256,
+                    readout_type=cls_readout,
                 )
             elif decoder_type == "ms_linear":
                 self.decoder = MSLinearDecoder(
@@ -389,9 +691,12 @@ class TimmSemanticModel(nn.Module):
             # Pad for patch alignment
             x, orig_size = self._pad_to_patch(x)
 
-            # Extract intermediate features
+            # Extract intermediate features. When readout="project", also
+            # return CLS so the decoder can inject it into patch tokens.
+            need_prefix = (self.cls_readout == "project")
             intermediates = self.encoder.forward_intermediates(
-                x, indices=self.feature_indices, return_prefix_tokens=False,
+                x, indices=self.feature_indices,
+                return_prefix_tokens=need_prefix,
                 intermediates_only=True, norm=True,
             )
 
@@ -454,6 +759,7 @@ class TimmSemanticModule(pl.LightningModule):
         optimizer: str = "adamw",
         scheduler: str = "cosine",
         eta_min: float = 1e-7,
+        cls_readout: str = "ignore",
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -470,6 +776,7 @@ class TimmSemanticModule(pl.LightningModule):
             pretrained=pretrained,
             img_size=img_size,
             num_classes=NUM_CLASSES,
+            cls_readout=cls_readout,
         )
 
         # Losses (same as train_unet_semantic.py)
@@ -494,7 +801,11 @@ class TimmSemanticModule(pl.LightningModule):
         wce = F.cross_entropy(logits, masks, weight=self.class_weights)
         loss = dice + focal + wce
         if self.use_lovasz:
-            lovasz = self.lovasz_loss(logits, masks)
+            # smp's _lovasz_grad forces fp32 via .float().cumsum(), so under
+            # AMP autocast we must disable the cast and pass fp32 logits to
+            # avoid torch.dot dtype mismatch (bf16 vs fp32).
+            with torch.amp.autocast("cuda", enabled=False):
+                lovasz = self.lovasz_loss(logits.float(), masks)
             loss = loss + lovasz
         return loss
 
@@ -556,8 +867,13 @@ def main():
     parser.add_argument("--encoder", default="convnextv2_tiny.fcmae_ft_in22k_in1k",
                         help="timm encoder name")
     parser.add_argument("--decoder", default="unetplusplus",
-                        choices=["unetplusplus", "dpt", "ms_linear", "segdino_mlp"],
-                        help="Decoder: unetplusplus (hierarchical) | dpt / ms_linear / segdino_mlp (plain ViT)")
+                        choices=["unetplusplus", "dpt", "dpt_full", "dpt_meta",
+                                 "ms_linear", "segdino_mlp"],
+                        help="Decoder: unetplusplus (hierarchical) | dpt (simplified, same-res fusion) | "
+                             "dpt_full (Ranftl 2021 full DPT with Reassemble pyramid, uniform channels) | "
+                             "dpt_meta (Meta DINOv2-exact DPT: per-level channels [96,192,384,768], "
+                             "ReLU, bias-free) | ms_linear (DINOv2 +ms linear head) | "
+                             "segdino_mlp (plain ViT)")
     parser.add_argument("--strategy", default="A")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--epochs", type=int, default=200)
@@ -571,6 +887,9 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--channel-dropout", type=float, default=0.2)
     parser.add_argument("--channel-shuffle", type=float, default=0.2)
+    parser.add_argument("--cls-readout", choices=["ignore", "project"], default="ignore",
+                        help="DPT-meta CLS-readout mode: 'ignore' drops CLS, "
+                             "'project' injects CLS via Linear+GELU before Reassemble.")
     parser.add_argument("--hue-sat", type=float, default=0.0,
                         help="HueSaturationValue probability (0 to disable)")
     parser.add_argument("--save-every", type=int, default=10)
@@ -588,7 +907,8 @@ def main():
     if args.hue_sat > 0: aug_parts.append("hue")
     aug_tag = "_".join(aug_parts) if aug_parts else "noaug"
     loss_tag = "dfce" if args.no_lovasz else "dfcel"
-    run_name = f"{args.decoder}_{encoder_short}_{weight_tag}_{aug_tag}_{loss_tag}_semantic7c_{args.strategy}"
+    readout_tag = "_cls" if args.cls_readout == "project" else ""
+    run_name = f"{args.decoder}{readout_tag}_{encoder_short}_{weight_tag}_{aug_tag}_{loss_tag}_semantic7c_{args.strategy}"
 
     run_dir = make_run_subfolder(OUTPUT_DIR / "runs" / "timm", run_name)
     print(f"Run: {run_name}")
@@ -622,6 +942,7 @@ def main():
         no_lovasz=args.no_lovasz,
         lr=args.lr,
         backbone_lr=args.backbone_lr,
+        cls_readout=args.cls_readout,
     )
 
     total_params = sum(p.numel() for p in module.parameters())

@@ -56,7 +56,7 @@ from PyQt5.QtWidgets import (
     QRadioButton, QButtonGroup, QSizePolicy, QCheckBox, QStackedWidget,
     QFileDialog, QLineEdit, QSlider, QStyle, QProgressDialog,
     QToolButton, QMenu, QAction, QActionGroup, QToolTip,
-    QDialog, QTextBrowser
+    QDialog, QTextBrowser, QDoubleSpinBox
 )
 
 # Add project root to path
@@ -1496,6 +1496,10 @@ class AnnotationEditor(QMainWindow):
         filter_type = self.filter_type_combo.currentText()
         is_none = (filter_type == "None")
         is_qc = (filter_type == "By QC")
+        is_iou = (filter_type == "By IoU (low)")
+
+        # Show/hide IoU threshold spinbox
+        self.iou_threshold_spin.setVisible(is_iou)
 
         # Only repopulate the class combo when the filter TYPE changes
         if sender is self.filter_type_combo:
@@ -1506,6 +1510,10 @@ class AnnotationEditor(QMainWindow):
                 self.filter_class_combo.addItem("To Be QC", "to_be_qc")
                 self.filter_class_combo.addItem("QC Passed", "passed")
                 self.filter_class_combo.addItem("QC Failed", "failed")
+            elif is_iou:
+                self.filter_class_combo.addItem("All classes (mean)", "mean")
+                for cid, cname in ANNOTATED_CLASSES.items():
+                    self.filter_class_combo.addItem(f"{cid}: {cname}", cid)
             else:
                 self.filter_class_combo.addItem("None", None)
                 for cid, cname in ANNOTATED_CLASSES.items():
@@ -1518,6 +1526,93 @@ class AnnotationEditor(QMainWindow):
 
         self._apply_filter()
 
+    def _iou_cache_path(self) -> Optional[Path]:
+        if not self.data_dir:
+            return None
+        return self.data_dir / "prediction" / ".iou_cache.json"
+
+    def _load_iou_cache(self):
+        """Load cached IoU scores from disk."""
+        path = self._iou_cache_path()
+        if path and path.exists():
+            try:
+                import json
+                with open(path, 'r') as f:
+                    self._iou_cache = json.load(f)
+                return
+            except Exception:
+                pass
+        self._iou_cache = {}
+
+    def _save_iou_cache(self):
+        """Save IoU cache to disk."""
+        path = self._iou_cache_path()
+        if path:
+            import json
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, 'w') as f:
+                json.dump(self._iou_cache, f)
+
+    def _invalidate_iou_cache(self, sample_uid: str):
+        """Mark a sample's IoU cache as stale (after editing)."""
+        if hasattr(self, '_iou_cache') and sample_uid in self._iou_cache:
+            del self._iou_cache[sample_uid]
+            self._save_iou_cache()
+
+    def _compute_sample_iou(self, sample, class_filter="mean"):
+        """Compute IoU between GT annotation and prediction for a sample.
+        Uses disk cache; only recomputes if not cached."""
+        if not hasattr(self, '_iou_cache'):
+            self._load_iou_cache()
+
+        cache_key = sample.uid
+        # Check cache — keyed by uid, stores per-class IoU dict
+        if cache_key in self._iou_cache:
+            cached = self._iou_cache[cache_key]
+            if class_filter == "mean":
+                return cached.get("mean")
+            else:
+                return cached.get(str(class_filter))
+
+        # Compute fresh
+        ann_path = sample.annotation_path
+        pred_dir = self._prediction_dir()
+        if not ann_path or not ann_path.exists() or not pred_dir:
+            return None
+        pred_path = pred_dir / f"{sample.uid}.txt"
+        if not pred_path.exists():
+            return None
+
+        try:
+            from src.preprocessing import load_sample_normalized
+            img = load_sample_normalized(sample)
+            h, w = img.shape[:2]
+            from src.annotation_utils import parse_yolo_annotations, polygon_to_mask
+
+            gt_anns = parse_yolo_annotations(ann_path, w, h)
+            pred_anns = parse_yolo_annotations(pred_path, w, h)
+
+            per_class = {}
+            for cid in range(6):
+                gt_masks = [polygon_to_mask(a["polygon"], h, w) for a in gt_anns if a["class_id"] == cid]
+                pred_masks = [polygon_to_mask(a["polygon"], h, w) for a in pred_anns if a["class_id"] == cid]
+                gt_union = np.clip(sum(m for m in gt_masks), 0, 1).astype(bool) if gt_masks else np.zeros((h, w), dtype=bool)
+                pred_union = np.clip(sum(m for m in pred_masks), 0, 1).astype(bool) if pred_masks else np.zeros((h, w), dtype=bool)
+                union = np.logical_or(gt_union, pred_union).sum()
+                if union == 0:
+                    per_class[str(cid)] = 1.0
+                else:
+                    inter = np.logical_and(gt_union, pred_union).sum()
+                    per_class[str(cid)] = round(float(inter / union), 4)
+
+            per_class["mean"] = round(float(np.mean(list(per_class.values()))), 4)
+
+            # Cache it
+            self._iou_cache[cache_key] = per_class
+            return per_class.get("mean" if class_filter == "mean" else str(class_filter))
+        except Exception:
+            return None
+
     def _apply_filter(self):
         """Filter samples based on current filter settings and refresh the view."""
         filter_type = self.filter_type_combo.currentText()
@@ -1526,12 +1621,33 @@ class AnnotationEditor(QMainWindow):
         if filter_type == "None" or filter_data is None:
             self.samples = list(self._all_samples)
         elif filter_type == "By QC":
-            # filter_data is a QC status string: "to_be_qc", "passed", "failed"
             self.samples = []
             for sample in self._all_samples:
                 status = self._get_sample_qc_status(sample)
                 if status == filter_data:
                     self.samples.append(sample)
+        elif filter_type == "By IoU (low)":
+            threshold = self.iou_threshold_spin.value()
+            class_filter = filter_data if filter_data is not None else "mean"
+            if not hasattr(self, '_iou_cache'):
+                self._load_iou_cache()
+            n_cached = sum(1 for s in self._all_samples if s.uid in self._iou_cache)
+            n_total = len(self._all_samples)
+            if n_cached < n_total:
+                self.update_status(f"Computing IoU: {n_cached}/{n_total} cached, computing {n_total - n_cached} remaining...")
+                QApplication.processEvents()
+            scored = []
+            for i, sample in enumerate(self._all_samples):
+                iou = self._compute_sample_iou(sample, class_filter)
+                if iou is not None and iou < threshold:
+                    scored.append((iou, sample))
+                if (i + 1) % 20 == 0 and n_cached < n_total:
+                    self.update_status(f"Computing IoU: {i + 1}/{n_total}...")
+                    QApplication.processEvents()
+            self._save_iou_cache()
+            scored.sort(key=lambda x: x[0])  # worst first
+            self.samples = [s for _, s in scored]
+            self.update_status(f"Found {len(self.samples)} samples with IoU < {threshold:.2f} (sorted worst-first)")
         else:
             class_id = filter_data
             self.samples = []
@@ -1588,8 +1704,22 @@ class AnnotationEditor(QMainWindow):
     def _update_sample_combo(self):
         self.sample_combo.blockSignals(True)
         self.sample_combo.clear()
+        filter_type = self.filter_type_combo.currentText()
+        filter_data = self.filter_class_combo.currentData()
+        show_iou = (filter_type == "By IoU (low)" or
+                    (self.editor_mode == MODE_CORRECT_GT and hasattr(self, '_iou_cache')))
+
         for i, s in enumerate(self.samples):
-            self.sample_combo.addItem(f"{i+1}. {self._display_name(s)}")
+            label = f"{i+1}. {self._display_name(s)}"
+            if show_iou and hasattr(self, '_iou_cache') and s.uid in self._iou_cache:
+                cached = self._iou_cache[s.uid]
+                if filter_type == "By IoU (low)" and filter_data and filter_data != "mean":
+                    iou_val = cached.get(str(filter_data), cached.get("mean"))
+                else:
+                    iou_val = cached.get("mean")
+                if iou_val is not None:
+                    label += f"  [IoU={iou_val:.3f}]"
+            self.sample_combo.addItem(label)
         self.sample_combo.blockSignals(False)
         self.sample_label.setText(f"{len(self.samples)} images")
 
@@ -1631,7 +1761,7 @@ class AnnotationEditor(QMainWindow):
         nav_layout.setContentsMargins(4, 2, 4, 2)
         nav_layout.addWidget(QLabel("Filter:"))
         self.filter_type_combo = QComboBox()
-        self.filter_type_combo.addItems(["None", "By Missing", "By Containing", "By QC"])
+        self.filter_type_combo.addItems(["None", "By Missing", "By Containing", "By QC", "By IoU (low)"])
         self.filter_type_combo.setMinimumWidth(110)
         self.filter_type_combo.currentIndexChanged.connect(self._on_filter_changed)
         nav_layout.addWidget(self.filter_type_combo)
@@ -1643,6 +1773,16 @@ class AnnotationEditor(QMainWindow):
         self.filter_class_combo.setEnabled(False)
         self.filter_class_combo.currentIndexChanged.connect(self._on_filter_changed)
         nav_layout.addWidget(self.filter_class_combo)
+        # IoU threshold spinbox (visible only for "By IoU (low)" filter)
+        self.iou_threshold_spin = QDoubleSpinBox()
+        self.iou_threshold_spin.setRange(0.0, 1.0)
+        self.iou_threshold_spin.setSingleStep(0.05)
+        self.iou_threshold_spin.setValue(0.80)
+        self.iou_threshold_spin.setPrefix("IoU < ")
+        self.iou_threshold_spin.setFixedWidth(100)
+        self.iou_threshold_spin.setVisible(False)
+        self.iou_threshold_spin.editingFinished.connect(self._apply_filter)
+        nav_layout.addWidget(self.iou_threshold_spin)
         self.sample_combo = QComboBox()
         self.sample_combo.setMinimumWidth(300)
         self.sample_combo.setMaxVisibleItems(20)
@@ -2153,7 +2293,19 @@ class AnnotationEditor(QMainWindow):
         self.sample_label.setText(f"{len(self.samples)} images")
         self._update_qc_label()
         self._schedule_auto_qc()
-        self.update_status(f"Loaded: {self._display_name(sample)}")
+        # Show IoU in status if in correct GT mode and cache available
+        iou_str = ""
+        if self.editor_mode == MODE_CORRECT_GT and hasattr(self, '_iou_cache') and sample.uid in self._iou_cache:
+            cached = self._iou_cache[sample.uid]
+            from src.config import ANNOTATED_CLASSES
+            parts = [f"mean={cached.get('mean', 'N/A'):.3f}" if isinstance(cached.get('mean'), (int, float)) else ""]
+            for cid, cname in ANNOTATED_CLASSES.items():
+                v = cached.get(str(cid))
+                if v is not None and v < 0.95:
+                    short = cname.split()[0][:3]  # e.g. "Who", "Aer", "Out"
+                    parts.append(f"{short}={v:.3f}")
+            iou_str = " | IoU: " + ", ".join(p for p in parts if p)
+        self.update_status(f"Loaded: {self._display_name(sample)}{iou_str}")
 
     def on_combo_change(self, idx: int):
         if idx != self.current_idx and 0 <= idx < len(self.samples):
@@ -2895,6 +3047,9 @@ class AnnotationEditor(QMainWindow):
             del self._qc_status[sample.uid]
             self._save_qc_status()
             self._update_qc_label()
+
+        # Invalidate IoU cache for this sample since GT changed
+        self._invalidate_iou_cache(sample.uid)
 
         self.update_status(f"Saved {len(lines)} polygons to {save_path.name}")
 

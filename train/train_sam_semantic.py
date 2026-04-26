@@ -243,6 +243,7 @@ class SAMSemanticModule(pl.LightningModule):
         lora_rank=4,
         lora_alpha=1.0,
         aer_weight=10.0,
+        equal_weights=False,
         lr=1e-4,
         backbone_lr=1e-5,
         weight_decay=1e-4,
@@ -275,7 +276,11 @@ class SAMSemanticModule(pl.LightningModule):
         self.lovasz_loss = smp.losses.LovaszLoss(mode="multiclass")
 
         # Class weights: bg=0.5, epi=1, aer=configurable, endo=5, vasc=1, exo=5, cortex=1
-        weights = [0.5, 1.0, aer_weight, 5.0, 1.0, 5.0, 1.0]
+        # equal_weights=True overrides the whole vector to [1,...,1] for a true unweighted CE.
+        if equal_weights:
+            weights = [1.0] * NUM_CLASSES
+        else:
+            weights = [0.5, 1.0, aer_weight, 5.0, 1.0, 5.0, 1.0]
         self.register_buffer("class_weights", torch.tensor(weights, dtype=torch.float32))
 
     def forward(self, x):
@@ -395,6 +400,8 @@ def main():
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--aer-weight", type=float, default=10.0,
                         help="CE class weight for aerenchyma (default: 10)")
+    parser.add_argument("--equal-weights", action="store_true",
+                        help="Use uniform [1,1,...,1] CE class weights (overrides --aer-weight)")
     parser.add_argument("--eta-min", type=float, default=1e-7)
 
     # Augmentation
@@ -454,6 +461,7 @@ def main():
         lora_rank=args.lora_rank,
         lora_alpha=args.lora_alpha,
         aer_weight=args.aer_weight,
+        equal_weights=args.equal_weights,
         lr=args.lr,
         backbone_lr=args.backbone_lr,
         weight_decay=args.weight_decay,
@@ -487,7 +495,10 @@ def main():
     else:
         encoder_tag = f"sam_{args.model_type}_finetune"
 
-    weight_tag = "equalw" if args.aer_weight == 1.0 else f"aer{int(args.aer_weight)}" if args.aer_weight != 2.0 else "defaultw"
+    if args.equal_weights:
+        weight_tag = "equalw"
+    else:
+        weight_tag = f"aer{int(args.aer_weight)}" if args.aer_weight != 2.0 else "defaultw"
 
     aug_parts = []
     if args.channel_dropout > 0: aug_parts.append("drop")
