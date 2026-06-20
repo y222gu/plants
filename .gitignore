@@ -1,6 +1,7 @@
 /.claude
 /logs
 /slurm
+/archive
 /annotation_copy
 /data
 /data_for_review
@@ -18,3 +19,10 @@
 *notes.txt
 /lambda_output
 /hpc2_output
+*.png
+*.xlsx
+*.html
+*.js
+/figures_for_paper
+/hh_variance
+/image_online

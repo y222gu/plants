@@ -42,15 +42,17 @@ from src.model_classes import (
 # ⇩  EDIT THESE TWO PATHS, THEN `python predict.py`  ⇩
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Folder of per-sample subfolders; each must contain *_DAPI.tif, *_FITC.tif, *_TRITC.tif
-DATA_DIR = Path("")
+# Folder of per-sample subfolders; each must contain *_DAPI.tif, *_FITC.tif, *_TRITC.tif.
+# Two-level layouts (group/sample/*.tif) are also supported and produce sample IDs of
+# the form "{group}/{sample}".
+DATA_DIR = Path("/Users/yifeigu/Downloads/Kevin_SCZ_EXO1_test_mutants")
 
 # Either a run folder (e.g. .../2026-04-17_002/) containing checkpoints/best-*.ckpt,
 # or a direct path to a .ckpt file.
-MODEL_DIR = Path("")
+MODEL_DIR = Path("/Users/yifeigu/Documents/Siobhan_Lab/plants/output/runs/timm/dpt_meta_facebook_dinov3-vits16-pretrain-lvd1689m_equalw_drop_shuf_dfcel_semantic7c_A/2026-04-22_001")
 
-# Set to None to default to <DATA_DIR>/predictions_dinov2_dpt/.
-OUTPUT_DIR = Path("")
+# Set to None to default to <DATA_DIR>/predictions_dinov3_dpt/.
+OUTPUT_DIR = None
 
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -76,40 +78,47 @@ def find_checkpoint(model_dir: Path) -> Path:
     raise FileNotFoundError(f"No checkpoint found under {model_dir}")
 
 
-def discover_samples(data_dir: Path):
-    """Return list of (sample_name, {channel: tif_path}) by looking inside each subfolder.
+def _find_channels_in(folder: Path):
+    """Look for one TIF per channel inside a single folder. Returns {ch: path} (possibly partial)."""
+    all_tifs = list(folder.glob("*.tif")) + list(folder.glob("*.tiff"))
+    channels = {}
+    for ch in CHANNEL_NAMES:
+        # Match DAPI/FITC/TRITC as a token, not a substring of another word
+        tokens = (f"_{ch}.", f"_{ch}_", f"({ch})", f"-{ch}-", f"-{ch}.")
+        for f in all_tifs:
+            if any(tok in f.name for tok in tokens):
+                channels[ch] = f
+                break
+    return channels
 
-    Sample name = subfolder name. Channel files are matched by any of the common
-    naming conventions we've seen:
-        *_DAPI.tif                              (training data)
-        *CH(DAPI)*                              (Zeiss/Olympus exports: "..._CH(DAPI)_CH1.ome.tif")
-        *_DAPI_*.tif / *-DAPI-*.tif             (miscellaneous)
+
+def discover_samples(data_dir: Path):
+    """Return list of (sample_id, {channel: tif_path}).
+
+    Supports two layouts:
+      - Flat:    DATA_DIR/{sample}/*_DAPI.tif, *_FITC.tif, *_TRITC.tif
+      - Nested:  DATA_DIR/{group}/{sample}/*_DAPI.tif, ...   → sample_id = "{group}/{sample}"
+
+    Channel filenames may use *_DAPI.tif, *CH(DAPI)*, *-DAPI-*, *_DAPI_*.
     """
     samples = []
-    tif_exts = ("*.tif", "*.tiff")
     for sub in sorted(data_dir.iterdir()):
         if not sub.is_dir() or sub.name.startswith("."):
             continue
-
-        # Collect every TIF in the subfolder
-        all_tifs = []
-        for ext in tif_exts:
-            all_tifs.extend(sub.glob(ext))
-
-        channels = {}
-        for ch in CHANNEL_NAMES:
-            # Match DAPI/FITC/TRITC as a token, not a substring of another word
-            tokens = (f"_{ch}.", f"_{ch}_", f"({ch})", f"-{ch}-", f"-{ch}.")
-            for f in all_tifs:
-                if any(tok in f.name for tok in tokens):
-                    channels[ch] = f
-                    break
-
+        channels = _find_channels_in(sub)
         if len(channels) == 3:
             samples.append((sub.name, channels))
-        else:
-            missing = set(CHANNEL_NAMES) - set(channels)
-            print(f"  [skip] {sub.name}: missing channels {missing}")
+            continue
+        # No TIFs at this level — recurse one deeper (group/sample layout).
+        for sub2 in sorted(sub.iterdir()):
+            if not sub2.is_dir() or sub2.name.startswith("."):
+                continue
+            channels2 = _find_channels_in(sub2)
+            if len(channels2) == 3:
+                samples.append((f"{sub.name}/{sub2.name}", channels2))
+            else:
+                missing = set(CHANNEL_NAMES) - set(channels2)
+                print(f"  [skip] {sub.name}/{sub2.name}: missing channels {missing}")
     return samples
 
 
@@ -211,7 +220,7 @@ def save_vis(rgb_u8, bio7, sample_name, out_path):
     ax.set_title("All classes")
     ax.axis("off")
 
-    fig.suptitle(f"{sample_name} — DINOv2+DPT", fontsize=14, fontweight="bold")
+    fig.suptitle(f"{sample_name} — DINOv3+DPT", fontsize=14, fontweight="bold")
     fig.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -242,7 +251,7 @@ def measure(sample_name: str, raw_img: np.ndarray, bio7: dict) -> dict:
 def main():
     data_dir = DATA_DIR.resolve()
     out_dir = (OUTPUT_DIR.resolve() if OUTPUT_DIR is not None
-               else data_dir / "predictions_dinov2_dpt")
+               else data_dir / "predictions_dinov3_dpt")
     (out_dir / "predictions").mkdir(parents=True, exist_ok=True)
     (out_dir / "vis").mkdir(parents=True, exist_ok=True)
 
@@ -287,8 +296,12 @@ def main():
         sem = run_inference(model, device, norm_crop)
         bio7 = unet_semantic_to_bio7(sem, *sem.shape)
 
-        np.save(out_dir / "predictions" / f"{sample_name}.npy", sem)
-        save_vis(to_uint8(norm_crop), bio7, sample_name, out_dir / "vis" / f"{sample_name}.png")
+        pred_path = out_dir / "predictions" / f"{sample_name}.npy"
+        vis_path = out_dir / "vis" / f"{sample_name}.png"
+        pred_path.parent.mkdir(parents=True, exist_ok=True)
+        vis_path.parent.mkdir(parents=True, exist_ok=True)
+        np.save(pred_path, sem)
+        save_vis(to_uint8(norm_crop), bio7, sample_name, vis_path)
         rows.append(measure(sample_name, raw_crop, bio7))
 
     # Write one CSV with all samples

@@ -839,6 +839,7 @@ class TimmSemanticModule(pl.LightningModule):
             {"params": [p for p in encoder_params if p.requires_grad], "lr": self.backbone_lr},
             {"params": decoder_params, "lr": self.lr},
         ]
+        param_groups = [g for g in param_groups if len(g["params"]) > 0]
         optimizer = torch.optim.AdamW(param_groups, weight_decay=self.weight_decay)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=self.trainer.max_epochs, eta_min=self.eta_min
@@ -890,6 +891,9 @@ def main():
     parser.add_argument("--cls-readout", choices=["ignore", "project"], default="ignore",
                         help="DPT-meta CLS-readout mode: 'ignore' drops CLS, "
                              "'project' injects CLS via Linear+GELU before Reassemble.")
+    parser.add_argument("--freeze-encoder", action="store_true",
+                        help="Freeze encoder (requires_grad=False on all backbone params); "
+                             "only decoder + 1x1 head are trained.")
     parser.add_argument("--hue-sat", type=float, default=0.0,
                         help="HueSaturationValue probability (0 to disable)")
     parser.add_argument("--save-every", type=int, default=10)
@@ -908,7 +912,8 @@ def main():
     aug_tag = "_".join(aug_parts) if aug_parts else "noaug"
     loss_tag = "dfce" if args.no_lovasz else "dfcel"
     readout_tag = "_cls" if args.cls_readout == "project" else ""
-    run_name = f"{args.decoder}{readout_tag}_{encoder_short}_{weight_tag}_{aug_tag}_{loss_tag}_semantic7c_{args.strategy}"
+    freeze_tag = "_decoderonly" if args.freeze_encoder else ""
+    run_name = f"{args.decoder}{readout_tag}{freeze_tag}_{encoder_short}_{weight_tag}_{aug_tag}_{loss_tag}_semantic7c_{args.strategy}"
 
     run_dir = make_run_subfolder(OUTPUT_DIR / "runs" / "timm", run_name)
     print(f"Run: {run_name}")
@@ -944,6 +949,11 @@ def main():
         backbone_lr=args.backbone_lr,
         cls_readout=args.cls_readout,
     )
+
+    if args.freeze_encoder:
+        for p in module.model.encoder.parameters():
+            p.requires_grad = False
+        print("Encoder frozen (requires_grad=False on all backbone params).")
 
     total_params = sum(p.numel() for p in module.parameters())
     trainable_params = sum(p.numel() for p in module.parameters() if p.requires_grad)

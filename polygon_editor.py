@@ -198,7 +198,7 @@ def run_qc_checks(polygons: List[dict], img_h: int = 1024, img_w: int = 1024) ->
             mask_cache[idx] = _mask(polygons[idx])
         return mask_cache[idx]
 
-    # Get single-instance masks by class (for whole root, endo, exo)
+    # Get single-instance masks by class (for outer epidermis, endo, exo)
     def _class_mask(cid):
         """Union mask for all polygons of a given class."""
         if cid not in by_class:
@@ -221,7 +221,7 @@ def run_qc_checks(polygons: List[dict], img_h: int = 1024, img_w: int = 1024) ->
             violations.append(
                 f"Boundary intersection between {name_a} and {name_b}")
 
-    # Check 1: All polygons within whole root (class 0) — skip if missing
+    # Check 1: All polygons within outer epidermis (class 0) — skip if missing
     root_mask = _class_mask(0)
     if root_mask is not None:
         for p in polygons:
@@ -230,7 +230,7 @@ def run_qc_checks(polygons: List[dict], img_h: int = 1024, img_w: int = 1024) ->
             m = _mask(p)
             if not _is_contained(m, root_mask):
                 cname = CLASS_SHORT_NAMES.get(p["class_id"], f"Class {p['class_id']}")
-                violations.append(f"{cname} polygon extends outside Whole Root boundary")
+                violations.append(f"{cname} polygon extends outside Outer Epidermis boundary")
 
     # Check 2: Inner exodermis (5) within outer exodermis (4) — skip if either missing
     if 4 in by_class and 5 in by_class:
@@ -276,7 +276,7 @@ def run_qc_checks(polygons: List[dict], img_h: int = 1024, img_w: int = 1024) ->
                     break  # report once
 
     # Check 6: Required classes — must have root, O.Endo, I.Endo, O.Exo, I.Exo
-    required = {0: "Whole Root", 2: "O.Endo", 3: "I.Endo", 4: "O.Exo", 5: "I.Exo"}
+    required = {0: "Outer Epidermis", 2: "O.Endo", 3: "I.Endo", 4: "O.Exo", 5: "I.Exo"}
     for cid, name in required.items():
         if cid not in by_class:
             violations.append(f"Missing required class: {name}")
@@ -292,7 +292,7 @@ MODE_CREATE_GT = "Create GT"
 
 # Colors for visualization (QColor format)
 CLASS_QCOLORS = {
-    0: QColor(0, 0, 255, 180),      # Whole Root - Blue
+    0: QColor(0, 0, 255, 180),      # Outer Epidermis - Blue
     1: QColor(255, 255, 0, 180),    # Aerenchyma - Yellow
     2: QColor(0, 255, 0, 180),      # Outer Endodermis - Green
     3: QColor(255, 0, 0, 180),      # Inner Endodermis - Red
@@ -303,8 +303,14 @@ CLASS_QCOLORS = {
 SELECTED_COLOR = QColor(255, 255, 255, 220)  # White for selected polygon
 
 CLASS_SHORT_NAMES = {
-    0: "Root", 1: "Aer", 2: "O.Endo", 3: "I.Endo", 4: "O.Exo", 5: "I.Exo",
+    0: "O. Epi", 1: "Aer", 2: "O.Endo", 3: "I.Endo", 4: "O.Exo", 5: "I.Exo",
 }
+
+# Display-name override for the editor UI: class 0 is rendered as "Outer
+# Epidermis" instead of the "Whole Root" used elsewhere in the codebase.
+# All editor-facing lookups use CLASS_DISPLAY_NAMES; src.config.ANNOTATED_CLASSES
+# stays unchanged so training, eval, and prediction code is unaffected.
+CLASS_DISPLAY_NAMES = {**ANNOTATED_CLASSES, 0: "Outer Epidermis"}
 
 
 # ── Lightweight sample discovery ──────────────────────────────────────────
@@ -708,7 +714,7 @@ class PolygonCanvas(QWidget):
         if self.selected_idx is not None and 0 <= self.selected_idx < len(self.polygons):
             poly_data = self.polygons[self.selected_idx]
             class_id = poly_data["class_id"]
-            class_name = ANNOTATED_CLASSES.get(class_id, f"Class {class_id}")
+            class_name = CLASS_DISPLAY_NAMES.get(class_id, f"Class {class_id}")
             color = CLASS_COLORS_RGB.get(class_id, (128, 128, 128))
             painter.setPen(QPen(QColor(color[0], color[1], color[2])))
             painter.setFont(QFont("Arial", 14, QFont.Bold))
@@ -857,7 +863,7 @@ class PolygonCanvas(QWidget):
                 parent = self.get_editor_parent()
                 if parent:
                     poly = self.polygons[self.selected_idx]
-                    cname = ANNOTATED_CLASSES.get(poly['class_id'], 'Unknown')
+                    cname = CLASS_DISPLAY_NAMES.get(poly['class_id'], 'Unknown')
                     parent.update_status(f"Selected polygon {self.selected_idx} ({cname})")
 
     def mouseMoveEvent(self, event):
@@ -1512,11 +1518,11 @@ class AnnotationEditor(QMainWindow):
                 self.filter_class_combo.addItem("QC Failed", "failed")
             elif is_iou:
                 self.filter_class_combo.addItem("All classes (mean)", "mean")
-                for cid, cname in ANNOTATED_CLASSES.items():
+                for cid, cname in CLASS_DISPLAY_NAMES.items():
                     self.filter_class_combo.addItem(f"{cid}: {cname}", cid)
             else:
                 self.filter_class_combo.addItem("None", None)
-                for cid, cname in ANNOTATED_CLASSES.items():
+                for cid, cname in CLASS_DISPLAY_NAMES.items():
                     self.filter_class_combo.addItem(f"{cid}: {cname}", cid)
             self.filter_class_combo.blockSignals(False)
 
@@ -1768,7 +1774,7 @@ class AnnotationEditor(QMainWindow):
         self.filter_class_combo = QComboBox()
         self.filter_class_combo.setMinimumWidth(130)
         self.filter_class_combo.addItem("None", None)
-        for cid, cname in ANNOTATED_CLASSES.items():
+        for cid, cname in CLASS_DISPLAY_NAMES.items():
             self.filter_class_combo.addItem(f"{cid}: {cname}", cid)
         self.filter_class_combo.setEnabled(False)
         self.filter_class_combo.currentIndexChanged.connect(self._on_filter_changed)
@@ -1845,7 +1851,7 @@ class AnnotationEditor(QMainWindow):
         # Class radio buttons (created here, added to modal page below)
         self.class_buttons = QButtonGroup(self)
         self._class_radios = []
-        for cid, cname in ANNOTATED_CLASSES.items():
+        for cid, cname in CLASS_DISPLAY_NAMES.items():
             rb = QRadioButton(f"{cid}: {CLASS_SHORT_NAMES[cid]}")
             rb.setToolTip(cname)
             if cid == 1:
@@ -1999,7 +2005,7 @@ class AnnotationEditor(QMainWindow):
         vis_label = QLabel("Visibility:")
         self.status_bar.addPermanentWidget(vis_label)
         self.vis_checks = {}
-        for cid, cname in ANNOTATED_CLASSES.items():
+        for cid, cname in CLASS_DISPLAY_NAMES.items():
             color = CLASS_COLORS_RGB.get(cid, (128, 128, 128))
             # Desaturate: blend 55% color + 45% gray for softer labels
             r = int(color[0] * 0.55 + 160 * 0.45)
@@ -2240,7 +2246,12 @@ class AnnotationEditor(QMainWindow):
         gc.collect()
 
         img = load_sample_normalized(sample)
-        img_uint8 = to_uint8(img)
+        # Paper Fig 1c composite: DAPI→cyan, FITC→yellow, TRITC→red, additive.
+        # load_sample_normalized returns (R=TRITC, G=FITC, B=DAPI); remap to
+        # R=FITC+TRITC, G=DAPI+FITC, B=DAPI so DAPI shows as cyan and FITC as yellow.
+        tritc, fitc, dapi = img[..., 0], img[..., 1], img[..., 2]
+        comp = np.stack([fitc + tritc, dapi + fitc, dapi], axis=-1)
+        img_uint8 = to_uint8(np.clip(comp, 0, 1))
         h, w = img.shape[:2]
 
         # Store raw image for display adjustments (brightness/gamma)
@@ -2297,9 +2308,8 @@ class AnnotationEditor(QMainWindow):
         iou_str = ""
         if self.editor_mode == MODE_CORRECT_GT and hasattr(self, '_iou_cache') and sample.uid in self._iou_cache:
             cached = self._iou_cache[sample.uid]
-            from src.config import ANNOTATED_CLASSES
             parts = [f"mean={cached.get('mean', 'N/A'):.3f}" if isinstance(cached.get('mean'), (int, float)) else ""]
-            for cid, cname in ANNOTATED_CLASSES.items():
+            for cid, cname in CLASS_DISPLAY_NAMES.items():
                 v = cached.get(str(cid))
                 if v is not None and v < 0.95:
                     short = cname.split()[0][:3]  # e.g. "Who", "Aer", "Out"
@@ -2417,13 +2427,13 @@ class AnnotationEditor(QMainWindow):
             "<h3>QC Rules</h3>"
             "<table>"
             "<tr><th>#</th><th>Check</th></tr>"
-            "<tr><td>1</td><td>All polygons must be inside Whole Root</td></tr>"
+            "<tr><td>1</td><td>All polygons must be inside Outer Epidermis</td></tr>"
             "<tr><td>2</td><td>I.Exo must be inside O.Exo</td></tr>"
             "<tr><td>3</td><td>O.Endo must be inside I.Exo</td></tr>"
             "<tr><td>4</td><td>I.Endo must be inside O.Endo</td></tr>"
             "<tr><td>5</td><td>Aerenchyma must be in cortex only<br>"
             "<span style='color:#888'>(between root boundary &amp; O.Endo)</span></td></tr>"
-            "<tr><td>6</td><td>Required classes: Root, O.Endo, I.Endo,<br>"
+            "<tr><td>6</td><td>Required classes: O. Epi, O.Endo, I.Endo,<br>"
             "O.Exo, I.Exo</td></tr>"
             "</table>"
 
@@ -2505,10 +2515,10 @@ class AnnotationEditor(QMainWindow):
         btn = self.class_buttons.button(class_id)
         if btn:
             btn.setChecked(True)
-        self.update_status(f"Drawing class: {class_id}: {ANNOTATED_CLASSES.get(class_id, 'Unknown')}")
+        self.update_status(f"Drawing class: {class_id}: {CLASS_DISPLAY_NAMES.get(class_id, 'Unknown')}")
 
     def _update_class_radio_styles(self):
-        for cid, _ in ANNOTATED_CLASSES.items():
+        for cid, _ in CLASS_DISPLAY_NAMES.items():
             btn = self.class_buttons.button(cid)
             if btn is None:
                 continue
@@ -3080,7 +3090,7 @@ class AnnotationEditor(QMainWindow):
         self._mark_modified()
         self.save_annotations()
         self._schedule_auto_qc()
-        cname = ANNOTATED_CLASSES.get(poly_copy['class_id'], 'Unknown')
+        cname = CLASS_DISPLAY_NAMES.get(poly_copy['class_id'], 'Unknown')
         self.update_status(f"Copied reference polygon ({cname}) — saved.")
 
     def copy_exodermis_ref_to_edit(self):

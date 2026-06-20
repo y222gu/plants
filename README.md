@@ -299,48 +299,120 @@ python evaluate.py --plot-only output/evaluation/yolo_metrics.json
 
 ---
 
-### 3. `analyze_downstream.py` — Downstream Biological Analysis
+### 3. Downstream Biological Analysis
 
-Compute biologically meaningful metrics (aerenchyma ratio, channel intensities) from either ground truth, predictions, or both. When both are available, generates scatter plots with regression lines and R² values.
+Three entry points compute the same per-sample biological measurements (aerenchyma ratio + Exodermis/Endodermis/Vascular mean intensity on TRITC and FITC) from bio-7 masks. They differ only in where the masks come from:
+
+| Script                                   | Source                              | Compares GT vs pred? | GPU? |
+|------------------------------------------|-------------------------------------|----------------------|------|
+| `run_eval_pipeline.py`                   | runs eval, then both GT and preds   | yes                  | yes  |
+| `downstream_measure_from_predictions.py` | saved YOLO `.txt` predictions + GT  | yes                  | no   |
+| `downstream_measure_from_masks.py`       | any mask directory (GT *or* preds)  | **no** (single CSV)  | no   |
+
+All three share the same intensity-thresholding feature (described below).
+
+**Computed columns** (per sample):
+- `aerenchyma_ratio` — aerenchyma area / whole root area
+- `exodermis_TRITC`, `exodermis_FITC`
+- `endodermis_TRITC`, `endodermis_FITC`
+- `vascular_TRITC`, `vascular_FITC`
+
+Mean intensities are computed on the **raw, unnormalized** image (`load_sample_raw`).
+
+#### `run_eval_pipeline.py` — Eval + downstream + plots
+
+Full pipeline: runs IoU/Dice eval, saves predictions, then computes paired GT-vs-pred downstream measurements and correlation plots.
 
 ```bash
-# Compare GT vs predictions (default when both exist)
-python analyze_downstream.py --data-dir data/ --source both
-
-# Analyze predictions only (e.g., on new unlabeled data)
-python analyze_downstream.py --data-dir data/ --source prediction
-
-# Analyze ground truth only
-python analyze_downstream.py --data-dir data/ --source gt
-
-# Generate predictions first if they don't exist
-python analyze_downstream.py --data-dir data/ --source both \
-    --checkpoint path/to/best.pt
-
-# Regenerate plots from existing CSV
-python analyze_downstream.py --plot-only output/downstream/comparison.csv
+python run_eval_pipeline.py --model-key timm_semantic --checkpoint path/to/best.ckpt --run-dir path/to/run/
+python run_eval_pipeline.py ... --split test            # only test split (skip Zeiss oneshot)
+python run_eval_pipeline.py ... --downstream-source model   # re-run inference (needs GPU)
+python run_eval_pipeline.py ... --no-downstream         # eval only
 ```
+
+Outputs `{run_dir}/eval/{test,oneshot}/...` and `{run_dir}/downstream/{split}_from_{predictions,model}/...`.
+
+#### `downstream_measure_from_predictions.py` — From saved predictions
+
+Loads YOLO polygon `.txt` files from a previous eval run; recomputes GT measurements from the annotation polygons every time so a different threshold always produces a fresh paired GT.
+
+```bash
+# Single run
+python downstream_measure_from_predictions.py --predictions-dir output/runs/.../eval_test/predictions --strategy A --out-dir output/runs/.../downstream
+
+# Batch over all runs missing test-set downstream
+python downstream_measure_from_predictions.py --batch --strategy A --plot
+```
+
+Writes `pred_measurements.csv` and `gt_measurements.csv` (always recomputed) into the run's downstream dir.
+
+#### `downstream_measure_from_masks.py` — Source-agnostic
+
+Walks a generic image directory and pairs each sample with a mask file from any directory. No GT-vs-pred logic; outputs a single measurements CSV. Use this when you want to measure any mask folder (GT, predictions, hand-corrected, etc.) without the comparison machinery.
+
+```bash
+# Measure GT
+python downstream_measure_from_masks.py --image-dir data/image --mask-dir data/annotation --out-csv output/downstream/gt_all.csv
+
+# Measure a model's predictions
+python downstream_measure_from_masks.py --image-dir data/image --mask-dir output/runs/.../eval/test/predictions --out-csv output/downstream/pred_all.csv
+```
+
+`--image-dir` must contain the standard `{Species}/{Microscope}/{Exp}/{Sample}/{Sample}_{TRITC,FITC,DAPI}.tif` layout. `--mask-dir` is any flat directory containing `{Species}_{Microscope}_{Exp}_{Sample}.txt` files in the project's 6-class YOLO polygon format.
 
 **Arguments:**
 
-| Argument       | Default     | Description                                      |
-|----------------|-------------|--------------------------------------------------|
-| `--data-dir`   | `data/`     | Data folder                                      |
-| `--source`     | auto-detect | `gt`, `prediction`, or `both`                    |
-| `--checkpoint` | —           | YOLO checkpoint (generates predictions if missing)|
-| `--output`     | auto        | Custom CSV output path                           |
-| `--no-plots`   | false       | Skip generating plots                            |
-| `--plot-only`  | —           | Regenerate plots from existing CSV               |
+| Argument           | Default     | Description                                                 |
+|--------------------|-------------|-------------------------------------------------------------|
+| `--image-dir`      | (required)  | Root image directory.                                       |
+| `--mask-dir`       | (required)  | Directory of YOLO polygon `.txt` files.                     |
+| `--out-csv`        | (required)  | Output measurements CSV path.                               |
+| `--save-vis-dir`   | —           | Save per-sample threshold diagnostic PNGs into this dir.    |
+| `--tritc-threshold`| —           | Global TRITC keep-range (see below).                        |
+| `--fitc-threshold` | —           | Global FITC keep-range.                                     |
+| `--threshold`      | — (repeat)  | Per-structure keep-range, e.g. `Exodermis:TRITC=4000-5000`. |
 
-**Output:**
-- `{data-dir}/downstream/{source}.csv` — Per-sample downstream metrics
-- `{data-dir}/downstream/downstream_*.{png,pdf}` — Scatter plots with R² (when `--source both`)
+#### Intensity thresholding (all three scripts)
 
-**Computed metrics:**
-- Aerenchyma ratio (aerenchyma area / whole root area)
-- Aerenchyma instance count
-- Endodermis mean intensity per channel (TRITC, FITC, DAPI)
-- Vascular mean intensity per channel (TRITC, FITC, DAPI)
+Each (region, channel) intensity measurement can be optionally restricted to pixels whose raw value falls in a keep-range `[low, high]` (inclusive). Pixels outside the range are excluded from the average. Default is no thresholding.
+
+**Range syntax** is required as `LOW-HIGH` — bare numbers are rejected to avoid ambiguity:
+
+| Spec          | Pixels kept                |
+|---------------|----------------------------|
+| `4000-5000`   | `4000 ≤ value ≤ 5000`      |
+| `min-5000`    | `value ≤ 5000`             |
+| `5000-max`    | `value ≥ 5000`             |
+
+Three flags, all optional:
+
+- `--tritc-threshold RANGE` — applies the same TRITC range to Exodermis, Endodermis, Vascular.
+- `--fitc-threshold RANGE` — same for FITC.
+- `--threshold REGION:CHANNEL=RANGE` — repeatable; overrides the global flag for that specific (region, channel). REGION ∈ {Exodermis, Endodermis, Vascular}, CHANNEL ∈ {TRITC, FITC}.
+
+```bash
+# Same threshold across all three structures
+... --tritc-threshold 4000-5000 --fitc-threshold min-800
+
+# Per-structure
+... --threshold Exodermis:TRITC=4000-5000 --threshold Endodermis:TRITC=3000-max --threshold Vascular:FITC=min-800
+
+# Global default + per-structure override
+... --tritc-threshold 5000-max --threshold Exodermis:TRITC=8000-max
+```
+
+#### Threshold visualization (`downstream_measure_from_masks.py` only)
+
+When `--save-vis-dir DIR` is set together with one or more thresholds, the script saves a diagnostic PNG per (sample, channel-with-threshold) at `DIR/{uid}_{CHANNEL}.png`. Each PNG has a title bar listing the per-region ranges, plus four panels side by side:
+
+1. **Mask before threshold overlay** — original `Exodermis`/`Endodermis`/`Vascular` masks blended over the raw channel image.
+2. **Mask before threshold** — the same masks alone, on a black background.
+3. **Mask after threshold** — only the pixels that fall in the keep-range, alone on black.
+4. **Mask after threshold overlay** — kept pixels blended over the raw channel image.
+
+The CSV's reported intensity is the **mean** over the kept pixels (panel 3 / panel 4).
+
+If `--save-vis-dir` is set but no threshold is given, the script warns and skips visualization. Channels with no threshold are skipped; e.g. setting only TRITC ranges produces no FITC PNGs.
 
 ---
 
