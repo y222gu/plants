@@ -1,0 +1,39 @@
+Species,Genotype,Train,Val
+Millet,AW23,71,7
+Rice,Kitaake,86,52
+Rice,*psy1-17*,175,0
+Rice,*psy1-17*,10,0
+Rice,*psy1-9*,105,3
+Rice,*wox10-15*,33,0
+Rice,*wox10-50*,31,0
+Sorghum,2005MI5064,0,3
+Sorghum,235464,4,0
+Sorghum,235467,3,0
+Sorghum,235761,4,0
+Sorghum,235763,3,0
+Sorghum,235921,4,0
+Sorghum,235925,4,0
+Sorghum,A2267-2,6,0
+Sorghum,B35,0,1
+Sorghum,Dekeba,4,0
+Sorghum,ETSL 100016,9,0
+Sorghum,ETSL 100046,3,0
+Sorghum,ETSL 100143,4,0
+Sorghum,ETSL 100305,0,2
+Sorghum,ETSL 100307,3,0
+Sorghum,ETSL 100308,5,0
+Sorghum,ETSL 100309,4,0
+Sorghum,ETSL 100312,3,0
+Sorghum,ETSL 100316,4,0
+Sorghum,ETSL 100726,4,0
+Sorghum,ETSL 101295,3,0
+Sorghum,ETSL 101728,6,0
+Sorghum,ETSL 101843,0,2
+Sorghum,ETSL 101844,5,0
+Sorghum,ETSL 101845,5,0
+Sorghum,ETSL 101847,5,0
+Sorghum,ETSL 101851,4,0
+Sorghum,ETSL 101853,0,2
+Sorghum,ETSL 101857,0,3
+Sorghum,ETSL 101862,4,0
+Sorghum,ETSL 101865,7,0

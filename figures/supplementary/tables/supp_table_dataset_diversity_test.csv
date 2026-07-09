@@ -1,0 +1,19 @@
+Species,Genotype,In-distribution Test,Zero-shot Test,Total
+Millet,AW23,32,0,32
+Rice,Kitaake,9,35,44
+Rice,*psy1-17*,3,0,3
+Rice,*psy1-9*,3,0,3
+Rice,*wox10-15*,42,0,42
+Sorghum,SQR,8,0,8
+Sorghum,SRN,5,0,5
+Sorghum,SRN39,4,0,4
+Sorghum,Teshale,42,0,42
+*Solanum lycopersicum*,M82,22,0,22
+*Solanum lycopersicum*,*slasft*,4,0,4
+*Solanum lycopersicum*,*slmyb92*,5,0,5
+*Solanum abutiloides*,Baker_Creek,1,0,1
+*Solanum candidum*,994750097,1,0,1
+*Solanum cheesmaniae*,LA1407,1,0,1
+*Solanum insanum*,INS1,1,0,1
+*Solanum peruvianum*,LA0446,1,0,1
+*Solanum pimpinellifolium*,LA1589,1,0,1

@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Figure 2 Assembly</title>
+<style>
+  :root {
+    /* Canvas: 180 mm wide (Nature 2-column). Height auto from PANEL_SIZES. */
+    --fig-w-mm: 180;
+    --fig-h-mm: 170;
+  }
+  body {
+    margin: 0;
+    padding: 16px;
+    font-family: Helvetica, Arial, sans-serif;
+    background: #f4f4f4;
+  }
+  #controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  #controls button {
+    padding: 8px 14px;
+    font-size: 13px;
+    background: #333;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  #controls label { font-size: 13px; }
+  #info { font-size: 12px; color: #666; }
+  #warn { font-size: 12px; color: #c02020; font-weight: bold; }
+
+  #fig {
+    position: relative;
+    width: calc(var(--fig-w-mm) * 1mm);
+    height: calc(var(--fig-h-mm) * 1mm);
+    background: white;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    outline: 1px solid #bbb;
+  }
+
+  .panel {
+    position: absolute;
+    overflow: hidden;
+    background: transparent;
+  }
+  /* Bottom-right sub-grid plots (d/e/f) overlap each other deliberately;
+     allow each panel and its inner SVG to render content outside their
+     bounds so axis titles can extend into a sibling panel's empty
+     M.right / M.left margin without being clipped or being occluded by
+     an opaque background. */
+  #fig2f, #fig2e, #fig2d {
+    overflow: visible;
+    background: transparent;
+  }
+  #fig2f-svg, #fig2e-svg, #fig2d-svg {
+    overflow: visible;
+    background: transparent;
+  }
+  .panel img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+  /* Placeholder panels (2b/c/d) - empty boxes until you drop in artwork. */
+  .panel.placeholder {
+    border: 1px dashed #c8c8c8;
+    background: repeating-linear-gradient(
+      45deg, #fafafa, #fafafa 4mm, #f4f4f4 4mm, #f4f4f4 8mm);
+    color: #999;
+    font-size: 10pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Panel letters: 10 pt bold Helvetica - paper-wide convention.
+     Anchored to each panel's top-left corner. line-height: 1 collapses
+     the default line-box padding so the letter's cap-top sits flush with
+     the panel's top edge. */
+  .panel-letter {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 10pt;
+    font-weight: bold;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #222;
+    line-height: 1;
+    z-index: 10;
+  }
+  /* Panel a letter sits centred in the gallery's row-label column
+     (4.5 mm wide) so it aligns horizontally with the vertical row
+     labels "Input Image / G.T. Mask / Pred. Mask" below it. */
+  #fig2a > .panel-letter {
+    left: 2.25mm;
+    transform: translateX(-50%);
+  }
+  /* Panel f's y-title sits closer to the panel edge than d/e because
+     fig2f_scatter.js uses Y_TITLE_CENTRE_OFFSET = 7.635 (vs 5.94 in d/e).
+     Shift the "f" letter left by the same delta (1.7 mm) so the letter
+     sits at the same horizontal offset from the y-title as d and e. The
+     panel has overflow:visible so the negative offset is safe. */
+  #fig2f > .panel-letter {
+    left: -1.7mm;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     Panel a - merged single-panel gallery (formerly fig2a_gallery.html).
+     The 3 + 3 + 2 sample grid is rendered live inside #fig2a here; no
+     separate fig2a_gallery.svg file is loaded. Layout math:
+       --row-lbl-w 4.5 mm + 8 image cols * 21.4375 mm + 8 gaps * 0.5 mm = 180.0 mm
+       --col-hdr-h 3 mm + 3 image rows * 19 mm + --miou-h 3.5 + 4 gaps * 0.5 = 65.5 mm
+     Cells render slightly wider than tall (21.44 × 19 mm); root cross-
+     sections are roughly circular so the mild aspect change is fine
+     under object-fit: cover.
+     ───────────────────────────────────────────────────────────────────── */
+  :root {
+    --gal-row-lbl-w: 4.5;
+    --gal-col-hdr-h: 3;
+    --gal-miou-h: 3.5;
+    --gal-hdr-pt: 7;
+    --gal-lbl-pt: 5;
+    --gal-miou-pt: 6;
+  }
+  #fig2a {
+    display: grid;
+    grid-template-columns: calc(var(--gal-row-lbl-w) * 1mm) repeat(8, 1fr);
+    grid-template-rows: calc(var(--gal-col-hdr-h) * 1mm) 1fr 1fr 1fr calc(var(--gal-miou-h) * 1mm);
+    gap: 0.5mm;
+    background: white;
+  }
+  #fig2a .col-hdr, #fig2a .row-hdr, #fig2a .miou {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #000;
+    line-height: 1;
+  }
+  #fig2a .col-hdr {
+    font-size: calc(var(--gal-hdr-pt) * 1pt);
+    background: #dcdcdc;
+  }
+  #fig2a .row-hdr {
+    font-size: calc(var(--gal-hdr-pt) * 1pt);
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+  #fig2a .miou {
+    font-size: calc(var(--gal-miou-pt) * 1pt);
+    background: white;
+    color: #222;
+    font-weight: normal;
+  }
+  #fig2a .cell {
+    position: relative;
+    overflow: hidden;
+    background: black;
+  }
+  #fig2a .cell img {
+    width: 100%;
+    height: 100%;
+    /* contain (not cover) so each image renders at full extent without
+       being cropped. Source images have slightly different aspects; the
+       cell's black background letterboxes whichever axis doesn't fill. */
+    object-fit: contain;
+    display: block;
+  }
+  #fig2a .cell .label {
+    position: absolute;
+    top: 0.5mm;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: calc(var(--gal-lbl-pt) * 1pt);
+    /* Upright by default - only <i>/<em> (mutant gene names) render italic. */
+    font-style: normal;
+    color: white;
+    background: rgba(0,0,0,0.5);
+    padding: 0;
+    border-radius: 0.4mm;
+    line-height: 1.1;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #fig2a .cell .label i,
+  #fig2a .cell .label em {
+    font-style: italic;
+  }
+  /* Per-microscope brightness/contrast/saturation/sharpness - applied via
+     SVG <filter> defs below. Excludes pred / overlay / GT masks. */
+  #fig2a img[src*="_Olympus_"]:not([src*="pred"]):not([src*="overlay"]):not([src*="_gt."]):not([src$="/gt.png"]) {
+    filter: url(#img-adjust-olympus);
+  }
+  #fig2a img[src*="_C10_"]:not([src*="pred"]):not([src*="overlay"]):not([src*="_gt."]):not([src$="/gt.png"]) {
+    filter: url(#img-adjust-c10);
+  }
+
+  /* 100 µm scale bar - same style as fig1c (white bar + halo + label,
+     right-aligned). Bar/label are separately positioned children of
+     `.cell`; the label has no width constraint so it shrinks to fit and
+     its right edge sits at a constant inset from the image's right edge
+     for every cell. With object-fit: contain the rendered image is
+     letterboxed inside the wider cell - JS positions each bar via
+     `right:` offset that accounts for the image's actual rendered width. */
+  #fig2a .cell .sb-bar {
+    position: absolute;
+    bottom: 0.6mm;
+    height: 0.25mm;
+    background: white;
+    pointer-events: none;
+    box-shadow: 0 0 0 0.08mm rgba(0,0,0,0.75);
+  }
+  #fig2a .cell .sb-lbl {
+    position: absolute;
+    /* bottom = sbBottom (0.6) + sbBar (0.25) + sbLabelGap (0.8) */
+    bottom: 1.65mm;
+    color: white;
+    font-size: calc(var(--gal-lbl-pt) * 1pt);
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow:
+       0.08mm  0.08mm 0 rgba(0,0,0,0.85),
+      -0.08mm  0.08mm 0 rgba(0,0,0,0.85),
+       0.08mm -0.08mm 0 rgba(0,0,0,0.85),
+      -0.08mm -0.08mm 0 rgba(0,0,0,0.85);
+  }
+</style>
+</head>
+<body>
+
+<!-- Per-microscope SVG filters for fig2a cell images. Same math as the
+     fig2a_gallery.html standalone - Olympus brightens + saturates, C10
+     adds light sharpening. Referenced from CSS via filter: url(#…). -->
+<svg width="0" height="0" style="position:absolute;visibility:hidden" aria-hidden="true">
+  <defs>
+    <filter id="img-adjust-olympus" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncG type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncB type="linear" slope="1.84" intercept="-0.03"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.2"/>
+    </filter>
+    <filter id="img-adjust-c10" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.15" intercept="-0.165"/>
+        <feFuncG type="linear" slope="1.15" intercept="-0.165"/>
+        <feFuncB type="linear" slope="1.15" intercept="-0.165"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.1"/>
+      <feConvolveMatrix order="3" preserveAlpha="true"
+        kernelMatrix="0 -0.2 0 -0.2 1.8 -0.2 0 -0.2 0"/>
+    </filter>
+  </defs>
+</svg>
+
+<div id="controls">
+  <button id="save">Save PNG</button>
+  <button id="save-svg">Save SVG</button>
+  <label>DPI <input type="number" id="dpi" value="600" min="72" max="1200" step="50" style="width:70px"></label>
+  <span id="info"></span>
+  <span id="warn"></span>
+</div>
+
+<div id="fig">
+
+  <!-- f: test vs oneshot mIoU scatter - row 2 bottom right. Widened to
+       72.5 mm so d + e + f exactly fill the canvas with 1 mm gaps. LIVE. -->
+  <div id="fig2f" class="panel">
+    <span class="panel-letter">f</span>
+    <svg id="fig2f-svg" viewBox="0 0 67.8 48.8" xmlns="http://www.w3.org/2000/svg"
+         overflow="visible"
+         style="width:100%;height:100%;display:block;background:transparent;"></svg>
+  </div>
+
+  <!-- e: per-microscope mIoU boxplot - row 2 bottom middle. Widened to
+       60 mm so the row fills the canvas while preserving panel d's narrow
+       45.5 mm width (which keeps d's boxes matching panel c). LIVE. -->
+  <div id="fig2e" class="panel">
+    <span class="panel-letter">e</span>
+    <svg id="fig2e-svg" viewBox="0 0 49.02 48.8" xmlns="http://www.w3.org/2000/svg"
+         overflow="visible"
+         style="width:100%;height:100%;display:block;background:transparent;"></svg>
+  </div>
+
+  <!-- d: per-species sample-level mIoU box plot on the in-distribution
+       test split (Rice, Millet, Sorghum, Solanums). Row 2 bottom LEFT.
+       Width 45.5 mm chosen so each box renders at the same ~4 mm physical
+       width as the single boxes in panel c. LIVE. -->
+  <div id="fig2species" class="panel">
+    <span class="panel-letter">d</span>
+    <svg id="fig2species-svg" viewBox="0 0 56.48 48.8" xmlns="http://www.w3.org/2000/svg"
+         overflow="visible"
+         style="width:100%;height:100%;display:block;background:transparent;"></svg>
+  </div>
+
+  <!-- Bio-7 class legend: row 2 top, flush with canvas LEFT edge.
+       No panel letter - legend describes the class palette shared by b + c. -->
+  <div id="fig2legend" class="panel">
+    <svg id="fig2legend-svg" viewBox="0 0 22 40.16" xmlns="http://www.w3.org/2000/svg"
+         style="width:100%;height:100%;display:block;"></svg>
+  </div>
+
+  <!-- b: per-class IoU on the in-distribution test split. 98.27 mm wide so
+       paired model + human-baseline boxes match panel c's box width
+       (~3.84 mm in both panels under the renderer's default 0.75 box mult). LIVE. -->
+  <div id="fig2d" class="panel">
+    <span class="panel-letter">b</span>
+    <svg id="fig2d-svg" viewBox="0 0 98.27 40.16" xmlns="http://www.w3.org/2000/svg"
+         overflow="visible"
+         style="width:100%;height:100%;display:block;background:transparent;"></svg>
+  </div>
+
+  <!-- c: per-class IoU on the zero-shot (Zeiss) split. Single-box plot, no
+       human baseline. 52.73 mm wide so box width matches panel b. LIVE. -->
+  <div id="fig2c" class="panel">
+    <span class="panel-letter">c</span>
+    <svg id="fig2c-svg" viewBox="0 0 52.73 40.16" xmlns="http://www.w3.org/2000/svg"
+         overflow="visible"
+         style="width:100%;height:100%;display:block;background:transparent;"></svg>
+  </div>
+
+  <!-- a: merged single-panel gallery - Test Dicot + Test Monocot + Zero-shot
+       Zeiss share one set of row labels. Spans full 180 mm canvas width.
+       Rendered live as a CSS grid here; no separate fig2a_gallery.svg load. -->
+  <div id="fig2a" class="panel">
+    <span class="panel-letter">a</span>
+
+    <!-- Row 1: three group headers spanning their respective sample groups -->
+    <div></div>
+    <div class="col-hdr" style="grid-column: 2 / span 3">In-distribution Test Dicot</div>
+    <div class="col-hdr" style="grid-column: 5 / span 3">In-distribution Test Monocot</div>
+    <div class="col-hdr" style="grid-column: 8 / span 2">Zero-shot Test Monocot</div>
+
+    <!-- Row 2: Input Image (composite TRITC/FITC/DAPI) - 8 samples.
+         data-bar-frac = cal_px_per_100µm / native_tif_width
+         (cal: Olympus 308, C10 308, Zeiss 217). 100 µm scale bars get
+         injected by JS into each .cell in this row at load time. -->
+    <div class="row-hdr">Input Image</div>
+    <div class="cell"><img src="fig2a_samples/Tomato_C10_Exp3_M82_WT_C12ROI1_image.png" data-bar-frac="0.2032">
+      <span class="label">S. lycopersicum, M82</span></div>
+    <div class="cell"><img src="fig2a_samples/Tomato_Olympus_Exp12_Suberin_mutants_13-24_19_image.png" data-bar-frac="0.2476">
+      <span class="label">S. lycopersicum, <i>slasft</i></span></div>
+    <div class="cell"><img src="fig2a_samples/Tomato_Olympus_Exp5_Solanum_MajkenSlide1_14_image.png" data-bar-frac="0.3143">
+      <span class="label">S. cheesmaniae, LA1407</span></div>
+    <div class="cell"><img src="fig2a_samples/Millet_Olympus_Exp4_1-2cm__75_image.png" data-bar-frac="0.2533">
+      <span class="label">Millet, AW23</span></div>
+    <div class="cell"><img src="fig2a_samples/Rice_C10_Exp10_PSY9-4-b_image.png" data-bar-frac="0.3059">
+      <span class="label">Rice, <i>psy1-9</i></span></div>
+    <div class="cell"><img src="fig2a_samples/Sorghum_C10_Exp4_E2_image.png" data-bar-frac="0.1571">
+      <span class="label">Sorghum, SQR</span></div>
+    <div class="cell"><img src="fig2a_samples/Rice_Zeiss_Exp2_Image_47_image.png" data-bar-frac="0.1060">
+      <span class="label">Rice, Kitaake</span></div>
+    <div class="cell"><img src="fig2a_samples/Rice_Zeiss_Exp3_Image_38_image.png" data-bar-frac="0.1060">
+      <span class="label">Rice, Kitaake</span></div>
+
+    <!-- Row 3: G.T. Mask -->
+    <div class="row-hdr">G.T. Mask</div>
+    <div class="cell"><img src="fig2a_samples/Tomato_C10_Exp3_M82_WT_C12ROI1_gt.png"></div>
+    <div class="cell"><img src="fig2a_samples/Tomato_Olympus_Exp12_Suberin_mutants_13-24_19_gt.png"></div>
+    <div class="cell"><img src="fig2a_samples/Tomato_Olympus_Exp5_Solanum_MajkenSlide1_14_gt.png"></div>
+    <div class="cell"><img src="fig2a_samples/Millet_Olympus_Exp4_1-2cm__75_gt.png"></div>
+    <div class="cell"><img src="fig2a_samples/Rice_C10_Exp10_PSY9-4-b_gt.png"></div>
+    <div class="cell"><img src="fig2a_samples/Sorghum_C10_Exp4_E2_gt.png"></div>
+    <div class="cell"><img src="fig2a_samples/Rice_Zeiss_Exp2_Image_47_gt.png"></div>
+    <div class="cell"><img src="fig2a_samples/Rice_Zeiss_Exp3_Image_38_gt.png"></div>
+
+    <!-- Row 4: Pred. Mask -->
+    <div class="row-hdr">Pred. Mask</div>
+    <div class="cell"><img src="fig2a_samples/Tomato_C10_Exp3_M82_WT_C12ROI1_pred.png"></div>
+    <div class="cell"><img src="fig2a_samples/Tomato_Olympus_Exp12_Suberin_mutants_13-24_19_pred.png"></div>
+    <div class="cell"><img src="fig2a_samples/Tomato_Olympus_Exp5_Solanum_MajkenSlide1_14_pred.png"></div>
+    <div class="cell"><img src="fig2a_samples/Millet_Olympus_Exp4_1-2cm__75_pred.png"></div>
+    <div class="cell"><img src="fig2a_samples/Rice_C10_Exp10_PSY9-4-b_pred.png"></div>
+    <div class="cell"><img src="fig2a_samples/Sorghum_C10_Exp4_E2_pred.png"></div>
+    <div class="cell"><img src="fig2a_samples/Rice_Zeiss_Exp2_Image_47_pred.png"></div>
+    <div class="cell"><img src="fig2a_samples/Rice_Zeiss_Exp3_Image_38_pred.png"></div>
+
+    <!-- Row 5: per-column mIoU footer (text filled by loadFig2aMeta) -->
+    <div></div>
+    <div class="miou" id="fig2a-miou-1"></div>
+    <div class="miou" id="fig2a-miou-2"></div>
+    <div class="miou" id="fig2a-miou-3"></div>
+    <div class="miou" id="fig2a-miou-4"></div>
+    <div class="miou" id="fig2a-miou-5"></div>
+    <div class="miou" id="fig2a-miou-6"></div>
+    <div class="miou" id="fig2a-miou-7"></div>
+    <div class="miou" id="fig2a-miou-8"></div>
+  </div>
+</div>
+
+<script src="_mixed_italic.js"></script>
+<script>
+// Load every JS module with a cache-bust query string so edits to the
+// renderer files (fig2f_scatter.js, fig2d_boxplot.js, …) are picked up
+// on every reload without manual hard-refresh.
+function _loadScript(src) {
+  return new Promise((ok, err) => {
+    const s = document.createElement("script");
+    s.src = src + "?t=" + Date.now();
+    s.onload = ok;
+    s.onerror = () => err(new Error("failed to load " + src));
+    document.head.appendChild(s);
+  });
+}
+
+(async () => {
+  for (const src of [
+    "d3.v7.min.js",
+    "fig2f_scatter.js",
+    "fig2d_boxplot.js",
+    "fig2e_microscope_boxplot.js",
+    "fig2d_species_boxplot.js",
+    "fig2_class_legend.js",
+  ]) {
+    await _loadScript(src);
+  }
+
+  // Cache-bust the panel images too (PNGs regenerated by make_fig2b.py).
+  document.querySelectorAll(".panel img[data-src]").forEach(img => {
+    img.src = img.dataset.src + "?t=" + Date.now();
+  });
+
+  // Render each live SVG panel at its target mm dimensions.
+  Fig2fScatter.render(document.getElementById("fig2f-svg"), {
+      xMin: 0.82, xMax: 0.88,
+      yMin: 0.78, yMax: 0.89,
+      labelMode: "off",
+      csvPath: "per_sample_miou_all_models.csv",
+      panelW: 67.8, panelH: 48.8,
+      title: "",
+  }).catch(err => console.error("fig2f render failed:", err));
+
+  // Panel b - per-class IoU on the in-distribution test split. Keeps the
+  // human-annotator baseline boxes (annotator data is test-only). Widened
+  // panel (98.27 mm) so each paired sub-box renders at the same ~3.84 mm
+  // physical width as the single boxes in panel c.
+  Fig2dBoxplot.render(document.getElementById("fig2d-svg"), {
+      yMin: 0.0, yMax: 1.0,
+      csvPath: "per_sample_iou.csv",
+      splitFilter: "test",
+      panelW: 98.27, panelH: 40.16,
+      title: "In-Distribution Test",
+  }).catch(err => console.error("fig2d (panel b) render failed:", err));
+
+  // Panel c - per-class IoU on the zero-shot (Zeiss) split. No human
+  // baseline available outside the in-distribution annotator set, so
+  // we suppress the second box per class by passing humanCsvPath: null.
+  // Narrower panel (52.73 mm) - its single boxes match panel b's paired
+  // sub-boxes at the same physical ~3.84 mm width.
+  Fig2dBoxplot.render(document.getElementById("fig2c-svg"), {
+      yMin: 0.0, yMax: 1.0,
+      csvPath: "per_sample_iou.csv",
+      splitFilter: "zero-shot",
+      humanCsvPath: null,
+      panelW: 52.73, panelH: 40.16,
+      title: "Zero-shot Test",
+  }).catch(err => console.error("fig2c (panel c) render failed:", err));
+
+  Fig2eMicroscopeBoxplot.render(document.getElementById("fig2e-svg"), {
+      yMin: 0.5, yMax: 1.0,
+      csvPath: "per_sample_miou_by_microscope.csv",
+      panelW: 49.02, panelH: 48.8,
+      title: "",
+  }).catch(err => console.error("fig2e render failed:", err));
+
+  // Panel d - per-species sample-level mIoU pooling BOTH the in-distribution
+  // test split and the zero-shot (Zeiss) split. Only Rice has zero-shot
+  // rows, so its box mixes Olympus/C10/Zeiss samples; the other species
+  // come purely from the in-distribution split. Width 45.5 mm - see the
+  // box-width matching note in PANEL_SIZES below.
+  Fig2SpeciesBoxplot.render(document.getElementById("fig2species-svg"), {
+      yMin: 0.5, yMax: 1.0,
+      csvPath: "per_sample_iou.csv",
+      splitFilter: null,
+      panelW: 56.48, panelH: 48.8,
+      title: "",
+  }).catch(err => console.error("fig2species render failed:", err));
+
+  Fig2ClassLegend.render(document.getElementById("fig2legend-svg"), {
+      panelW: 22, panelH: 40.16,
+      // Top-align legend content with 2d's first image row. Legend panel top
+      // is set to HEADER_OFFSET (= 3.34 mm) in the layout, which is exactly
+      // 2a's first image row top, so contentTop = 0 puts the title's top edge
+      // flush with that row.
+      contentTop: 0,
+  });
+})();
+
+// ══════════════════════════════════════════════════════════════════════
+//  Panel a - sample UIDs + per-cell mIoU loader, plus pixel-perfect
+//  per-microscope adjustment math used by the PNG / SVG exporters.
+//  Inlined from the former fig2a_gallery.html so the merged gallery
+//  renders without a separate asset load.
+// ══════════════════════════════════════════════════════════════════════
+const FIG2A_SAMPLE_UIDS = [
+  // Test Dicot (Tomato, Olympus + C10)
+  "Tomato_C10_Exp3_M82_WT_C12ROI1",
+  "Tomato_Olympus_Exp12_Suberin_mutants_13-24_19",
+  "Tomato_Olympus_Exp5_Solanum_MajkenSlide1_14",
+  // Test Monocot (Millet / Rice / Sorghum - Teshale dropped)
+  "Millet_Olympus_Exp4_1-2cm__75",
+  "Rice_C10_Exp10_PSY9-4-b",
+  "Sorghum_C10_Exp4_E2",
+  // Zero-shot Monocot (Rice Kitaake, Zeiss - Exp1 dropped)
+  "Rice_Zeiss_Exp2_Image_47",
+  "Rice_Zeiss_Exp3_Image_38",
+];
+
+async function loadFig2aMeta() {
+  const merged = {};
+  try {
+    const rows = await d3.csv("per_sample_iou.csv");
+    for (const r of rows) {
+      const v = parseFloat(r.mean_IoU);
+      if (!isNaN(v)) merged[r.sample_id] = v;
+    }
+  } catch (e) { console.warn(e.message); }
+  FIG2A_SAMPLE_UIDS.forEach((uid, i) => {
+    const cell = document.getElementById(`fig2a-miou-${i+1}`);
+    if (!cell) return;
+    const m = merged[uid];
+    cell.textContent = (m != null) ? `mIoU ${m.toFixed(3)}` : "-";
+  });
+}
+loadFig2aMeta();
+
+// ─── 100 µm scale-bar injection for #fig2a Input row ─────────────
+// data-bar-frac on each input <img> = cal_px_per_100µm / native_tif_w
+// (Olympus 308, C10 308, Zeiss 217 px/100 µm). Bar width = frac × the
+// rendered (object-fit:contain) image width. Bar and label are
+// separately positioned children of the cell, both right-anchored at
+// `imgRight − sbInset` so their right edges line up identically across
+// every cell - matches the fig1c scale-bar convention.
+const FIG2A_SB = {
+  insetMm:    0.6,
+  bottomMm:   0.6,
+  barHmm:     0.25,
+  labelGapMm: 0.8,
+};
+async function injectFig2aScaleBars() {
+  const fig = document.getElementById("fig2a");
+  if (!fig) return;
+  const imgs = fig.querySelectorAll(".cell img[data-bar-frac]");
+  await Promise.all(Array.from(imgs).map(img =>
+    img.complete && img.naturalWidth ? Promise.resolve()
+    : new Promise(r => { img.onload = r; img.onerror = r; })));
+  const ruler = document.createElement("div");
+  ruler.style.cssText = "width:10mm;position:absolute;visibility:hidden";
+  document.body.appendChild(ruler);
+  const pxPerMm = ruler.getBoundingClientRect().width / 10;
+  ruler.remove();
+  const { insetMm, bottomMm, barHmm, labelGapMm } = FIG2A_SB;
+  for (const img of imgs) {
+    const frac = parseFloat(img.dataset.barFrac);
+    if (!(frac > 0)) continue;
+    const cell = img.closest(".cell");
+    // Strip any previously-injected bar/label so repeated calls stay idempotent.
+    cell.querySelectorAll(".sb-bar,.sb-lbl").forEach(n => n.remove());
+    const cellR = cell.getBoundingClientRect();
+    const cellWmm = cellR.width  / pxPerMm;
+    const cellHmm = cellR.height / pxPerMm;
+    const ar = (img.naturalWidth || 1) / (img.naturalHeight || 1);
+    const cellAr = cellWmm / cellHmm;
+    // object-fit:contain - fit image to cell, letterbox the other axis.
+    let drawWmm, drawHmm, offXMm = 0, offYMm = 0;
+    if (ar > cellAr) {
+      drawWmm = cellWmm;        drawHmm = cellWmm / ar; offYMm = (cellHmm - drawHmm) / 2;
+    } else {
+      drawHmm = cellHmm;        drawWmm = cellHmm * ar; offXMm = (cellWmm - drawWmm) / 2;
+    }
+    const rightOffsetMm  = (cellWmm - (offXMm + drawWmm)) + insetMm;
+    const bottomOffsetMm = (cellHmm - (offYMm + drawHmm)) + bottomMm;
+    const barWmm = frac * drawWmm;
+    const bar = document.createElement("div");
+    bar.className = "sb-bar";
+    bar.style.right  = `${rightOffsetMm}mm`;
+    bar.style.bottom = `${bottomOffsetMm}mm`;
+    bar.style.width  = `${barWmm}mm`;
+    cell.appendChild(bar);
+    const lbl = document.createElement("div");
+    lbl.className = "sb-lbl";
+    lbl.textContent = "100 μm";
+    lbl.style.right  = `${rightOffsetMm}mm`;
+    lbl.style.bottom = `${bottomOffsetMm + barHmm + labelGapMm}mm`;
+    cell.appendChild(lbl);
+  }
+}
+injectFig2aScaleBars();
+
+const FIG2A_ADJUST_PARAMS = {
+  olympus: { gamma: 0.95, contrast: 84, brightness: 39, saturation: 1.2, sharpness: 0 },
+  c10:     { gamma: 0.90, contrast: 15, brightness: -9, saturation: 1.1, sharpness: 0.4 },
+};
+function _fig2aAdjustParamsForSrc(src) {
+  if (!src) return null;
+  if (/pred/i.test(src) || /overlay/i.test(src)
+      || /_gt\./i.test(src) || /\/gt\.png/i.test(src)) return null;
+  if (src.includes("_Olympus_")) return FIG2A_ADJUST_PARAMS.olympus;
+  if (src.includes("_C10_"))     return FIG2A_ADJUST_PARAMS.c10;
+  return null;
+}
+function _fig2aBuildBCGLUT(brightness, contrast, gamma) {
+  const lut = new Uint8ClampedArray(256);
+  const c = (contrast + 100) / 100;
+  for (let i = 0; i < 256; i++) {
+    let v = i / 255;
+    v = Math.pow(v, 1 / gamma);
+    v = (v - 0.5) * c + 0.5;
+    v = v + brightness / 100;
+    lut[i] = Math.max(0, Math.min(1, v)) * 255;
+  }
+  return lut;
+}
+function _fig2aApplyBCG(imgData, lut) {
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = lut[d[i]]; d[i+1] = lut[d[i+1]]; d[i+2] = lut[d[i+2]];
+  }
+}
+function _fig2aApplySaturation(imgData, sat) {
+  if (Math.abs(sat - 1) < 1e-3) return;
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i+1], b = d[i+2];
+    const luma = 0.2126*r + 0.7152*g + 0.0722*b;
+    d[i]   = Math.max(0, Math.min(255, luma + (r - luma) * sat));
+    d[i+1] = Math.max(0, Math.min(255, luma + (g - luma) * sat));
+    d[i+2] = Math.max(0, Math.min(255, luma + (b - luma) * sat));
+  }
+}
+function _fig2aApplyUnsharp(imgData, amount) {
+  const w = imgData.width, h = imgData.height;
+  const src = new Uint8ClampedArray(imgData.data);
+  const dst = imgData.data;
+  const k = amount * 0.5, center = 1 + 4*k;
+  for (let y = 1; y < h - 1; y++) {
+    const ro = y * w * 4;
+    for (let x = 1; x < w - 1; x++) {
+      const i = ro + x * 4;
+      for (let ch = 0; ch < 3; ch++) {
+        dst[i+ch] = Math.max(0, Math.min(255,
+          src[i+ch] * center
+          - (src[i-w*4+ch] + src[i+w*4+ch] + src[i-4+ch] + src[i+4+ch]) * k));
+      }
+    }
+  }
+}
+function _fig2aApplyPixelAdjust(canvas, params) {
+  const ctx2 = canvas.getContext("2d");
+  const imgData = ctx2.getImageData(0, 0, canvas.width, canvas.height);
+  _fig2aApplyBCG(imgData, _fig2aBuildBCGLUT(params.brightness, params.contrast, params.gamma));
+  _fig2aApplySaturation(imgData, params.saturation);
+  if (params.sharpness > 0) _fig2aApplyUnsharp(imgData, params.sharpness);
+  ctx2.putImageData(imgData, 0, 0);
+}
+// Filter defs string - embedded verbatim into the combined SVG export so
+// the saved file carries the same Olympus / C10 boosts the on-screen
+// CSS-referenced <filter> elements apply.
+const FIG2A_ADJUST_FILTER_DEFS = `
+    <filter id="img-adjust-olympus" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncG type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncB type="linear" slope="1.84" intercept="-0.03"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.2"/>
+    </filter>
+    <filter id="img-adjust-c10" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.15" intercept="-0.165"/>
+        <feFuncG type="linear" slope="1.15" intercept="-0.165"/>
+        <feFuncB type="linear" slope="1.15" intercept="-0.165"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.1"/>
+      <feConvolveMatrix order="3" preserveAlpha="true"
+        kernelMatrix="0 -0.2 0 -0.2 1.8 -0.2 0 -0.2 0"/>
+    </filter>`;
+async function _fig2aFetchDataURL(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`fetch ${url} → ${res.status}`);
+  const blob = await res.blob();
+  return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  Single source of truth for panel dimensions. Edit these to reshape
+//  the figure; layout + canvas height follow automatically.
+// ══════════════════════════════════════════════════════════════════════
+// Layout:
+//   ┌──────────────────────────────────────────────┐
+//   │                  a (fig2a)                   │   ← row 1: merged gallery,
+//   │  Test Dicot │ Test Monocot │ Zero-shot       │     180 × 65.5 mm
+//   ├───┬──────────────────────────┬───────────────┤
+//   │leg│   b - per-class IoU      │  c - per-cls  │   ← row 2 top: legend
+//   │   │   test split, paired     │  IoU zero-    │     (canvas-left) + b + c.
+//   │   │   boxes (model + human)  │  shot, single │     22 + 101.6 + 54.4
+//   │   │                          │  boxes        │     + 2 gaps = 180.
+//   ├───┴────────┬───────────┬─┴─────────────────┤     Box widths in b and
+//   │  d -       │  e -      │   f - scatter     │     c equal at ~4 mm.
+//   │  species   │  micro-   │   (test vs        │     Box widths in d and
+//   │  mIoU      │  scope    │   zero-shot)      │   ← e equal at ~5.27 mm.
+//   │  (Rice,    │  mIoU     │                   │     row 2 bottom:
+//   │  Millet,   │  (Olympus │                   │     d 56.48 + e 49.02 +
+//   │  Sor,      │  /C10/    │                   │     f 72.5 + 2 gaps =
+//   │  Solan.)   │  Zeiss)   │                   │     180 mm. Each panel
+//   └────────────┴───────────┴───────────────────┘     48.8 mm tall.
+// Panel mapping: a (merged gallery), b (per-class IoU on test split),
+// c (per-class IoU on zero-shot split), d (microscope boxplot, was c),
+// e (test-vs-zero-shot scatter, was d). The mask-classes legend at row 2
+// canvas-left labels the anatomy palette shared by panels a, b, c.
+const ROW1_GAL_H = 65.5;                  // merged fig2a SVG --h-mm (full 180 mm wide)
+
+const HEADER_OFFSET = 3.34;               // 7 pt group-header row height; sub-grid row-1 plot region aligns at this y inside the row-2 block
+const INNER_TOP_PAD = 3;                  // M.top of fig2f / fig2e - panel grows above row-1 top so its plot region aligns with HEADER_OFFSET
+const LEFTOVER_H = 81.66 - HEADER_OFFSET; // 78.32 mm - row-2 block height (preserved from prior layout)
+// Row-2 bottom layout: d (per-species) + e (microscope) + f (scatter).
+// Panel d is shifted right by 4.7 mm so its rotated y-axis title's
+// leftmost edge aligns with canvas x=5 (= legend left edge, = panel a's
+// first image column left edge). The rotated 7 pt y-title's leftmost
+// extent is at panel-x ≈ M.left − Y_TITLE_CENTRE_OFFSET − cap-height/2
+//                     = 8 − 5.94 − 1.75 = 0.31 mm
+// so panel d's left = 5 − 0.31 ≈ 4.7 mm. Panel f shrinks by 4.7 mm to
+// keep the row width at 180.
+//   d.left 4.7 + d 56.48 + gap 1 + e 49.02 + gap 1 + f 67.8 = 180 mm
+// d and e widths still satisfy the equal-box-width constraint:
+//   PLOT_W_d / 3.65 = PLOT_W_e / 2.65  → ~5.27 mm boxes in both.
+const FIG2SPECIES_LEFT = 4.7;             // canvas x of panel d's left edge (aligns y-title with legend)
+const FIG2F_W = 67.8;                     // letter f - scatter, right-anchored (was 72.5)
+const FIG2E_W = 49.02;                    // letter e - microscope boxplot
+const FIG2DE_GAP = 1;                     // 1 mm gap between d and e
+const FIG2EF_GAP = 1;                     // 1 mm gap between e and f
+const LEG_W    = 22;                      // mask-classes legend
+const ROW1_H = LEFTOVER_H / 2 + 1;        // 40.16 mm  (row-2 top sub-row height - legend, b, c; +1 mm absorbs the larger X-title offset in fig2d_boxplot.js so the title-to-label gap matches panel d)
+const ROW2_H = LEFTOVER_H / 2 + 1;        // 40.16 mm  (legacy reference; row-2 bottom panels use BOTTOM_PANEL_H below)
+// Row-2 bottom panels (d/e/f) are taller than the legacy ROW1_H + INNER_TOP_PAD
+// so their plot regions render at a more legible aspect. Canvas height
+// (FIG_H_MM) is extended below to accommodate.
+const BOTTOM_PANEL_H = 48.8;              // d/e/f panel height (was 50)
+// Row-2 top: legend + b (per-class IoU, test split) + c (per-class IoU,
+// zero-shot split). The legend's left edge is aligned with panel a's
+// FIRST IMAGE COLUMN left edge (canvas x = 5 mm).
+//
+// Panel widths chosen so the box rectangles in b and c render at the
+// same physical width (~3.84 mm), even though b shows paired boxes
+// (model + human) per class and c shows single boxes. Solving the
+// scaleBand geometry with 6 classes at paddingInner 0.30 and the
+// renderer's default 0.75 box-mult:
+//   PLOT_W_b - 2·PLOT_W_c = 3.80    (subGap 0.35 between paired boxes)
+//   PLOT_W_b + PLOT_W_c = 129       (canvas 180 − legend left 5 − legend 22
+//                                    − 2 gaps − 2·M.left+right 22)
+// → panel_b = 98.27 mm, panel_c = 52.73 mm. Inter-class gap differs
+// between b (4.59 mm) and c (2.20 mm) because their bandwidths differ.
+const Y_OFF = ROW1_GAL_H;                 // canvas y of row-2 top edge (= gallery row bottom)
+const LEG_LEFT_CANVAS = 5;                // legend left edge - aligned with panel a's first image column
+const LEG_FIG2D_GAP   = 1;                // 1 mm gap between legend and b
+const FIG2BC_GAP      = 1;                // 1 mm gap between b and c
+const FIG2D_W         = 98.27;            // letter b - per-class IoU, test split (paired boxes)
+const FIG2C_W         = 180 - LEG_LEFT_CANVAS - LEG_W - LEG_FIG2D_GAP - FIG2D_W - FIG2BC_GAP;   // 52.73 mm - letter c, zero-shot split
+// Panel d width chosen so each box renders at the same ~5.27 mm physical
+// width as panel e's boxes. See the FIG2E_W / FIG2F_W layout block above
+// for the derivation that yields panelW_d = 56.48 mm.
+const FIG2SPECIES_W = 56.48;                // letter d - per-species mIoU box plot
+const PANEL_SIZES = {
+  fig2f:        { w: FIG2F_W,        h: BOTTOM_PANEL_H        },   // 72.5   × 48.8    (row 2 bottom right  - letter f, scatter)
+  fig2e:        { w: FIG2E_W,        h: BOTTOM_PANEL_H        },   // 49.02  × 48.8    (row 2 bottom middle - letter e, microscope; box width = panel d)
+  fig2species:  { w: FIG2SPECIES_W,  h: BOTTOM_PANEL_H        },   // 56.48  × 48.8    (row 2 bottom left   - letter d, per-species mIoU; box width = panel e ~5.27 mm)
+  fig2legend:   { w: LEG_W,          h: ROW1_H                 },   // 22     × 39.16   (row 2 top, canvas-left aligned - mask-classes legend)
+  fig2d:        { w: FIG2D_W,        h: ROW2_H                 },   // 98.27  × 39.16   (row 2 top middle - letter b, per-class IoU on test, paired boxes)
+  fig2c:        { w: FIG2C_W,        h: ROW2_H                 },   // 52.73  × 39.16   (row 2 top right  - letter c, per-class IoU on zero-shot, single boxes)
+  fig2a:        { w: 180,            h: ROW1_GAL_H             },   // 180    × 65.5    (row 1 - merged gallery: dicot + monocot + Zeiss)
+};
+const FIG_W_MM = 180;
+// Canvas height = top of row-2 bottom + BOTTOM_PANEL_H. d/e/f top
+// edges abut b/c's bottom edges (no vertical nudge).
+//   ROW1_TOP        = HEADER_OFFSET - INNER_TOP_PAD + ROW1_GAL_H = 65.84
+//   ROW2_TOP        = ROW1_TOP + ROW1_H                          = 105.00
+//   FIG_H_MM        = ROW2_TOP + BOTTOM_PANEL_H                  = 153.80
+const ROW1_TOP_CANVAS = HEADER_OFFSET - INNER_TOP_PAD + ROW1_GAL_H;
+const ROW2_TOP_CANVAS = ROW1_TOP_CANVAS + ROW1_H;
+const FIG_H_MM = ROW2_TOP_CANVAS + BOTTOM_PANEL_H;   // 153.80 mm  (≤ 170 mm cap)
+
+function updateLayout() {
+  const { fig2f, fig2d, fig2c, fig2e, fig2species, fig2a, fig2legend } = PANEL_SIZES;
+
+  document.documentElement.style.setProperty("--fig-w-mm", FIG_W_MM);
+  document.documentElement.style.setProperty("--fig-h-mm", FIG_H_MM);
+
+  const set = (id, css) => Object.assign(document.getElementById(id).style, css);
+
+  // Row-2 top: legend + b (per-class IoU, test) + c (per-class IoU, zero-shot).
+  // Top edge sits just below the gallery, with the same HEADER_OFFSET /
+  // INNER_TOP_PAD nudge so plot regions in b and c align with legend content.
+  const ROW1_TOP = HEADER_OFFSET - INNER_TOP_PAD + Y_OFF;
+  // ── Mask-classes legend - flush with canvas LEFT edge.
+  set("fig2legend", {
+    top: ROW1_TOP + "mm",
+    left: LEG_LEFT_CANVAS + "mm",
+    right: "auto", bottom: "auto",
+    width: fig2legend.w + "mm", height: fig2legend.h + "mm",
+  });
+  // ── Letter-b panel (fig2d) - per-class IoU on the in-distribution
+  //    test split. Sits immediately to the right of the legend.
+  const FIG2D_LEFT = LEG_LEFT_CANVAS + LEG_W + LEG_FIG2D_GAP;             // 28 mm
+  set("fig2d", {
+    top: ROW1_TOP + "mm",
+    left: FIG2D_LEFT + "mm", right: "auto", bottom: "auto",
+    width: fig2d.w + "mm", height: fig2d.h + "mm",
+  });
+  // ── Letter-c panel (fig2c) - per-class IoU on the zero-shot split.
+  //    Sits to the right of b with a 1 mm gap; right edge at canvas x=180.
+  const FIG2C_LEFT = FIG2D_LEFT + FIG2D_W + FIG2BC_GAP;                   // 127.27 mm
+  set("fig2c", {
+    top: ROW1_TOP + "mm",
+    left: FIG2C_LEFT + "mm", right: "auto", bottom: "auto",
+    width: fig2c.w + "mm", height: fig2c.h + "mm",
+  });
+  // Row-2 bottom: panels d/e/f abut the bottom edges of panels b and c
+  // (no vertical nudge - top edges of d/e/f sit at canvas y = bottom edges
+  // of b/c).
+  const ROW2_TOP = ROW1_TOP + ROW1_H;
+  // ── Letter-d panel (fig2species, per-species mIoU) - row 2 bottom.
+  //    Shifted right so its y-title's leftmost edge aligns with the
+  //    legend's left edge at canvas x = 5 (= panel a's first image col).
+  set("fig2species", {
+    top: ROW2_TOP + "mm",
+    left: FIG2SPECIES_LEFT + "mm", right: "auto", bottom: "auto",
+    width: fig2species.w + "mm", height: fig2species.h + "mm",
+  });
+  // ── Letter-e panel (fig2e, microscope boxplot) - immediately right of d.
+  const FIG2E_LEFT = FIG2SPECIES_LEFT + FIG2SPECIES_W + FIG2DE_GAP;        // 62.18 mm
+  set("fig2e", {
+    top: ROW2_TOP + "mm",
+    left: FIG2E_LEFT + "mm", right: "auto", bottom: "auto",
+    width: fig2e.w + "mm", height: fig2e.h + "mm",
+  });
+  // ── Letter-f panel (fig2f, scatter) - right-anchored to canvas right.
+  //    Aligned so d + gap + e + gap + f spans the full 180 mm canvas.
+  set("fig2f", {
+    top: ROW2_TOP + "mm",
+    left: "auto", right: "0", bottom: "auto",
+    width: fig2f.w + "mm", height: fig2f.h + "mm",
+  });
+  // ── Letter-a panel (fig2a, merged gallery) - spans full canvas width.
+  set("fig2a", {
+    top: "0", left: "0", right: "auto", bottom: "auto",
+    width: fig2a.w + "mm", height: fig2a.h + "mm",
+  });
+
+  const fmt = p => `${p.w.toFixed(2)}×${p.h.toFixed(2)}`;
+  document.getElementById("info").textContent =
+    `canvas ${FIG_W_MM} × ${FIG_H_MM.toFixed(2)} mm  ·  `
+    + `a ${fmt(fig2a)}  ·  b ${fmt(fig2d)}  ·  c ${fmt(fig2c)}  ·  `
+    + `d ${fmt(fig2species)}  ·  e ${fmt(fig2e)}  ·  f ${fmt(fig2f)}  ·  `
+    + `legend ${fmt(fig2legend)}`;
+  document.getElementById("warn").textContent = "";
+}
+
+updateLayout();
+window.updateLayout = updateLayout;
+
+// ══════════════════════════════════════════════════════════════════════
+//  Save PNG - rasterises the assembled figure at target DPI.
+//  Handles BOTH file-based panels (fig2a SVG via <img data-src>) and
+//  live inline SVG panels (fig2d/2e/2f/legend) by serialising each <svg>
+//  to a blob URL and loading it as an Image before drawing to canvas.
+// ══════════════════════════════════════════════════════════════════════
+function _serialiseSvgToImage(svgEl, pxW, pxH) {
+  // Clone, ensure xmlns, set explicit width/height for sharp raster output.
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width",  pxW);
+  clone.setAttribute("height", pxH);
+  const src = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([src], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ img, url });
+    img.onerror = e => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
+// Load a PNG from `src` as a fresh, decoded Image. Bypasses any issues with
+// the in-DOM <img> (caching, incomplete state, tainting from a prior src).
+function _loadImg(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload  = () => resolve(img);
+    img.onerror = e  => reject(new Error("load failed: " + src));
+    img.src = src;
+  });
+}
+
+async function saveFigurePNG() {
+  const DPI = parseInt(document.getElementById("dpi").value, 10) || 600;
+  const pxPerMm = DPI / 25.4;
+
+  const figEl = document.getElementById("fig");
+  const figRect = figEl.getBoundingClientRect();
+  const figWmm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--fig-w-mm"));
+  const figHmm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--fig-h-mm"));
+  const cssPxPerMm = figRect.width / figWmm;
+
+  const canvasW = Math.round(figWmm * pxPerMm);
+  const canvasH = Math.round(figHmm * pxPerMm);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  const diag = [];
+
+  // ── External image panels (none right now - every panel renders live).
+  //    Loop kept as a generic hook so any future <img data-src> panel
+  //    rasterises automatically. Re-fetches each src as a fresh same-origin
+  //    Image to dodge load-race / tainted / naturalWidth=0 quirks.
+  const imgEls = [...figEl.querySelectorAll(".panel img[data-src]")];
+  const imgLoads = await Promise.all(imgEls.map(async el => {
+    const src = el.dataset.src + "?save=" + Date.now();
+    try { return { el, img: await _loadImg(src) }; }
+    catch (e) { diag.push(`${el.dataset.src}: ${e.message}`); return null; }
+  }));
+  for (const entry of imgLoads) {
+    if (!entry) continue;
+    const { el, img } = entry;
+    const r = el.getBoundingClientRect();
+    const xMm = (r.left - figRect.left) / cssPxPerMm;
+    const yMm = (r.top  - figRect.top ) / cssPxPerMm;
+    const wMm = r.width  / cssPxPerMm;
+    const hMm = r.height / cssPxPerMm;
+    const panelAspect = wMm / hMm;
+    const imgAspect = img.naturalWidth / img.naturalHeight;
+    let drawWmm, drawHmm, offXmm = 0, offYmm = 0;
+    if (imgAspect > panelAspect) {
+      drawWmm = wMm; drawHmm = wMm / imgAspect; offYmm = (hMm - drawHmm) / 2;
+    } else {
+      drawHmm = hMm; drawWmm = hMm * imgAspect; offXmm = (wMm - drawWmm) / 2;
+    }
+    try {
+      ctx.drawImage(img,
+        Math.round((xMm + offXmm) * pxPerMm),
+        Math.round((yMm + offYmm) * pxPerMm),
+        Math.round(drawWmm * pxPerMm),
+        Math.round(drawHmm * pxPerMm));
+      diag.push(`${el.dataset.src}: OK (${img.naturalWidth}×${img.naturalHeight})`);
+    } catch (e) {
+      diag.push(`${el.dataset.src}: drawImage failed ${e.message}`);
+      console.error(e);
+    }
+  }
+
+  // ── Inline SVG panels (fig2d, fig2e, fig2f, legend) ─────────────
+  const svgPanels = figEl.querySelectorAll(".panel > svg");
+  for (const svgEl of svgPanels) {
+    const r = svgEl.getBoundingClientRect();
+    const xMm = (r.left - figRect.left) / cssPxPerMm;
+    const yMm = (r.top  - figRect.top ) / cssPxPerMm;
+    const wMm = r.width  / cssPxPerMm;
+    const hMm = r.height / cssPxPerMm;
+    const pxW = Math.round(wMm * pxPerMm);
+    const pxH = Math.round(hMm * pxPerMm);
+    try {
+      const { img, url } = await _serialiseSvgToImage(svgEl, pxW, pxH);
+      ctx.drawImage(img,
+        Math.round(xMm * pxPerMm),
+        Math.round(yMm * pxPerMm),
+        pxW, pxH);
+      URL.revokeObjectURL(url);
+      diag.push(`${svgEl.id}: SVG OK`);
+    } catch (e) {
+      diag.push(`${svgEl.id}: SVG failed ${e.message}`);
+      console.warn("svg→png for", svgEl.id, e);
+    }
+  }
+
+  // ── Panel a - merged gallery (CSS grid) rasterised cell by cell ─
+  // Same logic as the standalone fig2a_gallery.html savePNG, scoped to
+  // #fig2a and translated into the assembled figure's pixel grid.
+  const fig2aEl = document.getElementById("fig2a");
+  if (fig2aEl) {
+    const px = mm => Math.round(mm * pxPerMm);
+    const toMmX = px => (px - figRect.left) / cssPxPerMm;
+    const toMmY = px => (px - figRect.top ) / cssPxPerMm;
+    const galImgs = fig2aEl.querySelectorAll(".cell img");
+    await Promise.all(Array.from(galImgs).map(img =>
+      img.complete && img.naturalWidth ? Promise.resolve()
+      : new Promise(r => { img.onload = r; img.onerror = r; })));
+    // Grey group-header backgrounds
+    ctx.fillStyle = "#dcdcdc";
+    for (const hdr of fig2aEl.querySelectorAll(".col-hdr")) {
+      const r = hdr.getBoundingClientRect();
+      ctx.fillRect(px(toMmX(r.left)), px(toMmY(r.top)),
+                   px(r.width / cssPxPerMm), px(r.height / cssPxPerMm));
+    }
+    // Black cell backgrounds
+    ctx.fillStyle = "black";
+    for (const cell of fig2aEl.querySelectorAll(".cell")) {
+      const r = cell.getBoundingClientRect();
+      ctx.fillRect(px(toMmX(r.left)), px(toMmY(r.top)),
+                   px(r.width / cssPxPerMm), px(r.height / cssPxPerMm));
+    }
+    // Cell imgs - mirror CSS object-fit: contain (preserve aspect, letterbox).
+    // Compute the largest centered rect inside the cell whose aspect matches
+    // the source image's intrinsic aspect, then draw the image into that
+    // rect. Same per-microscope pixel-adjust pipeline runs in an offscreen
+    // canvas sized to the *contained* draw rect (not the cell).
+    for (const img of galImgs) {
+      if (!img.naturalWidth) continue;
+      const r = img.getBoundingClientRect();
+      const cellXMm = toMmX(r.left);
+      const cellYMm = toMmY(r.top);
+      const cellWMm = r.width  / cssPxPerMm;
+      const cellHMm = r.height / cssPxPerMm;
+      const imgAspect  = img.naturalWidth / img.naturalHeight;
+      const cellAspect = cellWMm / cellHMm;
+      let drawWMm, drawHMm, offXMm = 0, offYMm = 0;
+      if (imgAspect > cellAspect) {
+        // Source wider than cell → fit to cell width, letterbox top/bottom.
+        drawWMm = cellWMm;
+        drawHMm = cellWMm / imgAspect;
+        offYMm  = (cellHMm - drawHMm) / 2;
+      } else {
+        // Source taller than (or equal aspect to) cell → fit to cell height, letterbox left/right.
+        drawHMm = cellHMm;
+        drawWMm = cellHMm * imgAspect;
+        offXMm  = (cellWMm - drawWMm) / 2;
+      }
+      const dx = px(cellXMm + offXMm);
+      const dy = px(cellYMm + offYMm);
+      const dw = px(drawWMm);
+      const dh = px(drawHMm);
+      const params = _fig2aAdjustParamsForSrc(img.src);
+      if (params) {
+        const off = document.createElement("canvas");
+        off.width = Math.max(1, dw); off.height = Math.max(1, dh);
+        off.getContext("2d").drawImage(img, 0, 0, off.width, off.height);
+        _fig2aApplyPixelAdjust(off, params);
+        ctx.drawImage(off, dx, dy);
+      } else {
+        ctx.drawImage(img, dx, dy, dw, dh);
+      }
+    }
+    // 100 µm scale bars on Input row cells - recompute the contained-image
+    // rect, then draw a black-haloed white bar + right-aligned "100 μm"
+    // label, identical math to injectFig2aScaleBars().
+    {
+      const { insetMm, bottomMm, barHmm, labelGapMm } = FIG2A_SB;
+      const sbLabelPt = parseFloat(getComputedStyle(document.documentElement)
+                                    .getPropertyValue("--gal-lbl-pt"));
+      const sbFontPx = sbLabelPt * 0.352778 * pxPerMm;
+      ctx.font = `${sbFontPx}px Helvetica, Arial, sans-serif`;
+      ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+      for (const img of galImgs) {
+        const frac = parseFloat(img.dataset.barFrac || "0");
+        if (!(frac > 0) || !img.naturalWidth) continue;
+        const r = img.getBoundingClientRect();
+        const cellXMm = toMmX(r.left), cellYMm = toMmY(r.top);
+        const cellWMm = r.width / cssPxPerMm, cellHMm = r.height / cssPxPerMm;
+        const ar = img.naturalWidth / img.naturalHeight;
+        const cellAr = cellWMm / cellHMm;
+        let drawWMm, drawHMm, offXMm = 0, offYMm = 0;
+        if (ar > cellAr) { drawWMm = cellWMm; drawHMm = cellWMm / ar; offYMm = (cellHMm - drawHMm) / 2; }
+        else             { drawHMm = cellHMm; drawWMm = cellHMm * ar; offXMm = (cellWMm - drawWMm) / 2; }
+        const imgRightMm  = cellXMm + offXMm + drawWMm;
+        const imgBottomMm = cellYMm + offYMm + drawHMm;
+        const barRightMm  = imgRightMm  - insetMm;
+        const barBottomMm = imgBottomMm - bottomMm;
+        const barTopMm    = barBottomMm - barHmm;
+        const barWmm      = frac * drawWMm;
+        const barLeftMm   = barRightMm  - barWmm;
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        ctx.fillRect(px(barLeftMm - 0.08), px(barTopMm - 0.08),
+                     px(barWmm + 0.16),    px(barHmm + 0.16));
+        ctx.fillStyle = "white";
+        ctx.fillRect(px(barLeftMm), px(barTopMm), px(barWmm), px(barHmm));
+        const lblBaselineMm = barTopMm - labelGapMm;
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        for (const [dxMm, dyMm] of [[0.08,0],[-0.08,0],[0,0.08],[0,-0.08]]) {
+          ctx.fillText("100 μm", px(barRightMm + dxMm), px(lblBaselineMm + dyMm));
+        }
+        ctx.fillStyle = "white";
+        ctx.fillText("100 μm", px(barRightMm), px(lblBaselineMm));
+      }
+    }
+    // Cell labels - black box + white text. Mutant gene names wrapped in
+    // <i>/<em> render italic; species names and plain genotypes upright.
+    const labelPt = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gal-lbl-pt"));
+    const labelFontPx = labelPt * 0.352778 * pxPerMm;
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    for (const cell of fig2aEl.querySelectorAll(".cell")) {
+      const span = cell.querySelector(".label");
+      if (!span) continue;
+      const cellR = cell.getBoundingClientRect();
+      const fontMm = labelPt * 0.352778;
+      const segs = [];
+      for (const node of span.childNodes) {
+        const text = node.nodeType === 3 ? node.nodeValue : node.textContent;
+        if (!text) continue;
+        const italic = node.nodeType === 1 &&
+                       (node.tagName === "I" || node.tagName === "EM");
+        segs.push({ text, italic });
+      }
+      let textWpx = 0;
+      for (const s of segs) {
+        ctx.font = `${s.italic ? "italic " : ""}${labelFontPx}px Helvetica, Arial, sans-serif`;
+        textWpx += ctx.measureText(s.text).width;
+      }
+      const tw = textWpx / pxPerMm;
+      const boxW = tw;
+      const boxH = fontMm * 1.3;
+      const cellWmm = cellR.width / cssPxPerMm;
+      const xMm = toMmX(cellR.left) + (cellWmm - boxW) / 2;
+      const yMm = toMmY(cellR.top)  + 0.5;
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(px(xMm), px(yMm), px(boxW), px(boxH));
+      ctx.fillStyle = "white";
+      let cursorX = px(xMm);
+      const baselineY = px(yMm + boxH * 0.78);
+      for (const s of segs) {
+        ctx.font = `${s.italic ? "italic " : ""}${labelFontPx}px Helvetica, Arial, sans-serif`;
+        ctx.fillText(s.text, cursorX, baselineY);
+        cursorX += ctx.measureText(s.text).width;
+      }
+    }
+    // Column-header text (centered, black bold)
+    const hdrPt = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gal-hdr-pt"));
+    ctx.fillStyle = "black";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `bold ${hdrPt * 0.352778 * pxPerMm}px Helvetica, Arial, sans-serif`;
+    for (const hdr of fig2aEl.querySelectorAll(".col-hdr")) {
+      const r = hdr.getBoundingClientRect();
+      ctx.fillText(hdr.textContent,
+        px(toMmX((r.left + r.right) / 2)),
+        px(toMmY((r.top  + r.bottom) / 2)));
+    }
+    // Row-header text (rotated -90°, centered)
+    for (const hdr of fig2aEl.querySelectorAll(".row-hdr")) {
+      const r = hdr.getBoundingClientRect();
+      ctx.save();
+      ctx.translate(px(toMmX((r.left + r.right) / 2)),
+                    px(toMmY((r.top  + r.bottom) / 2)));
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(hdr.textContent, 0, 0);
+      ctx.restore();
+    }
+    // mIoU footer text (centered, #222 normal)
+    const miouPt = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gal-miou-pt"));
+    ctx.fillStyle = "#222";
+    ctx.font = `${miouPt * 0.352778 * pxPerMm}px Helvetica, Arial, sans-serif`;
+    for (const m of fig2aEl.querySelectorAll(".miou")) {
+      if (!m.textContent.trim()) continue;
+      const r = m.getBoundingClientRect();
+      ctx.fillText(m.textContent,
+        px(toMmX((r.left + r.right) / 2)),
+        px(toMmY((r.top  + r.bottom) / 2)));
+    }
+    diag.push(`fig2a: gallery rasterised (${galImgs.length} cells)`);
+  }
+
+  // Panel letters. Drawn with alphabetic baseline + an explicit 0.82 em
+  // ascent offset (matches the SVG export's <text y="..."> convention).
+  // Avoids canvas textBaseline:"top" which varies across browsers and can
+  // clip the glyph by a row when the line-box top sits at canvas y=0.
+  const letters = figEl.querySelectorAll(".panel-letter");
+  for (const el of letters) {
+    const r = el.getBoundingClientRect();
+    const xMm = (r.left - figRect.left) / cssPxPerMm;
+    const yMm = (r.top  - figRect.top ) / cssPxPerMm;
+    const style = getComputedStyle(el);
+    const cssFontPx = parseFloat(style.fontSize);
+    const drawFontPx = cssFontPx * (pxPerMm / cssPxPerMm);
+    ctx.font = `${style.fontWeight || "bold"} ${drawFontPx}px ` +
+               (style.fontFamily || "Helvetica, Arial, sans-serif");
+    ctx.fillStyle = style.color || "#222";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(el.textContent,
+      Math.round(xMm * pxPerMm),
+      Math.round(yMm * pxPerMm + 0.82 * drawFontPx));
+  }
+
+  canvas.toBlob(blob => {
+    if (!blob) {
+      const msg = "Save failed - canvas was tainted (likely loaded via file://). "
+                + "Serve the folder via `python3 -m http.server` and reload.";
+      document.getElementById("warn").textContent = msg;
+      console.error(msg);
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `figure2_assembled_${DPI}dpi.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    document.getElementById("info").textContent = diag.join("  ·  ");
+  }, "image/png");
+}
+document.getElementById("save").addEventListener("click", saveFigurePNG);
+
+// ══════════════════════════════════════════════════════════════════════
+//  Save combined SVG - embeds every panel into one combined SVG:
+//    • fig2a (merged gallery): each cell / header / label as native SVG
+//      primitives (data-URL <image>s + <rect> + <text>) for full editability
+//    • inline live <svg> panels (fig2d, fig2e, fig2f, legend): inner
+//      content re-wrapped as a <g transform="translate(...) scale(...)">
+//    • any future <img data-src> panel: SVG file → inlined, raster → base64
+// ══════════════════════════════════════════════════════════════════════
+function _svgInnerAsGroup(svgEl, tx, ty, scale) {
+  // Serialise an inline <svg> and rewrap as a translate+scale <g>.
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const txt = new XMLSerializer().serializeToString(clone);
+  return txt
+    .replace(/<\?xml[^>]*\?>/i, "")
+    .replace(/<svg[^>]*>/i, `<g transform="translate(${tx} ${ty}) scale(${scale})" font-family="Helvetica, Arial, sans-serif">`)
+    .replace(/<\/svg>/i, "</g>");
+}
+
+async function saveFigureSVG() {
+  const figWmm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--fig-w-mm"));
+  const figHmm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--fig-h-mm"));
+  const figEl = document.getElementById("fig");
+  const figRect = figEl.getBoundingClientRect();
+  const cssPxPerMm = figRect.width / figWmm;
+
+  const header = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
+    `width="${figWmm}mm" height="${figHmm}mm" viewBox="0 0 ${figWmm} ${figHmm}">\n` +
+    `<defs>${FIG2A_ADJUST_FILTER_DEFS}</defs>\n` +
+    `<style>text { font-family: Helvetica, Arial, sans-serif; }</style>\n` +
+    `<rect width="${figWmm}" height="${figHmm}" fill="white"/>\n`;
+  const parts = [header];
+
+  // ── Panel a - merged gallery: embed each cell, header, label, mIoU
+  //    as native SVG primitives so the combined SVG is fully editable
+  //    (no rasterised fallback). Same construction as the standalone
+  //    fig2a_gallery.html saveSVG, scoped to #fig2a.
+  const fig2aEl = document.getElementById("fig2a");
+  if (fig2aEl) {
+    const toMmX = px => (px - figRect.left) / cssPxPerMm;
+    const toMmY = px => (px - figRect.top ) / cssPxPerMm;
+    const labelPt = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gal-lbl-pt"));
+    const hdrPt   = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gal-hdr-pt"));
+    const miouPt  = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gal-miou-pt"));
+    // Encode each cell img to a data URL once - embedded as <image href="…">.
+    const galImgs = [...fig2aEl.querySelectorAll(".cell img")];
+    const galDataUrls = await Promise.all(galImgs.map(i => _fig2aFetchDataURL(i.src)));
+    // Grey group-header backgrounds
+    for (const hdr of fig2aEl.querySelectorAll(".col-hdr")) {
+      const r = hdr.getBoundingClientRect();
+      parts.push(`<rect x="${toMmX(r.left)}" y="${toMmY(r.top)}" ` +
+        `width="${r.width / cssPxPerMm}" height="${r.height / cssPxPerMm}" fill="#dcdcdc"/>`);
+    }
+    // Black cell backgrounds
+    for (const cell of fig2aEl.querySelectorAll(".cell")) {
+      const r = cell.getBoundingClientRect();
+      parts.push(`<rect x="${toMmX(r.left)}" y="${toMmY(r.top)}" ` +
+        `width="${r.width / cssPxPerMm}" height="${r.height / cssPxPerMm}" fill="black"/>`);
+    }
+    // Cell images - filter attribute applied per microscope
+    galImgs.forEach((img, i) => {
+      const r = img.getBoundingClientRect();
+      const params = _fig2aAdjustParamsForSrc(img.src);
+      let filterAttr = "";
+      if (params === FIG2A_ADJUST_PARAMS.olympus) filterAttr = ` filter="url(#img-adjust-olympus)"`;
+      else if (params === FIG2A_ADJUST_PARAMS.c10) filterAttr = ` filter="url(#img-adjust-c10)"`;
+      // preserveAspectRatio="xMidYMid meet" = SVG equivalent of CSS
+      // object-fit: contain (full image visible, letterboxed in the cell).
+      parts.push(`<image x="${toMmX(r.left)}" y="${toMmY(r.top)}" ` +
+        `width="${r.width / cssPxPerMm}" height="${r.height / cssPxPerMm}" ` +
+        `preserveAspectRatio="xMidYMid meet" xlink:href="${galDataUrls[i]}"${filterAttr}/>`);
+    });
+    // 100 µm scale bars on Input row cells - native SVG primitives
+    // (haloed <rect> for the bar + right-anchored <text> for the label).
+    {
+      const { insetMm, bottomMm, barHmm, labelGapMm } = FIG2A_SB;
+      const sbFontMm = labelPt * 0.352778;
+      for (const img of galImgs) {
+        const frac = parseFloat(img.dataset.barFrac || "0");
+        if (!(frac > 0) || !img.naturalWidth) continue;
+        const r = img.getBoundingClientRect();
+        const cellXMm = toMmX(r.left), cellYMm = toMmY(r.top);
+        const cellWMm = r.width / cssPxPerMm, cellHMm = r.height / cssPxPerMm;
+        const ar = img.naturalWidth / img.naturalHeight;
+        const cellAr = cellWMm / cellHMm;
+        let drawWMm, drawHMm, offXMm = 0, offYMm = 0;
+        if (ar > cellAr) { drawWMm = cellWMm; drawHMm = cellWMm / ar; offYMm = (cellHMm - drawHMm) / 2; }
+        else             { drawHMm = cellHMm; drawWMm = cellHMm * ar; offXMm = (cellWMm - drawWMm) / 2; }
+        const imgRightMm  = cellXMm + offXMm + drawWMm;
+        const imgBottomMm = cellYMm + offYMm + drawHMm;
+        const barRightMm  = imgRightMm  - insetMm;
+        const barBottomMm = imgBottomMm - bottomMm;
+        const barTopMm    = barBottomMm - barHmm;
+        const barWmm      = frac * drawWMm;
+        const barLeftMm   = barRightMm  - barWmm;
+        parts.push(`<rect x="${barLeftMm - 0.08}" y="${barTopMm - 0.08}" ` +
+          `width="${barWmm + 0.16}" height="${barHmm + 0.16}" fill="rgba(0,0,0,0.85)"/>`);
+        parts.push(`<rect x="${barLeftMm}" y="${barTopMm}" ` +
+          `width="${barWmm}" height="${barHmm}" fill="white"/>`);
+        parts.push(`<text x="${barRightMm}" y="${barTopMm - labelGapMm}" ` +
+          `text-anchor="end" dominant-baseline="text-after-edge" ` +
+          `font-size="${sbFontMm}" fill="white" ` +
+          `stroke="rgba(0,0,0,0.85)" stroke-width="0.12" paint-order="stroke fill">100 μm</text>`);
+      }
+    }
+    // Cell labels - black 50%-alpha box + italic white text
+    for (const cell of fig2aEl.querySelectorAll(".cell")) {
+      const span = cell.querySelector(".label");
+      if (!span) continue;
+      const cellR = cell.getBoundingClientRect();
+      const spanR = span.getBoundingClientRect();
+      const fontMm = labelPt * 0.352778;
+      const boxW = spanR.width  / cssPxPerMm;
+      const boxH = spanR.height / cssPxPerMm;
+      const cellWmm = cellR.width / cssPxPerMm;
+      const xMm = toMmX(cellR.left) + (cellWmm - boxW) / 2;
+      const yMm = toMmY(cellR.top)  + 0.5;
+      parts.push(`<rect x="${xMm}" y="${yMm}" width="${boxW}" height="${boxH}" fill="rgba(0,0,0,0.5)"/>`);
+      // Per-segment italic: only <i>/<em> children (mutant gene names)
+      // render italic; the rest of the label stays upright.
+      const tspans = [];
+      for (const node of span.childNodes) {
+        const text = node.nodeType === 3 ? node.nodeValue : node.textContent;
+        if (!text) continue;
+        const italic = node.nodeType === 1 &&
+                       (node.tagName === "I" || node.tagName === "EM");
+        const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        tspans.push(italic
+          ? `<tspan font-style="italic">${esc}</tspan>`
+          : `<tspan>${esc}</tspan>`);
+      }
+      parts.push(`<text x="${xMm}" y="${yMm + boxH * 0.78}" fill="white" ` +
+        `font-size="${fontMm}">${tspans.join("")}</text>`);
+    }
+    // Group-header text (centered, bold)
+    for (const hdr of fig2aEl.querySelectorAll(".col-hdr")) {
+      const r = hdr.getBoundingClientRect();
+      const cx = toMmX((r.left + r.right) / 2);
+      const cy = toMmY((r.top  + r.bottom) / 2);
+      parts.push(`<text x="${cx}" y="${cy}" text-anchor="middle" ` +
+        `dominant-baseline="central" font-size="${hdrPt * 0.352778}" ` +
+        `font-weight="bold">${hdr.textContent}</text>`);
+    }
+    // Row-header text (rotated -90°)
+    for (const hdr of fig2aEl.querySelectorAll(".row-hdr")) {
+      const r = hdr.getBoundingClientRect();
+      const cx = toMmX((r.left + r.right) / 2);
+      const cy = toMmY((r.top  + r.bottom) / 2);
+      parts.push(`<text x="0" y="0" text-anchor="middle" ` +
+        `dominant-baseline="central" font-size="${hdrPt * 0.352778}" ` +
+        `font-weight="bold" transform="translate(${cx},${cy}) rotate(-90)">` +
+        `${hdr.textContent}</text>`);
+    }
+    // mIoU footer text
+    for (const m of fig2aEl.querySelectorAll(".miou")) {
+      if (!m.textContent.trim()) continue;
+      const r = m.getBoundingClientRect();
+      const cx = toMmX((r.left + r.right) / 2);
+      const cy = toMmY((r.top  + r.bottom) / 2);
+      parts.push(`<text x="${cx}" y="${cy}" text-anchor="middle" ` +
+        `dominant-baseline="central" font-size="${miouPt * 0.352778}" ` +
+        `fill="#222">${m.textContent}</text>`);
+    }
+  }
+
+  // ── <img data-src> panels (none right now - fig2a is rendered live).
+  //   Generic hook for any future external-asset panel:
+  //     • SVG src   → splice the inner content into a <g transform="...">
+  //     • Raster    → encode as base64 data URL and embed as <image>
+  const panels = figEl.querySelectorAll(".panel img[data-src]");
+  for (const img of panels) {
+    const src = img.dataset.src;
+    const isSvg = /\.svg($|\?)/i.test(src);
+
+    const rect = img.getBoundingClientRect();
+    const xMm = (rect.left - figRect.left) / cssPxPerMm;
+    const yMm = (rect.top  - figRect.top ) / cssPxPerMm;
+    const wMm = rect.width  / cssPxPerMm;
+    const hMm = rect.height / cssPxPerMm;
+
+    if (isSvg) {
+      let txt;
+      try {
+        const res = await fetch(src + "?t=" + Date.now());
+        if (!res.ok) continue;
+        txt = await res.text();
+      } catch (e) { continue; }
+      const match = txt.match(/<svg[^>]*>/i);
+      if (!match) continue;
+      const vbMatch = match[0].match(/viewBox="([^"]+)"/i);
+      if (!vbMatch) continue;
+      const [,,vbw,vbh] = vbMatch[1].split(/\s+/).map(parseFloat);
+      const s    = Math.min(wMm / vbw, hMm / vbh);
+      const offX = (wMm - vbw * s) / 2;
+      const offY = (hMm - vbh * s) / 2;
+      const inner = txt
+        .replace(/<\?xml[^>]*\?>/i, "")
+        .replace(/<svg[^>]*>/i, `<g transform="translate(${xMm + offX} ${yMm + offY}) scale(${s})">`)
+        .replace(/<\/svg>/i, "</g>");
+      parts.push(inner);
+    } else {
+      // Raster panel: fetch as blob → base64 data URL → <image>
+      let dataUrl;
+      try {
+        const res = await fetch(src + "?t=" + Date.now());
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload  = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) { continue; }
+
+      // Match `object-fit: contain`: centre the bitmap inside the panel
+      // using the intrinsic aspect of the in-DOM <img>.
+      const naturalW = img.naturalWidth  || 1;
+      const naturalH = img.naturalHeight || 1;
+      const imgAspect   = naturalW / naturalH;
+      const panelAspect = wMm / hMm;
+      let drawWmm = wMm, drawHmm = hMm, offX = 0, offY = 0;
+      if (imgAspect > panelAspect) {
+        drawHmm = wMm / imgAspect; offY = (hMm - drawHmm) / 2;
+      } else {
+        drawWmm = hMm * imgAspect; offX = (wMm - drawWmm) / 2;
+      }
+      parts.push(
+        `<image x="${xMm + offX}" y="${yMm + offY}" ` +
+        `width="${drawWmm}" height="${drawHmm}" ` +
+        `preserveAspectRatio="none" xlink:href="${dataUrl}"/>`
+      );
+    }
+  }
+
+  // ── Inline live <svg> panels (fig2d, fig2e, fig2f, legend) ─────
+  const svgPanels = figEl.querySelectorAll(".panel > svg");
+  for (const svgEl of svgPanels) {
+    const vbAttr = svgEl.getAttribute("viewBox");
+    if (!vbAttr) continue;
+    const [,,vbw,vbh] = vbAttr.trim().split(/\s+/).map(parseFloat);
+    const rect = svgEl.getBoundingClientRect();
+    const xMm = (rect.left - figRect.left) / cssPxPerMm;
+    const yMm = (rect.top  - figRect.top ) / cssPxPerMm;
+    const wMm = rect.width  / cssPxPerMm;
+    const hMm = rect.height / cssPxPerMm;
+    const s = Math.min(wMm / vbw, hMm / vbh);
+    const offX = (wMm - vbw * s) / 2;
+    const offY = (hMm - vbh * s) / 2;
+    parts.push(_svgInnerAsGroup(svgEl, xMm + offX, yMm + offY, s));
+  }
+
+  // Panel letters as text nodes in combined SVG.
+  // IMPORTANT: master SVG viewBox is in mm user units, so font-size must be a
+  // unitless number (= mm). Appending "mm" causes some renderers to re-convert
+  // via 1mm = 3.78px and the letter prints ~4× too big.
+  const letters = figEl.querySelectorAll(".panel-letter");
+  for (const el of letters) {
+    const r = el.getBoundingClientRect();
+    const xMm = (r.left - figRect.left) / cssPxPerMm;
+    const yMm = (r.top  - figRect.top ) / cssPxPerMm;
+    const style = getComputedStyle(el);
+    const cssFontPx = parseFloat(style.fontSize);
+    const fontMm = cssFontPx * 25.4 / 96;        // CSS px → mm
+    parts.push(
+      `<text x="${xMm}" y="${yMm + fontMm * 0.82}" ` +
+      `font-family="Helvetica, Arial, sans-serif" font-weight="bold" ` +
+      `font-size="${fontMm}" fill="${style.color || "#222"}">${el.textContent}</text>`
+    );
+  }
+
+  parts.push("</svg>");
+  const blob = new Blob([parts.join("\n")], { type: "image/svg+xml" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "figure2_assembled.svg";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+document.getElementById("save-svg").addEventListener("click", saveFigureSVG);
+</script>
+
+</body>
+</html>

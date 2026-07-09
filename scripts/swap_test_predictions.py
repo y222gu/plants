@@ -14,7 +14,7 @@ from src.annotation_utils import (                                       # noqa:
     parse_yolo_annotations, polygons_to_raw_semantic_mask,
 )
 from generate_dense_features import save_png                             # noqa: E402
-from figures_for_paper.figure3.fig3a_predictions_assets import (         # noqa: E402
+from archive.figures_for_paper.figure3.fig3a_predictions_assets import (         # noqa: E402
     render_bio7,
 )
 from scripts.render_science_art_pred_pca import (                        # noqa: E402

@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Figure 3 Assembly (a + b inlined)</title>
+<script src="../figure2/d3.v7.min.js"></script>
+<style>
+  :root {
+    /* ── Canvas ─────────────────────────────────────────────── */
+    /* 180 mm canvas. Panel a is bumped a touch wider so the image cells
+       grow ~5 % (21.2 vs 20.25 mm displayed). The col-header band is sized
+       to fit a 2-line 7-pt label. Canvas height follows panel a. */
+    --fig-w-mm: 180;
+    --fig-h-mm: 75.0;             /* panel a (69.49) + mask legend (~5.5)   */
+    --3a-legend-h-mm: 5.5;        /* swatch + label strip below the grid    */
+    --3a-legend-top-mm: 69.49;    /* sits flush under panel a's bottom edge */
+
+    /* ── Panel a (mask grid, fig3a) ─────────────────────────── */
+    --3a-w-mm:     113;          /* slot width (was 108) */
+    --3a-h-mm:      69.49;        /* slot height = 113 × 78.7 / 128 */
+    --3a-native-w: 128;          /* internal grid width  (= 6 + 5×24 + 2 padding)*/
+    --3a-native-h:  78.7;        /* internal grid height (= 6.2 + 3×24 + 0.5)    */
+
+    /* fig3a internal sizing (in native mm - before the 115/128 scale).
+       cell-mm shrunk from 24 → 23.5 to free up 3 × 0.5 mm of vertical
+       space for the new white inter-cell gaps without changing the
+       panel's overall height. With the row 1fr columns (= 23.8 mm at
+       gap 0.5), cells stay close to square (23.8 × 23.5, aspect 1.013). */
+    --rowlbl-mm:   6;
+    --cell-mm:    23.5;
+    --grouphdr-mm: 4;
+    --colhdr-mm:   6.2;          /* room for 2-line col labels at 7 pt */
+    --bar-mm:      2.4;
+
+    /* Font sizes (pt). Header / row / miou bumped to 7 pt per request. */
+    --grp-pt:     6;
+    --hdr-pt:     7;
+    --row-pt:     7;
+    --miou-pt:    7;
+    --species-pt: 5.2;
+
+    /* ── Panel b (boxplot, fig3b) ───────────────────────────── */
+    /* Fills the entire space to the right of panel a (full canvas height). */
+    --3b-w-mm:    67;             /* slot width = 180 − 113         */
+    --3b-h-mm:    69.49;          /* slot height matches panel a    */
+  }
+
+  body {
+    margin: 0; padding: 16px;
+    font-family: Helvetica, Arial, sans-serif;
+    background: #f4f4f4;
+  }
+  #controls { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  button {
+    padding: 8px 14px; font-size: 13px; background: #333; color: white;
+    border: none; border-radius: 4px; cursor: pointer;
+  }
+  button:hover { background: #555; }
+  button:disabled { background: #888; cursor: wait; }
+  #info { font-size: 12px; color: #666; }
+
+  #fig {
+    position: relative;
+    width: calc(var(--fig-w-mm) * 1mm);
+    height: calc(var(--fig-h-mm) * 1mm);
+    background: white;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    outline: 1px solid #bbb;
+  }
+
+  .panel { position: absolute; }
+  .panel-letter {
+    position: absolute;
+    top: 0; left: 1.5mm;
+    line-height: 1;
+    font-size: 10pt; font-weight: bold;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #222;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  /* ── Panel a ─────────────────────────────────────────────── */
+  #panel-3a {
+    left: 0; top: 0;
+    width: calc(var(--3a-w-mm) * 1mm);
+    height: calc(var(--3a-h-mm) * 1mm);
+    overflow: hidden;
+  }
+  #fig-3a-inner {
+    width: calc(var(--3a-native-w) * 1mm);
+    height: calc(var(--3a-native-h) * 1mm);
+    display: grid;
+    grid-template-columns: calc(var(--rowlbl-mm) * 1mm) repeat(5, 1fr);
+    grid-template-rows: calc(var(--colhdr-mm) * 1mm)
+                        repeat(3, calc(var(--cell-mm) * 1mm));
+    gap: 0.5mm;
+    padding: 0.25mm;
+    box-sizing: border-box;
+    transform-origin: top left;
+    transform: scale(calc(var(--3a-w-mm) / var(--3a-native-w)));
+  }
+  .group-hdr, .col-hdr, .row-hdr {
+    display: flex; align-items: center; justify-content: center;
+    color: #000; line-height: 1.05;
+  }
+  .group-hdr {
+    font-size: calc(var(--grp-pt) * 1pt);
+    font-weight: bold; background: #d6d6d6;
+  }
+  .col-hdr {
+    font-size: calc(var(--hdr-pt) * 1pt);
+    font-weight: 600; padding: 0 0.3mm;
+    background: transparent; min-width: 0; overflow: hidden;
+  }
+  /* 2-line stacked col labels for the last 3 columns. Both lines centered. */
+  .col-hdr .col-stack {
+    display: flex; flex-direction: column;
+    align-items: center; text-align: center;
+    line-height: 1.1;
+  }
+  /* White wash behind the 3×5 image grid - absolutely positioned so it
+     doesn't consume grid tracks. The grid's 0.5 mm gap between .cell
+     elements now shows this white instead of black, matching the gap
+     style used in fig1c and fig2. */
+  #fig-3a-inner { position: relative; }
+  #fig-3a-inner::before {
+    content: "";
+    position: absolute;
+    /* image area = below col-hdr row, right of row-hdr column, within the
+       grid padding. */
+    top: calc(0.25mm + var(--colhdr-mm) * 1mm);
+    left: calc(0.25mm + var(--rowlbl-mm) * 1mm);
+    right: 0.25mm;
+    bottom: 0.25mm;
+    background: #fff;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .cell { z-index: 1; }
+  .row-hdr {
+    font-size: calc(var(--row-pt) * 1pt);
+    font-weight: 600; white-space: nowrap;
+    background: transparent; overflow: visible;
+  }
+  /* Row labels are 2-line stacked text rotated −90°, both lines text-align
+     centre on a shared centerline (matches the 2-line tilted x-labels in
+     panel b but with vertical rotation). */
+  .row-hdr .row-stack {
+    display: flex; flex-direction: column;
+    align-items: center;
+    text-align: center;
+    line-height: 1.1;
+    transform: rotate(-90deg);
+    transform-origin: center center;
+    white-space: nowrap;
+  }
+  .cell {
+    position: relative; overflow: hidden;
+    background: black;
+  }
+  .cell img {
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+  .cell .species-label {
+    position: absolute;
+    top: 0.4mm; left: 50%; transform: translateX(-50%);
+    font-size: calc(var(--species-pt) * 1pt);
+    /* Default upright; only mutant gene names (wrapped in <i>) render italic. */
+    font-style: normal;
+    color: white; background: rgba(0, 0, 0, 0.55);
+    padding: 0 0.6mm; border-radius: 0.4mm;
+    line-height: 1.15; pointer-events: none; white-space: nowrap;
+  }
+  .cell .metric-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: calc(var(--bar-mm) * 1mm);
+    background: #000; overflow: hidden; pointer-events: none;
+  }
+  .cell .metric-text {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: white;
+    font-size: calc(var(--miou-pt) * 1pt); line-height: 1;
+  }
+
+  /* 100 µm scale bar - same style as fig1c / fig2a. Bar and label are
+     separate absolutely-positioned children of `.cell`, both right-
+     anchored at a constant inset from the image's right edge. Native-mm
+     values inside #fig-3a-inner are scaled by transform along with the
+     rest of the panel. Only Input cells (column 1) carry data-bar-frac. */
+  #fig-3a-inner .cell .sb-bar {
+    position: absolute;
+    bottom: 0.7mm;
+    height: 0.3mm;
+    background: white;
+    pointer-events: none;
+    box-shadow: 0 0 0 0.1mm rgba(0,0,0,0.75);
+  }
+  #fig-3a-inner .cell .sb-lbl {
+    position: absolute;
+    color: white;
+    font-size: calc(var(--species-pt) * 1pt);
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow:
+       0.1mm  0.1mm 0 rgba(0,0,0,0.85),
+      -0.1mm  0.1mm 0 rgba(0,0,0,0.85),
+       0.1mm -0.1mm 0 rgba(0,0,0,0.85),
+      -0.1mm -0.1mm 0 rgba(0,0,0,0.85);
+  }
+
+  /* ── Panel a mask legend (Bio-7 anatomy palette) ──────────── */
+  /* Horizontal strip directly below the panel-a mask grid, spanning the
+     same width as panel a so panel b's column to the right is untouched. */
+  #panel-3a-legend {
+    position: absolute;
+    left: 0;
+    top: calc(var(--3a-legend-top-mm) * 1mm);
+    width: calc(var(--3a-w-mm) * 1mm);
+    height: calc(var(--3a-legend-h-mm) * 1mm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3mm;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #000;
+    font-size: 6pt;
+    line-height: 1;
+  }
+  #panel-3a-legend .legend-item {
+    display: flex; align-items: center; gap: 0.8mm;
+  }
+  #panel-3a-legend .legend-swatch {
+    width: 2.4mm; height: 2.4mm; display: inline-block;
+    border-radius: 0.2mm;
+  }
+
+  /* ── Panel b ─────────────────────────────────────────────── */
+  #panel-3b {
+    left: calc(var(--3a-w-mm) * 1mm);
+    top:  0;
+    width:  calc(var(--3b-w-mm) * 1mm);
+    height: calc(var(--3b-h-mm) * 1mm);
+  }
+  #panel-3b svg {
+    width: 100%; height: 100%; display: block;
+    font-family: Helvetica, Arial, sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Per-microscope image adjustments (auto-applied by filename) ──────
+     Olympus images: brighter, higher contrast, slightly more saturated.
+     C10 images:     lighter touch + slight unsharp-mask sharpening.
+     Cartoons / Zeiss / panel letters are left untouched (the CSS
+     selectors only match _Olympus_ or _C10_ in the src filename). -->
+<svg width="0" height="0" style="position:absolute;visibility:hidden" aria-hidden="true">
+  <defs>
+    <filter id="img-adjust-olympus" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncG type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncB type="linear" slope="1.84" intercept="-0.03"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.2"/>
+    </filter>
+    <filter id="img-adjust-c10" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.15" intercept="-0.075"/>
+        <feFuncG type="linear" slope="1.15" intercept="-0.075"/>
+        <feFuncB type="linear" slope="1.15" intercept="-0.075"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.1"/>
+      <feConvolveMatrix order="3" preserveAlpha="true"
+        kernelMatrix="0 -0.2 0 -0.2 1.8 -0.2 0 -0.2 0"/>
+    </filter>
+  </defs>
+</svg>
+<style>
+  /* Apply only to raw fluorescence images. Exclude predicted masks
+     (pred_*, *_pred), ground truth (gt.png, *_gt.png), and overlays. */
+  img[src*="_Olympus_"]:not([src*="pred"]):not([src*="overlay"]):not([src*="_gt."]):not([src$="/gt.png"]) {
+    filter: url(#img-adjust-olympus);
+  }
+  img[src*="_C10_"]:not([src*="pred"]):not([src*="overlay"]):not([src*="_gt."]):not([src$="/gt.png"]) {
+    filter: url(#img-adjust-c10);
+  }
+</style>
+
+<div id="controls">
+  <button id="save-svg">Save SVG (600 dpi)</button>
+  <button id="save-png">Save PNG (600 dpi)</button>
+  <label>DPI <input type="number" id="dpi" value="600" min="72" max="1200" step="50" style="width:70px"></label>
+  <span id="info"></span>
+</div>
+
+<div id="fig">
+  <!-- ── Panel a - mask grid (fig3a) ────────────────────────── -->
+  <div id="panel-3a" class="panel">
+    <span class="panel-letter">a</span>
+    <div id="fig-3a-inner">
+      <!-- Per-column headers (group-header row removed per request) -->
+      <div></div>
+      <div class="col-hdr">Input Image</div>
+      <div class="col-hdr">G.T. Mask</div>
+      <div class="col-hdr"><div class="col-stack"><div>Unified Model</div><div>Pred. Mask</div></div></div>
+      <div class="col-hdr"><div class="col-stack"><div>Monocot Specialist</div><div>Pred. Mask</div></div></div>
+      <div class="col-hdr"><div class="col-stack"><div>Dicot Specialist</div><div>Pred. Mask</div></div></div>
+
+      <!-- Row 3: Monocot In-distribution Test (Millet) -->
+      <div class="row-hdr"><div class="row-stack"><div>In-distribution</div><div>Monocot</div></div></div>
+      <div class="cell"><img src="fig3a_assets/Millet_Olympus_Exp4_1-2cm__16/original.png" data-bar-frac="0.2468"><span class="species-label">Millet, AW23</span></div>
+      <div class="cell"><img src="fig3a_assets/Millet_Olympus_Exp4_1-2cm__16/gt.png"></div>
+      <div class="cell"><img src="fig3a_assets/Millet_Olympus_Exp4_1-2cm__16/pred_A.png"><div class="metric-bar" data-uid="Millet_Olympus_Exp4_1-2cm__16" data-model="A"><span class="metric-text"></span></div></div>
+      <div class="cell"><img src="fig3a_assets/Millet_Olympus_Exp4_1-2cm__16/pred_Bmono.png"><div class="metric-bar" data-uid="Millet_Olympus_Exp4_1-2cm__16" data-model="Bmono"><span class="metric-text"></span></div></div>
+      <div class="cell"><img src="fig3a_assets/Millet_Olympus_Exp4_1-2cm__16/pred_Bdico.png"><div class="metric-bar" data-uid="Millet_Olympus_Exp4_1-2cm__16" data-model="Bdico"><span class="metric-text"></span></div></div>
+
+      <!-- Row 4: Dicot In-distribution Test (Tomato) -->
+      <div class="row-hdr"><div class="row-stack"><div>In-distribution</div><div>Dicot</div></div></div>
+      <div class="cell"><img src="fig3a_assets/Tomato_Olympus_Exp13_Suberin_mutants_21-30_07/original.png" data-bar-frac="0.2271"><span class="species-label">Tomato, <i>slmyb92</i></span></div>
+      <div class="cell"><img src="fig3a_assets/Tomato_Olympus_Exp13_Suberin_mutants_21-30_07/gt.png"></div>
+      <div class="cell"><img src="fig3a_assets/Tomato_Olympus_Exp13_Suberin_mutants_21-30_07/pred_A.png"><div class="metric-bar" data-uid="Tomato_Olympus_Exp13_Suberin_mutants_21-30_07" data-model="A"><span class="metric-text"></span></div></div>
+      <div class="cell"><img src="fig3a_assets/Tomato_Olympus_Exp13_Suberin_mutants_21-30_07/pred_Bmono.png"><div class="metric-bar" data-uid="Tomato_Olympus_Exp13_Suberin_mutants_21-30_07" data-model="Bmono"><span class="metric-text"></span></div></div>
+      <div class="cell"><img src="fig3a_assets/Tomato_Olympus_Exp13_Suberin_mutants_21-30_07/pred_Bdico.png"><div class="metric-bar" data-uid="Tomato_Olympus_Exp13_Suberin_mutants_21-30_07" data-model="Bdico"><span class="metric-text"></span></div></div>
+
+      <!-- Row 5: Monocot Zero-shot Test (Rice Zeiss) -->
+      <div class="row-hdr"><div class="row-stack"><div>Zero-shot</div><div>Monocot</div></div></div>
+      <div class="cell"><img src="fig3a_assets/Rice_Zeiss_Exp1_Image_39/original.png" data-bar-frac="0.1060"><span class="species-label">Rice, Kitaake</span></div>
+      <div class="cell"><img src="fig3a_assets/Rice_Zeiss_Exp1_Image_39/gt.png"></div>
+      <div class="cell"><img src="fig3a_assets/Rice_Zeiss_Exp1_Image_39/pred_A.png"><div class="metric-bar" data-uid="Rice_Zeiss_Exp1_Image_39" data-model="A"><span class="metric-text"></span></div></div>
+      <div class="cell"><img src="fig3a_assets/Rice_Zeiss_Exp1_Image_39/pred_Bmono.png"><div class="metric-bar" data-uid="Rice_Zeiss_Exp1_Image_39" data-model="Bmono"><span class="metric-text"></span></div></div>
+      <div class="cell"><img src="fig3a_assets/Rice_Zeiss_Exp1_Image_39/pred_Bdico.png"><div class="metric-bar" data-uid="Rice_Zeiss_Exp1_Image_39" data-model="Bdico"><span class="metric-text"></span></div></div>
+    </div>
+  </div>
+
+  <!-- ── Panel a mask legend (Bio-7 anatomy palette) ────────── -->
+  <div id="panel-3a-legend">
+    <div class="legend-item"><span class="legend-swatch" style="background:#e76f61"></span><span class="legend-label">Vascular</span></div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#f4a261"></span><span class="legend-label">Exodermis</span></div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#f6e48e"></span><span class="legend-label">Endodermis</span></div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#94d2bd"></span><span class="legend-label">Cortex</span></div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#0a9396"></span><span class="legend-label">Epidermis</span></div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#264653"></span><span class="legend-label">Aerenchyma</span></div>
+  </div>
+
+  <!-- ── Panel b - strategy mIoU boxplot (fig3b) ────────────── -->
+  <div id="panel-3b" class="panel">
+    <span class="panel-letter">b</span>
+    <svg id="svg-3b" viewBox="0 0 67 69.49" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════
+// Panel a - load per-cell mIoU annotations
+// ════════════════════════════════════════════════════════════════════════
+async function loadFig3aMeta() {
+  const TAG_TO_COL = { A: "Unified", Bmono: "Monocot", Bdico: "Dicot" };
+  try {
+    const rows = await d3.csv("unified_specialists_per_sample_miou.csv?t=" + Date.now());
+    const meta = {};
+    for (const r of rows) {
+      meta[r.sample_id] = { A: +r.Unified, Bmono: +r.Monocot, Bdico: +r.Dicot };
+    }
+    document.querySelectorAll(".cell .metric-bar").forEach(bar => {
+      const u = bar.dataset.uid, m = bar.dataset.model;
+      const val = (meta[u] && meta[u][m] != null) ? meta[u][m] : null;
+      const text = bar.querySelector(".metric-text");
+      text.textContent = (val == null || Number.isNaN(val))
+        ? "-" : `mIoU ${val.toFixed(3)}`;
+    });
+  } catch (e) {
+    console.warn(e.message);
+    document.querySelectorAll(".cell .metric-bar .metric-text")
+      .forEach(t => t.textContent = "-");
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// 100 µm scale bar injection for fig3a Input cells.
+// data-bar-frac on each original-img = cal_px_per_100µm / native_tif_w
+// (Olympus 308, C10 308, Zeiss 217 px/100 µm). Native-mm sizes used here
+// live inside #fig-3a-inner and are scaled with the rest of the panel.
+// ────────────────────────────────────────────────────────────────────────
+const FIG3A_SB = { insetMm: 0.7, bottomMm: 0.7, barHmm: 0.3, labelGapMm: 0.9 };
+async function injectFig3aScaleBars() {
+  const imgs = document.querySelectorAll("#fig-3a-inner .cell img[data-bar-frac]");
+  await Promise.all(Array.from(imgs).map(img =>
+    img.complete && img.naturalWidth ? Promise.resolve()
+    : new Promise(r => { img.onload = r; img.onerror = r; })));
+  const { insetMm, bottomMm, barHmm, labelGapMm } = FIG3A_SB;
+  // cells inside #fig-3a-inner live in native mm (the grid is built at
+  // --3a-native-w mm and then CSS-scaled). cell-mm = 24 native and all
+  // original PNGs are square, so the rendered image == cell rect.
+  const cellMm = parseFloat(getComputedStyle(document.documentElement)
+                              .getPropertyValue("--cell-mm"));
+  for (const img of imgs) {
+    const frac = parseFloat(img.dataset.barFrac);
+    if (!(frac > 0)) continue;
+    const cell = img.closest(".cell");
+    cell.querySelectorAll(".sb-bar,.sb-lbl").forEach(n => n.remove());
+    const barWmm = frac * cellMm;
+    const bar = document.createElement("div");
+    bar.className = "sb-bar";
+    bar.style.right  = `${insetMm}mm`;
+    bar.style.bottom = `${bottomMm}mm`;
+    bar.style.width  = `${barWmm}mm`;
+    cell.appendChild(bar);
+    const lbl = document.createElement("div");
+    lbl.className = "sb-lbl";
+    lbl.textContent = "100 μm";
+    lbl.style.right  = `${insetMm}mm`;
+    lbl.style.bottom = `${bottomMm + barHmm + labelGapMm}mm`;
+    cell.appendChild(lbl);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Panel b - draw the strategy mIoU boxplot via D3 into #svg-3b
+// ════════════════════════════════════════════════════════════════════════
+const COLORS = {
+  Unified: "#4e79a7",
+  Monocot: "#bcbcdf",
+  Dicot:   "#ead37f",
+};
+
+// Layout - viewBox-mm = on-paper-mm (panel-b slot is 72 × 64.55 mm and the
+// SVG viewBox matches, so the boxplot fills the slot exactly).
+// Margin/padding ratios mirror figure 2d's boxplot (M.top 6.5 / right 3 /
+// bottom 11 / left 8; Y-title offset 5.94 from M.left; X-title baseline
+// offset 8.5 from PLOT bottom; tick labels 2.12 mm; titles 2.47 mm bold).
+const FIG3B_W = 67, FIG3B_H = 69.49;
+const FONT_TITLE = 2.47;             // 7 pt - axis titles, x group labels
+const FONT_TICK  = 2.12;             // 6 pt - tick numerals
+const FONT_N     = 1.76;             // 5 pt - n-count, "n=" key
+// Bottom margin enlarged from fig2d's 11 mm because fig3b's group labels
+// are much longer (e.g. "Monocots In-distribution Test"); after the −25°
+// tilt their vertical extent is ≈ sin(25°) × 33 mm ≈ 14 mm. M.bottom = 22
+// gives ~2 mm of clear gap between label bottom and the x-title cap top.
+// X-axis title is now pinned to the bottom of panel b (descender flush with
+// the panel bottom - see drawFig3b below). M.top + M.bottom shifted so the
+// whole plot+labels move down accordingly while keeping ~1 mm gap between
+// the deepest tilted x-label and the title cap top.
+//   y: widest tick label "1.00" ≈ 3.5 mm wide, left edge at x = −4.7;
+//      Y_TITLE_OFFSET = 6.5 → title right edge at −5.65 (≈1 mm gap).
+// M.top bumped +2 and M.bottom −2 (plot shifts ~2 mm down inside panel b
+// without changing PLOT_H). Brings the rotated x-tick labels closer to the
+// x-title pinned at the panel bottom so the x-title-to-x-tick-label gap
+// matches the y-axis tick-to-title gap (~1 mm).
+const M3B = { top: 16, right: 3, bottom: 16, left: 10 };
+const Y_TITLE_OFFSET = 6.5;
+const X_TITLE_OFFSET = 18;   // legacy, unused (title now pinned at panel bottom)
+const plot3bW = FIG3B_W - M3B.left - M3B.right;
+const plot3bH = FIG3B_H - M3B.top  - M3B.bottom;
+
+function boxStats(values) {
+  const v = values.slice().sort(d3.ascending);
+  const q1 = d3.quantile(v, 0.25);
+  const q2 = d3.quantile(v, 0.50);
+  const q3 = d3.quantile(v, 0.75);
+  const iqr = q3 - q1;
+  const wlo = Math.max(d3.min(v), q1 - 1.5 * iqr);
+  const whi = Math.min(d3.max(v), q3 + 1.5 * iqr);
+  return { q1, q2, q3, wlo, whi, n: v.length };
+}
+function jitterFor(i) {
+  return ((Math.sin(i * 9301 + 49297) + 1) / 2) - 0.5;
+}
+
+async function drawFig3b() {
+  const rows = await d3.csv("unified_specialists_per_sample_miou.csv?t=" + Date.now(), d => ({
+    group: d.group,
+    id: d.sample_id,
+    Unified: +d.Unified,
+    Monocot: +d.Monocot,
+    Dicot:   +d.Dicot,
+  }));
+  const groups = Array.from(d3.group(rows, r => r.group), ([label, samples]) => ({ label, samples }));
+
+  const svg = d3.select("#svg-3b");
+  svg.selectAll("*").remove();
+  svg.attr("font-family", "Helvetica, Arial, sans-serif");
+
+  const PLOT_W = FIG3B_W - M3B.left - M3B.right;
+  const PLOT_H = FIG3B_H - M3B.top  - M3B.bottom;
+
+  // Same scale/group structure as before - 3 groups × 3 boxes.
+  const x = d3.scaleBand()
+              .domain(groups.map(g => g.label))
+              .range([0, PLOT_W])
+              .paddingInner(0.30);
+  const y = d3.scaleLinear().domain([0.25, 1]).range([PLOT_H, 0]);
+
+  // Plot group - origin at the top-left of the plot area (matches fig2d).
+  const g = svg.append("g")
+               .attr("transform", `translate(${M3B.left},${M3B.top})`);
+
+  // ── Grid (light grey horizontal lines, fig2d style) ────────────────────
+  const yTicks = y.ticks(5);
+  g.selectAll("line.hg").data(yTicks).enter().append("line")
+    .attr("x1", 0).attr("x2", PLOT_W)
+    .attr("y1", d => y(d)).attr("y2", d => y(d))
+    .attr("stroke", "#e4e4e4").attr("stroke-width", 0.1);
+
+  // ── Plot frame: bottom + left axis lines (stroke 0.2) ─────────────────
+  g.append("line").attr("x1", 0).attr("x2", PLOT_W)
+    .attr("y1", PLOT_H).attr("y2", PLOT_H)
+    .attr("stroke", "black").attr("stroke-width", 0.2);
+  g.append("line").attr("x1", 0).attr("x2", 0)
+    .attr("y1", 0).attr("y2", PLOT_H)
+    .attr("stroke", "black").attr("stroke-width", 0.2);
+
+  // ── Y ticks + numerals (fig2d formatting) ─────────────────────────────
+  g.selectAll(".yt").data(yTicks).enter().append("g").each(function (d) {
+    const yy = y(d);
+    d3.select(this).append("line")
+      .attr("x1", -0.8).attr("x2", 0)
+      .attr("y1", yy).attr("y2", yy)
+      .attr("stroke", "black").attr("stroke-width", 0.2);
+    d3.select(this).append("text")
+      .attr("x", -1.2).attr("y", yy + 0.7)
+      .attr("text-anchor", "end").attr("font-size", FONT_TICK)
+      .text(d3.format(".2f")(d));
+  });
+
+  // ── Y-title (7 pt bold), positioned per fig2d's Y_TITLE_CENTRE_OFFSET ──
+  svg.append("text")
+    .attr("transform",
+          `translate(${M3B.left - Y_TITLE_OFFSET},${M3B.top + PLOT_H / 2}) rotate(-90)`)
+    .attr("text-anchor", "middle")
+    .attr("font-size", FONT_TITLE).attr("font-weight", "bold")
+    .text("Sample-level mIoU");
+
+  // ── "n=" key (fig5a style): top-left of plot, 5 pt grey, baseline
+  // 1.7 mm above the top axis. ────────────────────────────────────────────
+  g.append("text")
+    .attr("x", -0.5).attr("y", -1.7)
+    .attr("text-anchor", "end")
+    .attr("font-size", FONT_N).attr("fill", "#555")
+    .text("n=");
+
+  // Legend - two rows, centred horizontally near the top of panel b.
+  //   Row 1: Unified Model           (alone)
+  //   Row 2: Monocot Specialist · Dicot Specialist
+  const legendRows = [
+    [{ color: COLORS.Unified, label: "Unified Model" }],
+    [
+      { color: COLORS.Monocot, label: "Monocot Specialist" },
+      { color: COLORS.Dicot,   label: "Dicot Specialist"   },
+    ],
+  ];
+  const LEG_FS     = FONT_TITLE;                              // 7 pt
+  const swatchSize = LEG_FS * 0.85;
+  const swatchGap  = 0.8;
+  const itemPad    = 2.5;
+  const rowH       = LEG_FS * 1.3;                            // line height between rows
+
+  // Pre-measure label widths so row centring is accurate at any font.
+  const measure = svg.append("text")
+                     .attr("font-size", LEG_FS)
+                     .attr("visibility", "hidden");
+  const rowWidths = legendRows.map(row => {
+    let w = 0;
+    row.forEach((it, i) => {
+      measure.text(it.label);
+      w += swatchSize + swatchGap + measure.node().getComputedTextLength();
+      if (i < row.length - 1) w += itemPad;
+    });
+    return w;
+  });
+  measure.remove();
+
+  // Top of the legend (swatch top of row 1) aligned with the top edge of
+  // the first image row in panel a. Panel a's inner grid is scaled by
+  // 113/128 ≈ 0.883; first image row top (native) = 0.25 (padding) +
+  // 6.2 (col-hdr) = 6.45 mm → 5.69 mm in canvas y. Swatch top of legend
+  // row 1 = legYTop − 0.85 × swatchSize = legYTop − 1.78. So legYTop =
+  // 5.69 + 1.78 ≈ 7.47 mm.
+  const legYTop = 7.47;
+  legendRows.forEach((row, ri) => {
+    const rowY = legYTop + ri * rowH;
+    let x = Math.max(0, (FIG3B_W - rowWidths[ri]) / 2);
+    row.forEach((it, i) => {
+      svg.append("rect")
+        .attr("x", x).attr("y", rowY - swatchSize * 0.85)
+        .attr("width", swatchSize).attr("height", swatchSize)
+        .attr("fill", it.color).attr("fill-opacity", 0.9)
+        .attr("stroke", it.color).attr("stroke-width", 0.25);
+      const tEl = svg.append("text")
+        .attr("x", x + swatchSize + swatchGap).attr("y", rowY)
+        .attr("font-size", LEG_FS).attr("fill", "#333")
+        .text(it.label);
+      const labelW = tEl.node().getComputedTextLength();
+      x += swatchSize + swatchGap + labelW + itemPad;
+    });
+  });
+
+  // ── Per-group boxes (fig2d styling) ────────────────────────────────────
+  const fullBoxW = Math.max(1.5, x.bandwidth() * 0.85);
+  const subGap   = 0.45;                                    // mm between sub-boxes
+  const subBoxW  = (fullBoxW - 2 * subGap) / 3;             // 3 sub-boxes per group
+  const jitterW  = subBoxW * 0.60;
+
+  groups.forEach((grp) => {
+    const cxGroup = x(grp.label) + x.bandwidth() / 2;
+    // Same order across all groups: Unified → Monocot → Dicot (matches the
+    // legend in the top strip).
+    const modelsHere = ["Unified", "Monocot", "Dicot"];
+    // Sub-box centres around cxGroup
+    const x0 = cxGroup - (modelsHere.length * subBoxW + (modelsHere.length - 1) * subGap) / 2;
+    const cxBox = modelsHere.map((_, mi) => x0 + mi * (subBoxW + subGap) + subBoxW / 2);
+
+    // Connector polylines (light grey, under everything)
+    grp.samples.forEach((s, i) => {
+      const t = jitterFor(i);
+      const pts = modelsHere.map((m, mi) =>
+        `${cxBox[mi] + t * jitterW},${y(s[m])}`).join(" ");
+      g.append("polyline")
+        .attr("points", pts)
+        .attr("fill", "none")
+        .attr("stroke", "#777")
+        .attr("stroke-width", 0.06)
+        .attr("opacity", 0.22);
+    });
+
+    // Box + whiskers + scatter + median per model
+    modelsHere.forEach((m, mi) => {
+      const vals = grp.samples.map(s => s[m]).filter(v => v != null && !isNaN(v));
+      if (!vals.length) return;
+      const stats = boxStats(vals);
+      const cx = cxBox[mi];
+      const color = COLORS[m];
+
+      // Whisker stem
+      g.append("line")
+        .attr("x1", cx).attr("x2", cx)
+        .attr("y1", y(stats.wlo)).attr("y2", y(stats.whi))
+        .attr("stroke", "black").attr("stroke-width", 0.15);
+      // Whisker caps (fig2d uses subBoxW * 0.35)
+      [stats.wlo, stats.whi].forEach(v => {
+        g.append("line")
+          .attr("x1", cx - subBoxW * 0.35).attr("x2", cx + subBoxW * 0.35)
+          .attr("y1", y(v)).attr("y2", y(v))
+          .attr("stroke", "black").attr("stroke-width", 0.15);
+      });
+      // IQR box (fig2d: stroke 0.25, fill-opacity 0.55)
+      g.append("rect")
+        .attr("x", cx - subBoxW / 2).attr("y", y(stats.q3))
+        .attr("width", subBoxW).attr("height", y(stats.q1) - y(stats.q3))
+        .attr("fill", color).attr("fill-opacity", 0.55)
+        .attr("stroke", color).attr("stroke-width", 0.25);
+      // Jittered points (fig2d: r=0.22, opacity 0.55)
+      vals.forEach((v, i) => {
+        const t = (Math.sin(i * 9301 + 49297 + mi * 11) + 1) / 2;
+        const jx = cx + (t - 0.5) * jitterW;
+        g.append("circle")
+          .attr("cx", jx).attr("cy", y(v))
+          .attr("r", 0.22)
+          .attr("fill", color).attr("fill-opacity", 0.55)
+          .attr("stroke", "none");
+      });
+      // Median line (fig2d: black, stroke 0.25)
+      g.append("line")
+        .attr("x1", cx - subBoxW / 2).attr("x2", cx + subBoxW / 2)
+        .attr("y1", y(stats.q2)).attr("y2", y(stats.q2))
+        .attr("stroke", "black").attr("stroke-width", 0.25);
+
+      // Per-box n above the upper whisker cap (fig5a style: 5 pt grey,
+      // 0.85 mm gap above the cap).
+      g.append("text")
+        .attr("x", cx).attr("y", y(stats.whi) - 0.85)
+        .attr("text-anchor", "middle")
+        .attr("font-size", FONT_N).attr("fill", "#555")
+        .text(`${vals.length}`);
+    });
+
+    // X-axis ticks (fig5b style): a short 0.5 mm tick under each of the 3
+    // boxes, plus one longer 0.8 mm shared tick at the group centre that
+    // carries the rotated 2-line label.
+    cxBox.forEach(cx => {
+      g.append("line")
+        .attr("x1", cx).attr("x2", cx)
+        .attr("y1", PLOT_H).attr("y2", PLOT_H + 0.5)
+        .attr("stroke", "black").attr("stroke-width", 0.18);
+    });
+    g.append("line")
+      .attr("x1", cxGroup).attr("x2", cxGroup)
+      .attr("y1", PLOT_H).attr("y2", PLOT_H + 0.8)
+      .attr("stroke", "black").attr("stroke-width", 0.2);
+
+    // X-axis group label - tilted −25° to match fig2d, broken into two
+    // lines after the species name ("Monocots" / "In-distribution Test").
+    // text-anchor=end with two stacked <tspan>s so both lines right-align
+    // with the tick mark; not bold per user request.
+    const labelLines = grp.label.split(" - ");
+    // Rotation origin at PLOT_H + 1.2 mm gives a 0.4 mm gap from the tick
+    // mark's end (PLOT_H + 0.8) to the closest point of the rotated text,
+    // matching the y-axis tick-mark-to-tick-label gap (also 0.4 mm).
+    const xLabel = g.append("text")
+      .attr("transform", `translate(${cxGroup},${PLOT_H + 1.2}) rotate(-25)`)
+      .attr("text-anchor", "end").attr("font-size", FONT_TICK)
+      .classed("x-tick-label", true);
+    xLabel.append("tspan")
+      .attr("x", 0).attr("dy", "1em")
+      .text(labelLines[0]);
+    if (labelLines[1]) {
+      xLabel.append("tspan")
+        .attr("x", 0).attr("dy", "1.1em")
+        .text(labelLines[1]);
+    }
+  });
+
+  // ── X-title (7 pt bold) - placed just below the actual deepest pixel of
+  // the rotated tick labels (measured via getBoundingClientRect) so the gap
+  // matches the y-axis title-to-tick gap regardless of label width.
+  // ──────────────────────────────────────────────────────────────────────
+  const svgNode = svg.node();
+  const svgRect = svgNode.getBoundingClientRect();
+  const cssPxPerMm = svgRect.width / FIG3B_W;            // SVG viewBox → CSS px
+  let xLabelMaxBottomMm = 0;
+  g.selectAll("text.x-tick-label").each(function () {
+    const br = this.getBoundingClientRect();
+    const bottomMm = (br.bottom - svgRect.top) / cssPxPerMm;
+    if (bottomMm > xLabelMaxBottomMm) xLabelMaxBottomMm = bottomMm;
+  });
+  const titleCapHeight = FONT_TITLE * 0.7;               // ≈ Helvetica cap height
+  const titleDescent   = FONT_TITLE * 0.21;              // ≈ Helvetica descent
+  // Pin the X-title baseline so its descender sits flush with the panel
+  // bottom. The plot above is sized (M.top/M.bottom) so the deepest x-tick
+  // label still clears the title cap top with ~1 mm gap.
+  const xTitleY = FIG3B_H - titleDescent;
+  svg.append("text")
+    .attr("x", M3B.left + PLOT_W / 2)
+    .attr("y", xTitleY)
+    .attr("text-anchor", "middle")
+    .attr("font-size", FONT_TITLE).attr("font-weight", "bold")
+    .text("Test Dataset");
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Per-microscope image-adjustment helpers - same math as the on-screen
+// SVG filter (img-adjust-olympus / img-adjust-c10) so the rasterised PNG
+// matches the live preview.
+// ════════════════════════════════════════════════════════════════════════
+const ADJUST_PARAMS = {
+  olympus: {
+    gamma:      0.95,              // SVG exponent 1.0526 = 1/0.95
+    contrast:   84,                // slope 1.84 = (contrast+100)/100
+    brightness: 39,                // intercept -0.03 → (b/100) + 0.5*(1-c) = -0.03
+    saturation: 1.2,
+    sharpness:  0,
+  },
+  c10: {
+    gamma:      0.90,              // SVG exponent 1.1111 = 1/0.9
+    contrast:   15,                // slope 1.15
+    brightness: 0,                 // intercept -0.075 = 0.5*(1-1.15) + 0
+    saturation: 1.1,
+    sharpness:  0.4,               // kernel center 1.8 = 1 + 4*0.2 → 0.2 = sharp*0.5
+  },
+};
+
+// Decide which preset (if any) to apply, matching the CSS selector logic:
+//   _Olympus_ / _C10_ in the src, AND not a mask (pred / overlay / gt).
+function adjustParamsForSrc(src) {
+  if (!src) return null;
+  if (/pred/i.test(src) || /overlay/i.test(src)
+      || /_gt\./i.test(src) || /\/gt\.png/i.test(src)) return null;
+  if (src.includes("_Olympus_")) return ADJUST_PARAMS.olympus;
+  if (src.includes("_C10_"))     return ADJUST_PARAMS.c10;
+  return null;
+}
+
+function _buildBCGLUT(brightness, contrast, gamma) {
+  const lut = new Uint8ClampedArray(256);
+  const c = (contrast + 100) / 100;
+  for (let i = 0; i < 256; i++) {
+    let v = i / 255;
+    v = Math.pow(v, 1 / gamma);
+    v = (v - 0.5) * c + 0.5;
+    v = v + brightness / 100;
+    lut[i] = Math.max(0, Math.min(1, v)) * 255;
+  }
+  return lut;
+}
+function _applyBCG(imgData, lut) {
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i]     = lut[d[i]];
+    d[i + 1] = lut[d[i + 1]];
+    d[i + 2] = lut[d[i + 2]];
+  }
+}
+function _applySaturation(imgData, sat) {
+  if (Math.abs(sat - 1) < 1e-3) return;
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    d[i]     = Math.max(0, Math.min(255, luma + (r - luma) * sat));
+    d[i + 1] = Math.max(0, Math.min(255, luma + (g - luma) * sat));
+    d[i + 2] = Math.max(0, Math.min(255, luma + (b - luma) * sat));
+  }
+}
+function _applyUnsharp(imgData, amount) {
+  const w = imgData.width, h = imgData.height;
+  const src = new Uint8ClampedArray(imgData.data);
+  const dst = imgData.data;
+  const k = amount * 0.5;
+  const center = 1 + 4 * k;
+  for (let y = 1; y < h - 1; y++) {
+    const rowOff = y * w * 4;
+    for (let x = 1; x < w - 1; x++) {
+      const i = rowOff + x * 4;
+      for (let ch = 0; ch < 3; ch++) {
+        const cVal = src[i + ch];
+        const up    = src[i - w * 4 + ch];
+        const down  = src[i + w * 4 + ch];
+        const left  = src[i - 4 + ch];
+        const right = src[i + 4 + ch];
+        dst[i + ch] = Math.max(0, Math.min(255,
+          cVal * center - (up + down + left + right) * k));
+      }
+    }
+  }
+}
+
+// In-place pixel adjustment on the given canvas.
+function applyPixelAdjust(canvas, params) {
+  const ctx = canvas.getContext("2d");
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  _applyBCG(imgData, _buildBCGLUT(params.brightness, params.contrast, params.gamma));
+  _applySaturation(imgData, params.saturation);
+  if (params.sharpness > 0) _applyUnsharp(imgData, params.sharpness);
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Mixed-italic helpers - walk a span's child nodes so text inside <i>...</i>
+// renders italic and the rest renders upright (used for species/genotype
+// labels: only mutant gene names are italic).
+// ════════════════════════════════════════════════════════════════════════
+function _spanSegments(span) {
+  const out = [];
+  for (const node of span.childNodes) {
+    const text = (node.nodeType === Node.TEXT_NODE)
+      ? node.nodeValue
+      : (node.tagName === "I" || node.tagName === "EM" ? node.textContent : node.textContent);
+    if (!text) continue;
+    const italic = node.nodeType === 1 && (node.tagName === "I" || node.tagName === "EM");
+    out.push({ text, italic });
+  }
+  if (out.length === 0 && span.textContent) {
+    out.push({ text: span.textContent, italic: false });
+  }
+  return out;
+}
+function drawMixedItalic(ctx, span, fontPx, fontFamily, x, y, anchor) {
+  const segs = _spanSegments(span);
+  // Measure total width with the right style per segment.
+  let totalW = 0;
+  for (const s of segs) {
+    ctx.font = `${s.italic ? "italic " : ""}${fontPx}px ${fontFamily}`;
+    totalW += ctx.measureText(s.text).width;
+  }
+  let cursorX = x;
+  if (anchor === "center")     cursorX = x - totalW / 2;
+  else if (anchor === "right") cursorX = x - totalW;
+  ctx.textAlign = "left";
+  for (const s of segs) {
+    ctx.font = `${s.italic ? "italic " : ""}${fontPx}px ${fontFamily}`;
+    ctx.fillText(s.text, cursorX, y);
+    cursorX += ctx.measureText(s.text).width;
+  }
+}
+function appendMixedItalicTspans(textEl, span) {
+  const svgNS = "http://www.w3.org/2000/svg";
+  for (const s of _spanSegments(span)) {
+    const ts = document.createElementNS(svgNS, "tspan");
+    if (s.italic) ts.setAttribute("font-style", "italic");
+    ts.textContent = s.text;
+    textEl.appendChild(ts);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// PNG export - rasterize the whole figure at print DPI directly from DOM
+// ════════════════════════════════════════════════════════════════════════
+async function savePNG() {
+  const dpi = parseInt(document.getElementById("dpi").value, 10) || 600;
+  const fig = document.getElementById("fig");
+  const figRect = fig.getBoundingClientRect();
+  const mmPerPx = 25.4 / 96;                  // CSS px → mm
+  const figWmm = figRect.width  * mmPerPx;
+  const figHmm = figRect.height * mmPerPx;
+  const pxPerMm = dpi / 25.4;
+  const W = Math.round(figWmm * pxPerMm);
+  const H = Math.round(figHmm * pxPerMm);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "white"; ctx.fillRect(0, 0, W, H);
+
+  const cssScale = W / figRect.width;         // CSS px → output px
+  const rectPx = (el) => {
+    const r = el.getBoundingClientRect();
+    return {
+      x: (r.left - figRect.left) * cssScale,
+      y: (r.top  - figRect.top)  * cssScale,
+      w: r.width  * cssScale,
+      h: r.height * cssScale,
+    };
+  };
+
+  // ── Panel a: walk fig3a DOM and paint each element to canvas ──────────
+  const fig3a = document.getElementById("fig-3a-inner");
+
+  // Group headers
+  fig3a.querySelectorAll(".group-hdr").forEach(hdr => {
+    const p = rectPx(hdr);
+    ctx.fillStyle = "#d6d6d6";
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    const fontPx = parseFloat(getComputedStyle(hdr).fontSize) * cssScale;
+    ctx.font = `bold ${fontPx}px Helvetica, Arial, sans-serif`;
+    ctx.fillStyle = "black";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(hdr.textContent, p.x + p.w / 2, p.y + p.h / 2);
+  });
+  // Column headers - may be 1 or 2 lines (last 3 cols use a 2-line stack).
+  fig3a.querySelectorAll(".col-hdr").forEach(hdr => {
+    const p = rectPx(hdr);
+    const fontPx = parseFloat(getComputedStyle(hdr).fontSize) * cssScale;
+    ctx.font = `600 ${fontPx}px Helvetica, Arial, sans-serif`;
+    ctx.fillStyle = "black";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const stackDivs = hdr.querySelectorAll(".col-stack > div");
+    const lines = stackDivs.length
+      ? Array.from(stackDivs).map(d => d.textContent)
+      : [hdr.textContent];
+    const lineH = fontPx * 1.1;
+    const firstY = -(lines.length - 1) / 2 * lineH;
+    lines.forEach((line, i) => {
+      ctx.fillText(line, p.x + p.w / 2, p.y + p.h / 2 + firstY + i * lineH);
+    });
+  });
+  // Row headers - 2-line stacked text rotated −90° around the cell centre.
+  // Both lines centred horizontally (after rotation, that means centred
+  // along the cell's long axis).
+  fig3a.querySelectorAll(".row-hdr").forEach(hdr => {
+    const p = rectPx(hdr);
+    const lineDivs = hdr.querySelectorAll(".row-stack > div");
+    const lines = lineDivs.length
+      ? Array.from(lineDivs).map(d => d.textContent)
+      : [hdr.textContent];
+    const fontPx = parseFloat(getComputedStyle(hdr).fontSize) * cssScale;
+    const lineH = fontPx * 1.1;
+    ctx.save();
+    ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.font = `600 ${fontPx}px Helvetica, Arial, sans-serif`;
+    ctx.fillStyle = "black";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    // Stack lines centred on origin: total height = (n-1) × lineH,
+    // first line at y = -(n-1)/2 × lineH.
+    const firstY = -(lines.length - 1) / 2 * lineH;
+    lines.forEach((line, i) => {
+      ctx.fillText(line, 0, firstY + i * lineH);
+    });
+    ctx.restore();
+  });
+  // White wash behind the 3×5 image grid - fills the 0.5 mm gaps between
+  // cells with white (matches fig1c / fig2 gap style). Derived from the
+  // first / last .cell bounding rects to mirror the CSS ::before pseudo-
+  // element.
+  const cellsArr = Array.from(fig3a.querySelectorAll(".cell"));
+  if (cellsArr.length) {
+    const firstCell = rectPx(cellsArr[0]);
+    const lastCell  = rectPx(cellsArr[cellsArr.length - 1]);
+    ctx.fillStyle = "white";
+    ctx.fillRect(firstCell.x, firstCell.y,
+                 (lastCell.x + lastCell.w) - firstCell.x,
+                 (lastCell.y + lastCell.h) - firstCell.y);
+  }
+  // Cells (black background + image + overlays). When an image is a raw
+  // fluorescence file (its src matches the same selectors the on-screen
+  // CSS filter uses), apply the equivalent pixel-level pipeline so the
+  // exported PNG carries the same boost as the browser preview.
+  for (const cell of fig3a.querySelectorAll(".cell")) {
+    const p = rectPx(cell);
+    ctx.fillStyle = "black";
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    const img = cell.querySelector("img");
+    if (img && img.complete && img.naturalWidth) {
+      const ir = img.naturalWidth / img.naturalHeight;
+      const cr = p.w / p.h;
+      let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+      if (ir > cr) { sw = img.naturalHeight * cr; sx = (img.naturalWidth - sw) / 2; }
+      else         { sh = img.naturalWidth  / cr; sy = (img.naturalHeight - sh) / 2; }
+
+      const params = adjustParamsForSrc(img.src);
+      if (params) {
+        // Render into an off-screen canvas at the cell's output size, apply
+        // pixel adjustments, then draw onto the master canvas.
+        const off = document.createElement("canvas");
+        const ow = Math.max(1, Math.round(p.w));
+        const oh = Math.max(1, Math.round(p.h));
+        off.width = ow; off.height = oh;
+        off.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, ow, oh);
+        applyPixelAdjust(off, params);
+        ctx.drawImage(off, p.x, p.y);
+      } else {
+        ctx.drawImage(img, sx, sy, sw, sh, p.x, p.y, p.w, p.h);
+      }
+    }
+    // Species label - render with per-segment italic style so mutant gene
+    // names (wrapped in <i>...</i>) stay italic while the rest is upright.
+    const sp = cell.querySelector(".species-label");
+    if (sp && sp.textContent) {
+      const sr = rectPx(sp);
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(sr.x, sr.y, sr.w, sr.h);
+      const fontPx = parseFloat(getComputedStyle(sp).fontSize) * cssScale;
+      ctx.fillStyle = "white";
+      ctx.textBaseline = "middle";
+      drawMixedItalic(ctx, sp, fontPx, "Helvetica, Arial, sans-serif",
+                      sr.x + sr.w / 2, sr.y + sr.h / 2, "center");
+    }
+    // mIoU bar
+    const bar = cell.querySelector(".metric-bar");
+    if (bar) {
+      const bp = rectPx(bar);
+      ctx.fillStyle = "#000";
+      ctx.fillRect(bp.x, bp.y, bp.w, bp.h);
+      const txt = bar.querySelector(".metric-text");
+      if (txt && txt.textContent) {
+        const fontPx = parseFloat(getComputedStyle(txt).fontSize) * cssScale;
+        ctx.fillStyle = "white";
+        ctx.font = `${fontPx}px Helvetica, Arial, sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(txt.textContent, bp.x + bp.w / 2, bp.y + bp.h / 2);
+      }
+    }
+    // 100 µm scale bar (Input cells only - injected with data-bar-frac)
+    const sbBar = cell.querySelector(".sb-bar");
+    if (sbBar) {
+      const r = rectPx(sbBar);
+      const haloPad = 0.1 * cssScale * (96 / 25.4);  // 0.1 mm halo in px
+      ctx.fillStyle = "rgba(0,0,0,0.85)";
+      ctx.fillRect(r.x - haloPad, r.y - haloPad,
+                   r.w + 2 * haloPad, r.h + 2 * haloPad);
+      ctx.fillStyle = "white";
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+    }
+    const sbLbl = cell.querySelector(".sb-lbl");
+    if (sbLbl) {
+      const r = rectPx(sbLbl);
+      const fontPx = parseFloat(getComputedStyle(sbLbl).fontSize) * cssScale;
+      ctx.font = `${fontPx}px Helvetica, Arial, sans-serif`;
+      ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+      // Match the CSS text-shadow: stroke "100 μm" with a black halo,
+      // then fill white.
+      const stroke = 0.1 * cssScale * (96 / 25.4);  // 0.1 mm
+      const baselineX = r.x + r.w;
+      const baselineY = r.y + r.h;
+      ctx.fillStyle = "rgba(0,0,0,0.85)";
+      for (const [dx, dy] of [[stroke,0],[-stroke,0],[0,stroke],[0,-stroke]]) {
+        ctx.fillText("100 μm", baselineX + dx, baselineY + dy);
+      }
+      ctx.fillStyle = "white";
+      ctx.fillText("100 μm", baselineX, baselineY);
+    }
+  }
+
+  // ── Panel b: rasterize the <svg> at the slot, drawn into canvas ───────
+  const panel3b = document.getElementById("panel-3b");
+  const svgEl   = document.getElementById("svg-3b");
+  const pb = rectPx(panel3b);
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width",  pb.w);
+  clone.setAttribute("height", pb.h);
+  const xml = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve; img.onerror = reject; img.src = url;
+    });
+    ctx.drawImage(img, pb.x, pb.y, pb.w, pb.h);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Panel a mask legend: swatches + labels ────────────────────────────
+  document.querySelectorAll("#panel-3a-legend .legend-item").forEach(item => {
+    const swatch = item.querySelector(".legend-swatch");
+    const label  = item.querySelector(".legend-label");
+    if (swatch) {
+      const sp = rectPx(swatch);
+      ctx.fillStyle = getComputedStyle(swatch).backgroundColor;
+      ctx.fillRect(sp.x, sp.y, sp.w, sp.h);
+    }
+    if (label && label.textContent) {
+      const lp = rectPx(label);
+      const fontPx = parseFloat(getComputedStyle(label).fontSize) * cssScale;
+      ctx.font = `${fontPx}px Helvetica, Arial, sans-serif`;
+      ctx.fillStyle = "black";
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(label.textContent, lp.x, lp.y + lp.h / 2);
+    }
+  });
+
+  // ── Panel letters (a / b) ─────────────────────────────────────────────
+  for (const span of fig.querySelectorAll(".panel-letter")) {
+    const p = rectPx(span);
+    const fontPx = parseFloat(getComputedStyle(span).fontSize) * cssScale;
+    ctx.fillStyle = "#222";
+    ctx.font = `bold ${fontPx}px Helvetica, Arial, sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText(span.textContent, p.x, p.y);
+  }
+
+  canvas.toBlob(b => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = `figure3_assembled_${dpi}dpi.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, "image/png");
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// SVG export - single combined SVG containing both panels
+// ════════════════════════════════════════════════════════════════════════
+async function imgToDataURI(img) {
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  c.getContext("2d").drawImage(img, 0, 0);
+  return c.toDataURL("image/png");
+}
+
+async function saveSVG() {
+  const fig = document.getElementById("fig");
+  const figRect = fig.getBoundingClientRect();
+  const toMm = px => (px * 25.4) / 96;
+  const figWmm = toMm(figRect.width);
+  const figHmm = toMm(figRect.height);
+  const rectMm = el => {
+    const r = el.getBoundingClientRect();
+    return {
+      x: toMm(r.left - figRect.left),
+      y: toMm(r.top  - figRect.top),
+      w: toMm(r.width),
+      h: toMm(r.height),
+    };
+  };
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("xmlns", svgNS);
+  svg.setAttribute("width",  figWmm + "mm");
+  svg.setAttribute("height", figHmm + "mm");
+  svg.setAttribute("viewBox", `0 0 ${figWmm} ${figHmm}`);
+
+  const style = document.createElementNS(svgNS, "style");
+  style.textContent = "text { font-family: Helvetica, Arial, sans-serif; }";
+  svg.appendChild(style);
+
+  // ── Embed per-microscope filter <defs> so the exported SVG carries the
+  //    same boost shown on screen. Each fluorescence <image> gets the
+  //    appropriate filter="url(#...)" attribute added below.
+  const defs = document.createElementNS(svgNS, "defs");
+  defs.innerHTML = `
+    <filter id="img-adjust-olympus" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncG type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncB type="linear" slope="1.84" intercept="-0.03"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.2"/>
+    </filter>
+    <filter id="img-adjust-c10" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.15" intercept="-0.075"/>
+        <feFuncG type="linear" slope="1.15" intercept="-0.075"/>
+        <feFuncB type="linear" slope="1.15" intercept="-0.075"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.1"/>
+      <feConvolveMatrix order="3" preserveAlpha="true"
+        kernelMatrix="0 -0.2 0 -0.2 1.8 -0.2 0 -0.2 0"/>
+    </filter>`;
+  svg.appendChild(defs);
+
+  // Canvas background
+  const bg = document.createElementNS(svgNS, "rect");
+  bg.setAttribute("x", 0); bg.setAttribute("y", 0);
+  bg.setAttribute("width", figWmm); bg.setAttribute("height", figHmm);
+  bg.setAttribute("fill", "white");
+  svg.appendChild(bg);
+
+  // ── Panel a ──────────────────────────────────────────────────────────
+  const fig3a = document.getElementById("fig-3a-inner");
+  const imgs = Array.from(fig3a.querySelectorAll("img"));
+  const dataURIs = await Promise.all(imgs.map(imgToDataURI));
+
+  fig3a.querySelectorAll(".group-hdr").forEach(hdr => {
+    const r = rectMm(hdr);
+    const re = document.createElementNS(svgNS, "rect");
+    re.setAttribute("x", r.x); re.setAttribute("y", r.y);
+    re.setAttribute("width", r.w); re.setAttribute("height", r.h);
+    re.setAttribute("fill", "#d6d6d6");
+    svg.appendChild(re);
+  });
+  // White wash behind the 3×5 image grid - fills the 0.5 mm gaps between
+  // cells with white (matches fig1c / fig2 gap style).
+  const cellsArr = Array.from(fig3a.querySelectorAll(".cell"));
+  if (cellsArr.length) {
+    const firstCell = rectMm(cellsArr[0]);
+    const lastCell  = rectMm(cellsArr[cellsArr.length - 1]);
+    const re = document.createElementNS(svgNS, "rect");
+    re.setAttribute("x", firstCell.x);
+    re.setAttribute("y", firstCell.y);
+    re.setAttribute("width",  (lastCell.x + lastCell.w) - firstCell.x);
+    re.setAttribute("height", (lastCell.y + lastCell.h) - firstCell.y);
+    re.setAttribute("fill", "white");
+    svg.appendChild(re);
+  }
+  // Column headers - no background fill (text only is appended below).
+  fig3a.querySelectorAll(".cell").forEach(cell => {
+    const r = rectMm(cell);
+    const re = document.createElementNS(svgNS, "rect");
+    re.setAttribute("x", r.x); re.setAttribute("y", r.y);
+    re.setAttribute("width", r.w); re.setAttribute("height", r.h);
+    re.setAttribute("fill", "black");
+    svg.appendChild(re);
+  });
+  imgs.forEach((img, i) => {
+    const r = rectMm(img);
+    const im = document.createElementNS(svgNS, "image");
+    im.setAttribute("x", r.x); im.setAttribute("y", r.y);
+    im.setAttribute("width", r.w); im.setAttribute("height", r.h);
+    im.setAttribute("preserveAspectRatio", "xMidYMid slice");
+    im.setAttribute("href", dataURIs[i]);
+    // Tag fluorescence images with the same SVG filter that runs in the
+    // browser preview so the exported SVG matches the on-screen boost.
+    const params = adjustParamsForSrc(img.src);
+    if (params === ADJUST_PARAMS.olympus) im.setAttribute("filter", "url(#img-adjust-olympus)");
+    else if (params === ADJUST_PARAMS.c10) im.setAttribute("filter", "url(#img-adjust-c10)");
+    svg.appendChild(im);
+  });
+
+  // Species labels (rotated -90°, italic)
+  const spPt = parseFloat(getComputedStyle(document.documentElement)
+                          .getPropertyValue("--species-pt"));
+  const a3aScale = parseFloat(getComputedStyle(document.documentElement)
+                              .getPropertyValue("--3a-w-mm"))
+                 / parseFloat(getComputedStyle(document.documentElement)
+                              .getPropertyValue("--3a-native-w"));
+  fig3a.querySelectorAll(".cell .species-label").forEach(span => {
+    if (!span.textContent) return;
+    const r = rectMm(span);
+    const bgr = document.createElementNS(svgNS, "rect");
+    bgr.setAttribute("x", r.x); bgr.setAttribute("y", r.y);
+    bgr.setAttribute("width", r.w); bgr.setAttribute("height", r.h);
+    bgr.setAttribute("fill", "rgba(0,0,0,0.55)");
+    svg.appendChild(bgr);
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("x", cx); t.setAttribute("y", cy);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("dominant-baseline", "central");
+    t.setAttribute("fill", "white");
+    t.setAttribute("font-size", spPt * 0.352778 * a3aScale);
+    // Emit one <tspan> per child node so mutant gene names (<i>) stay italic
+    // while the rest is upright.
+    appendMixedItalicTspans(t, span);
+    svg.appendChild(t);
+  });
+
+  // mIoU bars
+  const miouPt = parseFloat(getComputedStyle(document.documentElement)
+                            .getPropertyValue("--miou-pt"));
+  fig3a.querySelectorAll(".cell .metric-bar").forEach(bar => {
+    const r = rectMm(bar);
+    const re = document.createElementNS(svgNS, "rect");
+    re.setAttribute("x", r.x); re.setAttribute("y", r.y);
+    re.setAttribute("width", r.w); re.setAttribute("height", r.h);
+    re.setAttribute("fill", "#000");
+    svg.appendChild(re);
+    const txt = bar.querySelector(".metric-text");
+    if (txt && txt.textContent) {
+      const t = document.createElementNS(svgNS, "text");
+      t.setAttribute("x", r.x + r.w / 2);
+      t.setAttribute("y", r.y + r.h * 0.62);
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("dominant-baseline", "central");
+      t.setAttribute("fill", "white");
+      t.setAttribute("font-size", miouPt * 0.352778 * a3aScale);
+      t.textContent = txt.textContent;
+      svg.appendChild(t);
+    }
+  });
+
+  // 100 µm scale bars on Input cells - native SVG primitives. Halo as a
+  // black <rect> behind the white bar; "100 μm" label right-anchored at
+  // the bar's right edge with a black text-stroke matching the CSS shadow.
+  fig3a.querySelectorAll(".cell .sb-bar").forEach(barEl => {
+    const r = rectMm(barEl);
+    const halo = document.createElementNS(svgNS, "rect");
+    halo.setAttribute("x", r.x - 0.1);
+    halo.setAttribute("y", r.y - 0.1);
+    halo.setAttribute("width",  r.w + 0.2);
+    halo.setAttribute("height", r.h + 0.2);
+    halo.setAttribute("fill", "rgba(0,0,0,0.85)");
+    svg.appendChild(halo);
+    const re = document.createElementNS(svgNS, "rect");
+    re.setAttribute("x", r.x); re.setAttribute("y", r.y);
+    re.setAttribute("width", r.w); re.setAttribute("height", r.h);
+    re.setAttribute("fill", "white");
+    svg.appendChild(re);
+  });
+  fig3a.querySelectorAll(".cell .sb-lbl").forEach(lblEl => {
+    const r = rectMm(lblEl);
+    const fontMm = parseFloat(getComputedStyle(lblEl).fontSize) / 96 * 25.4 * a3aScale;
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("x", r.x + r.w);
+    t.setAttribute("y", r.y + r.h);
+    t.setAttribute("text-anchor", "end");
+    t.setAttribute("dominant-baseline", "text-after-edge");
+    t.setAttribute("font-size", fontMm);
+    t.setAttribute("fill", "white");
+    t.setAttribute("stroke", "rgba(0,0,0,0.85)");
+    t.setAttribute("stroke-width", "0.15");
+    t.setAttribute("paint-order", "stroke fill");
+    t.textContent = "100 μm";
+    svg.appendChild(t);
+  });
+
+  // Group / col / row header text
+  const grpPt = parseFloat(getComputedStyle(document.documentElement)
+                           .getPropertyValue("--grp-pt"));
+  const hdrPt = parseFloat(getComputedStyle(document.documentElement)
+                           .getPropertyValue("--hdr-pt"));
+  const rowPt = parseFloat(getComputedStyle(document.documentElement)
+                           .getPropertyValue("--row-pt"));
+  fig3a.querySelectorAll(".group-hdr").forEach(hdr => {
+    const r = rectMm(hdr);
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("x", r.x + r.w / 2); t.setAttribute("y", r.y + r.h / 2);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("dominant-baseline", "central");
+    t.setAttribute("font-size", grpPt * 0.352778 * a3aScale);
+    t.setAttribute("font-weight", "bold");
+    t.textContent = hdr.textContent;
+    svg.appendChild(t);
+  });
+  // Column headers - 1 or 2 lines (last 3 cols use a 2-line stack).
+  fig3a.querySelectorAll(".col-hdr").forEach(hdr => {
+    const r = rectMm(hdr);
+    const stackDivs = hdr.querySelectorAll(".col-stack > div");
+    const lines = stackDivs.length
+      ? Array.from(stackDivs).map(d => d.textContent)
+      : [hdr.textContent];
+    const fontMm = hdrPt * 0.352778 * a3aScale;
+    const lineH = fontMm * 1.1;
+    const firstY = -(lines.length - 1) / 2 * lineH;
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("font-size", fontMm);
+    t.setAttribute("font-weight", "600");
+    lines.forEach((line, i) => {
+      const ts = document.createElementNS(svgNS, "tspan");
+      ts.setAttribute("x", r.x + r.w / 2);
+      ts.setAttribute("y", r.y + r.h / 2 + firstY + i * lineH);
+      ts.setAttribute("dominant-baseline", "central");
+      ts.textContent = line;
+      t.appendChild(ts);
+    });
+    svg.appendChild(t);
+  });
+  // Row headers - 2-line stacked + rotated −90°. Both lines centred on the
+  // cell's centerline (same as the PNG export path above).
+  fig3a.querySelectorAll(".row-hdr").forEach(hdr => {
+    const r = rectMm(hdr);
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    const lineDivs = hdr.querySelectorAll(".row-stack > div");
+    const lines = lineDivs.length
+      ? Array.from(lineDivs).map(d => d.textContent)
+      : [hdr.textContent];
+    const fontMm = rowPt * 0.352778 * a3aScale;
+    const lineH = fontMm * 1.1;
+    const firstY = -(lines.length - 1) / 2 * lineH;
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("font-size", fontMm);
+    t.setAttribute("font-weight", "600");
+    t.setAttribute("transform", `translate(${cx},${cy}) rotate(-90)`);
+    lines.forEach((line, i) => {
+      const ts = document.createElementNS(svgNS, "tspan");
+      ts.setAttribute("x", 0);
+      ts.setAttribute("y", firstY + i * lineH);
+      ts.setAttribute("dominant-baseline", "central");
+      ts.textContent = line;
+      t.appendChild(ts);
+    });
+    svg.appendChild(t);
+  });
+
+  // ── Panel b ──────────────────────────────────────────────────────────
+  // Embed the live d3 SVG inside a translated <g> at the panel-3b slot.
+  const panel3b = document.getElementById("panel-3b");
+  const slot = rectMm(panel3b);
+  const src = document.getElementById("svg-3b");
+  const vbAttr = src.getAttribute("viewBox").split(/\s+/).map(Number);
+  const [vbX, vbY, vbW, vbH] = vbAttr;
+  const sx = slot.w / vbW, sy = slot.h / vbH;
+  const g = document.createElementNS(svgNS, "g");
+  g.setAttribute("transform",
+    `translate(${slot.x - vbX * sx},${slot.y - vbY * sy}) scale(${sx},${sy})`);
+  for (const child of Array.from(src.childNodes)) g.appendChild(child.cloneNode(true));
+  svg.appendChild(g);
+
+  // ── Panel a mask legend: swatches + labels ───────────────────────────
+  document.querySelectorAll("#panel-3a-legend .legend-item").forEach(item => {
+    const swatch = item.querySelector(".legend-swatch");
+    const label  = item.querySelector(".legend-label");
+    if (swatch) {
+      const sr = rectMm(swatch);
+      const re = document.createElementNS(svgNS, "rect");
+      re.setAttribute("x", sr.x); re.setAttribute("y", sr.y);
+      re.setAttribute("width", sr.w); re.setAttribute("height", sr.h);
+      re.setAttribute("fill", getComputedStyle(swatch).backgroundColor);
+      svg.appendChild(re);
+    }
+    if (label && label.textContent) {
+      const lr = rectMm(label);
+      const fontPt = parseFloat(getComputedStyle(label).fontSize) * (72 / 96);
+      const t = document.createElementNS(svgNS, "text");
+      t.setAttribute("x", lr.x);
+      t.setAttribute("y", lr.y + lr.h / 2);
+      t.setAttribute("text-anchor", "start");
+      t.setAttribute("dominant-baseline", "central");
+      t.setAttribute("fill", "black");
+      t.setAttribute("font-size", fontPt * 0.352778);
+      t.textContent = label.textContent;
+      svg.appendChild(t);
+    }
+  });
+
+  // ── Panel letters (a / b) ────────────────────────────────────────────
+  for (const span of fig.querySelectorAll(".panel-letter")) {
+    const r = rectMm(span);
+    const fontPt = parseFloat(getComputedStyle(span).fontSize) * (72 / 96);
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("x", r.x); t.setAttribute("y", r.y + r.h * 0.85);
+    t.setAttribute("fill", "#222");
+    t.setAttribute("font-weight", "bold");
+    t.setAttribute("font-size", fontPt * 0.352778);
+    t.textContent = span.textContent;
+    svg.appendChild(t);
+  }
+
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+              new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "figure3_assembled.svg";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Boot
+// ════════════════════════════════════════════════════════════════════════
+window.addEventListener("load", async () => {
+  await loadFig3aMeta();
+  await injectFig3aScaleBars();
+  await drawFig3b();
+
+  const r = document.getElementById("fig").getBoundingClientRect();
+  document.getElementById("info").textContent =
+    `canvas ${((r.width  * 25.4) / 96).toFixed(1)} × ${((r.height * 25.4) / 96).toFixed(1)} mm`;
+
+  document.getElementById("save-png").addEventListener("click", savePNG);
+  document.getElementById("save-svg").addEventListener("click", saveSVG);
+});
+</script>
+</body>
+</html>

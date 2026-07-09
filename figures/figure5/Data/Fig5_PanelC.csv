@@ -1,0 +1,11 @@
+Sample,Condition,Species,Endodermis_TRITC_thresholded_raw_mean,Endodermis_FITC_thresholded_raw_mean,Exodermis_TRITC_thresholded_raw_mean,Exodermis_FITC_thresholded_raw_mean,Aerenchyma,Endodermis_FITC_threshold_min,Endodermis_FITC_threshold_max,Endodermis_TRITC_threshold_min,Endodermis_TRITC_threshold_max,Exodermis_FITC_threshold_min,Exodermis_FITC_threshold_max,Exodermis_TRITC_threshold_min,Exodermis_TRITC_threshold_max
+Tomato_ML_suberin_validation__06,Control,Tomato,6057.781738,2870.937012,6414.804688,6188.652344,0,1720,65535,1500,65535,2200,65535,1400,65535
+Tomato_ML_suberin_validation__08,Control,Tomato,5265.970215,3217.188721,6572.583008,9728.810547,0,1720,65535,1500,65535,2200,65535,1400,65535
+Tomato_ML_suberin_validation__09,Control,Tomato,4727.115234,2821.434814,6381.03418,5316.458984,0,1720,65535,1500,65535,2200,65535,1400,65535
+Tomato_ML_suberin_validation__16,Control,Tomato,5879.748047,2734.19165,7188.696289,6269.553711,0,1720,65535,1500,65535,2200,65535,1400,65535
+Tomato_ML_suberin_validation__23,myb92,Tomato,4978.499023,2778.0979,7049.754395,5298.406738,0,1720,65535,1500,65535,2200,65535,1400,65535
+Tomato_ML_suberin_validation__24,myb92,Tomato,4767.518066,2717.132813,7212.625,4744.35498,0,1720,65535,1500,65535,2200,65535,1400,65535
+Tomato_ML_suberin_validation__26,myb92,Tomato,4838.461426,3016.07959,7416.496582,5577.56543,0,1720,65535,1500,65535,2200,65535,1400,65535
+Tomato_ML_suberin_validation__27,myb92,Tomato,3975.355713,2481.980225,7172.305664,4641.141602,0,1720,65535,1500,65535,2200,65535,1400,65535
+Tomato_ML_suberin_validation__28,myb92,Tomato,4646.553223,2774.765137,7152.97168,6175.963379,3.72E-05,1720,65535,1500,65535,2200,65535,1400,65535
+Tomato_ML_suberin_validation__31,myb92,Tomato,4791.593262,2371.114014,7087.234863,3924.834473,0,1720,65535,1500,65535,2200,65535,1400,65535

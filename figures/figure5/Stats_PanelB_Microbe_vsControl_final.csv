@@ -1,0 +1,13 @@
+Trait,Treatment,Experiment,n_ctrl_in_exp,n_trt,ctrl_exp_mean,trt_mean,within_exp_FC,coef,SE,p_raw,method,p_adj_BH,sig,p_label
+Endo_Lignin_TRITC,PDB161,4,33,29,4392.99,6764.79,1.5399,2298.95,270.48,1.91e-17,MixedLM,2.29e-16,****,p = 2.29e-16
+Endo_Lignin_TRITC,Minimedusa,9,16,21,5317.95,4822.56,0.9068,-363.32,352.54,0.303,MixedLM,0.363,ns,p = 0.363
+Endo_Lignin_TRITC,PMB14,1,15,18,4914.82,4353.92,0.8859,-541.51,345.88,0.117,MixedLM,0.157,ns,p = 0.157
+Endo_Suberin_FITC,PDB161,4,33,29,5432.58,6808.39,1.2533,1368.98,355.86,0.00012,MixedLM,0.00019,***,p = 0.00019
+Endo_Suberin_FITC,Minimedusa,9,16,21,12154.33,10098.15,0.8308,-2022.18,464.75,1.35e-05,MixedLM,2.71e-05,****,p = 2.71e-05
+Endo_Suberin_FITC,PMB14,1,15,18,4612.54,7576.96,1.6427,2943.19,488.74,1.72e-09,MixedLM,5.17e-09,****,p = 5.17e-09
+Exo_Lignin_TRITC,PDB161,4,33,29,1541.07,2183.03,1.4166,645.23,89.95,7.35e-13,MixedLM,2.94e-12,****,p = 2.94e-12
+Exo_Lignin_TRITC,Minimedusa,9,16,21,1699.78,2137.09,1.2573,449.51,117.37,0.00013,MixedLM,0.00019,***,p = 0.00019
+Exo_Lignin_TRITC,PMB14,1,15,18,811.58,818.58,1.0086,-13.22,124.63,0.916,MixedLM,0.916,ns,p = 0.916
+Exo_Suberin_FITC,PDB161,4,33,29,1316.64,2423.78,1.8409,1101.37,205.57,8.43e-08,MixedLM,2.02e-07,****,p = 2.02e-07
+Exo_Suberin_FITC,Minimedusa,9,16,21,3352.85,5429.65,1.6194,2111.59,269.5,4.68e-15,MixedLM,2.81e-14,****,p = 2.81e-14
+Exo_Suberin_FITC,PMB14,1,15,18,828.89,1062.43,1.2817,209.13,282.54,0.459,MixedLM,0.501,ns,p = 0.501

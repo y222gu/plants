@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Figure 5 builder - no example images</title>
+<style>
+  :root { --w-mm: 180; --h-mm: 162; }
+  body {
+    margin: 0; padding: 16px;
+    font-family: Helvetica;
+    background: #f4f4f4;
+  }
+  #controls { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  button { padding: 8px 14px; font-size: 13px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  #info { font-size: 12px; color: #666; }
+  svg#fig {
+    display: block; background: white;
+    width: calc(var(--w-mm) * 1mm);
+    height: calc(var(--h-mm) * 1mm);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    outline: 1px solid #bbb;
+  }
+  svg#fig text { font-family: Helvetica; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <button id="save">Save PNG</button>
+  <button id="save-svg">Save SVG</button>
+  <label>DPI <input type="number" id="dpi" value="600" min="72" max="1200" step="50" style="width:70px"></label>
+  <span id="info"></span>
+</div>
+
+<svg id="fig" viewBox="0 0 180 162" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<script src="d3.v7.min.js"></script>
+<script>
+// ── Canvas + panel geometry (mm) ───────────────────────────────────────────
+const PANEL = {
+  A: { x: 1.875, y: 0,   w: 180, h: 50  },
+  B: { x: 1.875, y: 51,  w: 180, h: 60  },
+  C: { x: 1.875, y: 112, w: 130, h: 50  },
+  D: { x: 133.875, y: 112, w: 48,  h: 50  },
+};
+
+// Y-axis ranges (normalized intensity ratios).
+// Each panel sized to cover its own data with headroom for CLD letters / sig
+// stars: Tamera (panel A) tops out at ~2.15, microbe (panel B) at ~2.85.
+const A_YLIM = [0, 2.5];
+const B_YLIM = [0, 3.5];
+
+// Panel D image strip (top portion). Replace the placeholder rects later.
+const D_IMG_H_FRAC = 0.55;     // fraction of D height reserved for images
+const D_IMG_GAP = 1.2;
+
+// ── Palettes ───────────────────────────────────────────────────────────────
+// YlGnBu-3 ColorBrewer palette for the 3 source experiments in panel b.
+const EXP_COL = { "Exp 1": "#c5d85f", "Exp 4": "#7fcdbb", "Exp 9": "#2c7fb8" };
+const TAM_COL = "#7f7f7f";                             // mid-grey for Tamera
+const TREAT_TO_EXP = { "PMB14": "Exp 1", "PDB161": "Exp 4", "Minimedusa": "Exp 9" };
+const GENO_COL = { "WT": "#4A4A4A", "Wox10-15": "#7570B3", "Wox10-50": "#D95F02" };
+const GENO_ORDER = ["WT", "Wox10-15", "Wox10-50"];
+const SYSTEMS = ["Falcon", "Pouch", "Rhizotron"];
+const D_COL = { "Control": "#7f7f7f", "myb92": "#C0392B" };
+
+// Tamera genotype list - one RdYlBu-10 colour per genotype, ordered from red→blue.
+const GENOTYPES = [1, 11, 17, 23, 37, 42, 45, 50, 51, 56];
+const RD_YL_BU_10 = [
+  "#a50026", "#d73027", "#f46d43", "#fdae61", "#fee090",
+  "#e0f3f8", "#abd9e9", "#74add1", "#4575b4", "#313695",
+];
+const TAM_GENO_COL = Object.fromEntries(
+  GENOTYPES.map((g, i) => [g, RD_YL_BU_10[i]])
+);
+
+// Panel A/B traits.
+const TRAITS = [
+  { col: "Endodermis_FITC_thresholded_raw_mean",  mic: "Endo_Suberin_FITC",
+    title: "Endodermis Lignin",  ylabel: "Pred. Intensity (norm., a.u.)" },
+  { col: "Endodermis_TRITC_thresholded_raw_mean", mic: "Endo_Lignin_TRITC",
+    title: "Endodermis Suberin", ylabel: "Pred. Intensity (norm., a.u.)" },
+  { col: "Exodermis_FITC_thresholded_raw_mean",   mic: "Exo_Suberin_FITC",
+    title: "Exodermis Lignin",   ylabel: "Pred. Intensity (norm., a.u.)" },
+  { col: "Exodermis_TRITC_thresholded_raw_mean",  mic: "Exo_Lignin_TRITC",
+    title: "Exodermis Suberin",  ylabel: "Pred. Intensity (norm., a.u.)" },
+];
+
+// Typography (mm; 1 pt ≈ 0.353 mm).
+const FS_TICK   = 2.12;    // 6 pt
+const FS_TITLE  = 2.47;    // 7 pt bold
+const FS_N      = 1.94;    // 5.5 pt
+const FS_LETTER = 3.53;    // 10 pt bold
+const FS_SIG    = 2.47;    // 7 pt (sig stars)
+const FS_NS     = 1.94;    // 5.5 pt ("ns")
+
+// ── Stats / kernel helpers ──────────────────────────────────────────────────
+function boxStats(vals) {
+  const s = vals.filter(v => v != null && !isNaN(v)).sort(d3.ascending);
+  if (s.length === 0) return null;
+  const q1 = d3.quantile(s, 0.25);
+  const med = d3.quantile(s, 0.50);
+  const q3 = d3.quantile(s, 0.75);
+  const iqr = q3 - q1;
+  const whiskerLo = Math.max(d3.min(s), q1 - 1.5 * iqr);
+  const whiskerHi = Math.min(d3.max(s), q3 + 1.5 * iqr);
+  return { q1, med, q3, whiskerLo, whiskerHi, n: s.length, vals: s };
+}
+
+function jitterX(i, salt) {
+  // Deterministic pseudo-random jitter in [-0.5, 0.5] mirroring fig2d.
+  const t = (Math.sin(i * 9301 + 49297 + (salt || 0)) + 1) / 2;
+  return t - 0.5;
+}
+
+// ── n-count helpers (fig2d/2e convention) ───────────────────────────────────
+// "n=" key at top-left of the plot, single count number above each box's
+// upper whisker cap. 5 pt grey.
+const N_FS = 1.76;
+const N_GAP = 0.85;
+const N_KEY_Y = -1.7;
+
+function drawNKey(g) {
+  g.append("text")
+    .attr("x", -0.5).attr("y", N_KEY_Y)
+    .attr("text-anchor", "end").attr("font-size", N_FS)
+    .attr("fill", "#555")
+    .text("n=");
+}
+
+function drawNCount(g, cx, yScale, stats, yMaxData, n) {
+  const wh = (yMaxData != null) ? Math.min(stats.whiskerHi, yMaxData) : stats.whiskerHi;
+  g.append("text")
+    .attr("x", cx).attr("y", yScale(wh) - N_GAP)
+    .attr("text-anchor", "middle").attr("font-size", N_FS)
+    .attr("fill", "#555")
+    .text(`${n}`);
+}
+
+// Draw one fig2d-style boxplot at centre x = cx (mm), data scale y (mm/data).
+function drawBox(g, cx, yScale, stats, color, boxW, opts) {
+  const { showFliers = true, jitterSalt = 0, yMaxData = null,
+          hatchId = null } = opts || {};
+  // Whisker spine
+  g.append("line").attr("x1", cx).attr("x2", cx)
+    .attr("y1", yScale(stats.whiskerLo)).attr("y2", yScale(stats.whiskerHi))
+    .attr("stroke", "black").attr("stroke-width", 0.15);
+  // Caps
+  [stats.whiskerLo, stats.whiskerHi].forEach(v => {
+    g.append("line")
+      .attr("x1", cx - boxW * 0.3).attr("x2", cx + boxW * 0.3)
+      .attr("y1", yScale(v)).attr("y2", yScale(v))
+      .attr("stroke", "black").attr("stroke-width", 0.15);
+  });
+  // Box. Filled style: solid colour at 0.35 opacity. Hatched style: no fill,
+  // diagonal stripes laid on top via <pattern>.
+  const rect = g.append("rect")
+    .attr("x", cx - boxW / 2).attr("y", yScale(stats.q3))
+    .attr("width", boxW).attr("height", yScale(stats.q1) - yScale(stats.q3))
+    .attr("stroke", color).attr("stroke-width", 0.25);
+  if (hatchId) {
+    rect.attr("fill", `url(#${hatchId})`);
+  } else {
+    rect.attr("fill", color).attr("fill-opacity", 0.65);
+  }
+  // Jittered points (each sample value).
+  const jitterW = boxW * 0.55;
+  stats.vals.forEach((v, i) => {
+    if (yMaxData != null && v > yMaxData) return;       // clip points above y-lim
+    const jx = cx + jitterX(i, jitterSalt) * jitterW;
+    g.append("circle")
+      .attr("cx", jx).attr("cy", yScale(v))
+      .attr("r", 0.22)
+      .attr("fill", color).attr("fill-opacity", 0.55)
+      .attr("stroke", "none");
+  });
+  // Median (black 0.25). Hatched (control) boxes use a dashed median so the
+  // control vs treatment distinction is reinforced beyond the fill style.
+  const medLine = g.append("line")
+    .attr("x1", cx - boxW / 2).attr("x2", cx + boxW / 2)
+    .attr("y1", yScale(stats.med)).attr("y2", yScale(stats.med))
+    .attr("stroke", "black").attr("stroke-width", 0.25);
+  if (hatchId) medLine.attr("stroke-dasharray", "0.6 0.4");
+}
+
+// Standard plot frame: light grid + axes + y-tick labels.
+function drawFrame(g, plotW, plotH, yScale, opts) {
+  // showY toggles the y-tick marks; showYLabels toggles the numeric labels
+  // independently (defaults to showY when not set, preserving old callers).
+  const { yTicks = 5, yFmt = ".1f", showY = true, showYLabels = null } = opts || {};
+  const drawLabels = (showYLabels === null) ? showY : showYLabels;
+  const ticks = yScale.ticks(yTicks);
+  // Horizontal gridlines
+  g.selectAll("line.hg").data(ticks).enter().append("line")
+    .attr("x1", 0).attr("x2", plotW)
+    .attr("y1", d => yScale(d)).attr("y2", d => yScale(d))
+    .attr("stroke", "#e4e4e4").attr("stroke-width", 0.1);
+  // Axes
+  g.append("line").attr("x1", 0).attr("x2", plotW)
+    .attr("y1", plotH).attr("y2", plotH)
+    .attr("stroke", "black").attr("stroke-width", 0.2);
+  g.append("line").attr("x1", 0).attr("x2", 0)
+    .attr("y1", 0).attr("y2", plotH)
+    .attr("stroke", "black").attr("stroke-width", 0.2);
+  // Y-ticks + (optional) labels
+  if (showY) {
+    const fmt = d3.format(yFmt);
+    ticks.forEach(d => {
+      const yy = yScale(d);
+      g.append("line").attr("x1", -0.8).attr("x2", 0)
+        .attr("y1", yy).attr("y2", yy)
+        .attr("stroke", "black").attr("stroke-width", 0.2);
+      if (drawLabels) {
+        g.append("text").attr("x", -1.2).attr("y", yy + 0.7)
+          .attr("text-anchor", "end").attr("font-size", FS_TICK)
+          .text(fmt(d));
+      }
+    });
+  }
+}
+
+// Y-axis title centred on plot (7 pt bold, rotated).
+function drawYTitle(svg, x, yMid, text) {
+  svg.append("text")
+    .attr("transform", `translate(${x},${yMid}) rotate(-90)`)
+    .attr("text-anchor", "middle")
+    .attr("font-size", FS_TITLE).attr("font-weight", "bold")
+    .text(text);
+}
+
+function panelLetter(svg, letter, x, y) {
+  svg.append("text").attr("x", x).attr("y", y)
+    .attr("font-size", FS_LETTER).attr("font-weight", "bold")
+    .text(letter);
+}
+
+function sigText(g, cx, yT, label) {
+  const isStar = String(label).trim().startsWith("*");
+  g.append("text").attr("x", cx).attr("y", yT)
+    .attr("text-anchor", "middle")
+    .attr("font-size", isStar ? FS_SIG : FS_NS)
+    .text(label);
+}
+
+function sigBracket(g, x1, x2, yTop, label, lift) {
+  lift = lift || 0.9;
+  g.append("path")
+    .attr("d", `M${x1},${yTop} L${x1},${yTop - lift} L${x2},${yTop - lift} L${x2},${yTop}`)
+    .attr("stroke", "black").attr("stroke-width", 0.22).attr("fill", "none");
+  const labelStr = String(label).trim();
+  const isStar = labelStr.startsWith("*");
+  const fs = isStar ? FS_SIG : FS_NS;
+  const cx = (x1 + x2) / 2;
+  // "p = …" labels split onto two lines so the equals sign doesn't crowd
+  // the numeric value (long values can overflow the short bracket span).
+  const pMatch = labelStr.match(/^(p\s*=\s*)(.+)$/i);
+  if (pMatch) {
+    const lineH = fs * 1.2;
+    const textEl = g.append("text")
+      .attr("text-anchor", "middle").attr("font-size", fs);
+    textEl.append("tspan").attr("x", cx).attr("y", yTop - lift - 0.9 - lineH).text(pMatch[1].trim());
+    textEl.append("tspan").attr("x", cx).attr("y", yTop - lift - 0.9).text(pMatch[2].trim());
+  } else {
+    g.append("text").attr("x", cx).attr("y", yTop - lift - 0.9)
+      .attr("text-anchor", "middle").attr("font-size", fs)
+      .text(labelStr);
+  }
+}
+
+// ── Load CSVs ──────────────────────────────────────────────────────────────
+const ts = "?t=" + Date.now();
+Promise.all([
+  d3.csv("Data/Fig5_PanelA.csv" + ts),
+  d3.csv("Data/Fig5_PanelB.csv" + ts),
+  d3.csv("Fig5_PanelC_per_plant.csv" + ts),
+  d3.csv("Data/Fig5_PanelC.csv" + ts),
+  d3.csv("Data/Stats_PanelA_Tamera_FilteredGenotypes_CLD.csv" + ts),
+  d3.csv("Stats_PanelB_Microbe_vsControl_final.csv" + ts),
+  d3.csv("Stats_PanelC_WOX10_vsWT_final.csv" + ts),
+  d3.csv("Stats_PanelD_myb92_Wilcoxon_final.csv" + ts),
+]).then(([dfA, dfPanelB, dfB, dfC, stTam, stMic, stB, stC]) => {
+
+  const dfTam = dfA;
+  const dfUsr = dfPanelB.map(r => {
+    const s = r.Sample;
+    const exp = s.startsWith("Experiment_1_") ? "Exp 1"
+              : s.startsWith("Experiment_4_") ? "Exp 4"
+              : "Exp 9";
+    return Object.assign({}, r, { Experiment: exp, Treatment: r.x_axis });
+  });
+
+  const svg = d3.select("#fig");
+  svg.selectAll("*").remove();
+  svg.attr("font-family", "Helvetica");
+
+  // White background rect (so saved SVG exports aren't transparent).
+  svg.append("rect")
+    .attr("x", 0).attr("y", 0)
+    .attr("width", 180).attr("height", 162)
+    .attr("fill", "white");
+
+  // Diagonal-hatch patterns for the Panel B control boxes - one per experiment
+  // colour. Tile period = 0.9 mm, stripes rotated 45°, stroke matches box outline.
+  const defs = svg.append("defs");
+  Object.entries(EXP_COL).forEach(([exp, col]) => {
+    const pat = defs.append("pattern")
+      .attr("id", "hatch-" + exp.replace(" ", ""))
+      .attr("patternUnits", "userSpaceOnUse")
+      .attr("width", 0.9).attr("height", 0.9)
+      .attr("patternTransform", "rotate(45)");
+    pat.append("rect").attr("width", 0.9).attr("height", 0.9).attr("fill", "white");
+    pat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 0.9)
+      .attr("stroke", col).attr("stroke-width", 0.3);
+  });
+
+  drawPanelA(svg, PANEL.A, dfTam, stTam);
+  drawPanelB(svg, PANEL.B, dfUsr, stMic);
+  drawPanelC(svg, PANEL.C, dfB, stB);
+  drawPanelD(svg, PANEL.D, dfC, stC);
+
+  document.getElementById("info").textContent =
+    `Fig 5 built - Tam:${dfTam.length} Microbe:${dfUsr.length} Wox10:${dfB.length} Tomato:${dfC.length}`;
+}).catch(err => {
+  console.error(err);
+  document.getElementById("info").textContent = "Load error: " + err.message;
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Panel A - Tamera natural variation, 1×4 row of fig2d-style boxplots.
+// ═══════════════════════════════════════════════════════════════════════════
+function drawPanelA(svg, P, dfTam, stTam) {
+  panelLetter(svg, "a", P.x + 2, P.y + 4);
+
+  const N_CELLS = 4;
+  const cellGap = 7;
+  const leftPad = 6;
+  const totalCellW = (P.w - leftPad - (N_CELLS - 1) * cellGap - 2) / N_CELLS;
+  const M = { top: 4, right: 1.5, bottom: 8.5, left: 1.5 };
+
+  TRAITS.forEach((t, ci) => {
+    const cx0 = P.x + leftPad + ci * (totalCellW + cellGap);
+    const cy0 = P.y + 3;
+    const plotW = totalCellW - M.left - M.right;
+    const plotH = P.h - 3 - M.top - M.bottom;
+    const yScale = d3.scaleLinear().domain(A_YLIM).range([plotH, 0]);
+    const g = svg.append("g").attr("transform", `translate(${cx0 + M.left},${cy0 + M.top})`);
+
+    // Per-subplot title centred above the plot area.
+    svg.append("text")
+      .attr("x", cx0 + M.left + plotW / 2).attr("y", P.y + 5.5)
+      .attr("text-anchor", "middle")
+      .attr("font-size", FS_TITLE).attr("font-weight", "bold")
+      .text(t.title);
+
+    drawFrame(g, plotW, plotH, yScale, { yTicks: 5, yFmt: ".1f" });
+
+    // Reference line at y=1.0.
+    g.append("line")
+      .attr("x1", 0).attr("x2", plotW)
+      .attr("y1", yScale(1.0)).attr("y2", yScale(1.0))
+      .attr("stroke", "#9a9a9a").attr("stroke-width", 0.2)
+      .attr("stroke-dasharray", "0.9 0.7");
+
+    // Box per genotype.
+    const xs = d3.scaleBand().domain(GENOTYPES.map(String)).range([0, plotW]).paddingInner(0.30);
+    const boxW = Math.max(1.6, xs.bandwidth() * 0.85);
+    const cldRows = stTam.filter(r => r.Trait === t.col);
+
+    GENOTYPES.forEach((gn, gi) => {
+      const vals = dfTam.filter(r => +r.x_axis === gn).map(r => parseFloat(r[t.col])).filter(v => !isNaN(v));
+      const s = boxStats(vals);
+      if (!s) return;
+      const cx = xs(String(gn)) + xs.bandwidth() / 2;
+      drawBox(g, cx, yScale, s, TAM_GENO_COL[gn], boxW, { jitterSalt: gi * 7, yMaxData: A_YLIM[1] });
+    });
+
+    // CLD letters in a single row at the top of the plot (frees the space
+    // just above each whisker for the per-box n count).
+    const CLD_ROW_Y = 1.8;
+    GENOTYPES.forEach(gn => {
+      const row = cldRows.find(r => +r.Genotype === gn);
+      if (!row) return;
+      const cx = xs(String(gn)) + xs.bandwidth() / 2;
+      g.append("text").attr("x", cx).attr("y", CLD_ROW_Y)
+        .attr("text-anchor", "middle")
+        .attr("font-size", 1.94).attr("font-style", "italic").attr("fill", "#333")
+        .text(row.CLD);
+    });
+
+    // Sample-size labels: per-box count above each upper whisker cap.
+    GENOTYPES.forEach(gn => {
+      const vals = dfTam.filter(r => +r.x_axis === gn).map(r => parseFloat(r[t.col])).filter(v => !isNaN(v));
+      if (!vals.length) return;
+      const s = boxStats(vals); if (!s) return;
+      const cx = xs(String(gn)) + xs.bandwidth() / 2;
+      drawNCount(g, cx, yScale, s, A_YLIM[1], vals.length);
+    });
+
+    // X-axis ticks + genotype numbers (horizontal black).
+    GENOTYPES.forEach(gn => {
+      const cx = xs(String(gn)) + xs.bandwidth() / 2;
+      g.append("line").attr("x1", cx).attr("x2", cx)
+        .attr("y1", plotH).attr("y2", plotH + 0.7)
+        .attr("stroke", "black").attr("stroke-width", 0.2);
+      g.append("text").attr("x", cx).attr("y", plotH + 2.6)
+        .attr("text-anchor", "middle").attr("font-size", FS_TICK)
+        .text(String(gn));
+    });
+
+    // X-title under every cell.
+    g.append("text").attr("x", plotW / 2).attr("y", plotH + 6.2)
+      .attr("text-anchor", "middle").attr("font-size", FS_TITLE)
+      .attr("font-weight", "bold")
+      .text("Genotype");
+
+    // Y-title per subplot (each trait gets its own).
+    drawYTitle(svg, cx0 + M.left - 5.9, cy0 + M.top + plotH / 2, t.ylabel);
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Panel B - Microbe treatments (1×4 row). Each cell shows 3 paired columns:
+// (Exp 1 ctrl, PMB14), (Exp 4 ctrl, PDB161), (Exp 9 ctrl, Minimedusa).
+// Controls are hatched (no fill), treatments are colour-filled. One shared
+// x-axis label per pair, in the source-experiment colour.
+// ═══════════════════════════════════════════════════════════════════════════
+function drawPanelB(svg, P, dfUsr, stMic) {
+  panelLetter(svg, "b", P.x + 2, P.y + 4);
+
+  // ── Legend: single horizontal row, centred at the top of panel b.
+  const demoCol = "#666";
+  const demoHatchId = "hatch-legend-demo";
+  if (!document.getElementById(demoHatchId)) {
+    const defs = svg.select("defs");
+    const pat = defs.append("pattern")
+      .attr("id", demoHatchId)
+      .attr("patternUnits", "userSpaceOnUse")
+      .attr("width", 0.9).attr("height", 0.9)
+      .attr("patternTransform", "rotate(45)");
+    pat.append("rect").attr("width", 0.9).attr("height", 0.9).attr("fill", "white");
+    pat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 0.9)
+      .attr("stroke", demoCol).attr("stroke-width", 0.3);
+  }
+  const legEntries = [
+    { label: "With Microbial Perturbations", fill: demoCol,                opacity: 0.65 },
+    { label: "Control",                      fill: `url(#${demoHatchId})`, opacity: 1.0  },
+  ];
+  const measureG = svg.append("g").attr("visibility", "hidden");
+  const textWidths = legEntries.map(e =>
+    measureG.append("text").attr("font-size", FS_TICK).text(e.label).node().getComputedTextLength()
+  );
+  measureG.remove();
+  const swatchSize = 1.9;
+  const swatchTextGap = 0.7;
+  const interEntryGap = 4;
+  const entryWidths = textWidths.map(w => swatchSize + swatchTextGap + w);
+  const legW = entryWidths.reduce((a, b) => a + b, 0)
+             + (legEntries.length - 1) * interEntryGap;
+  const legBaselineY = P.y + 5.5;
+  let legCx = P.x + (P.w - legW) / 2;
+  legEntries.forEach((e, i) => {
+    svg.append("rect")
+      .attr("x", legCx).attr("y", legBaselineY - 1.6)
+      .attr("width", swatchSize).attr("height", swatchSize)
+      .attr("fill", e.fill).attr("fill-opacity", e.opacity)
+      .attr("stroke", demoCol).attr("stroke-width", 0.25);
+    svg.append("text")
+      .attr("x", legCx + swatchSize + swatchTextGap).attr("y", legBaselineY)
+      .attr("font-size", FS_TICK).attr("fill", "#333")
+      .text(e.label);
+    legCx += entryWidths[i] + interEntryGap;
+  });
+
+  const N_CELLS = 4;
+  const cellGap = 7;
+  const leftPad = 6;
+  const totalCellW = (P.w - leftPad - (N_CELLS - 1) * cellGap - 2) / N_CELLS;
+  const M = { top: 4, right: 1.5, bottom: 12, left: 1.5 };
+
+  // Pairing: (control experiment, treatment label) per pair.
+  const PAIRS = [
+    { exp: "Exp 1", treat: "PMB14"      },
+    { exp: "Exp 4", treat: "PDB161"     },
+    { exp: "Exp 9", treat: "Minimedusa" },
+  ];
+
+  TRAITS.forEach((t, ci) => {
+    const cx0 = P.x + leftPad + ci * (totalCellW + cellGap);
+    const cy0 = P.y + 7;
+    const plotW = totalCellW - M.left - M.right;
+    const plotH = P.h - 7 - M.top - M.bottom;
+    const yScale = d3.scaleLinear().domain(B_YLIM).range([plotH, 0]);
+    const g = svg.append("g").attr("transform", `translate(${cx0 + M.left},${cy0 + M.top})`);
+
+    // Per-subplot title centred above the plot area.
+    svg.append("text")
+      .attr("x", cx0 + M.left + plotW / 2).attr("y", P.y + 9.5)
+      .attr("text-anchor", "middle")
+      .attr("font-size", FS_TITLE).attr("font-weight", "bold")
+      .text(t.title);
+
+    drawFrame(g, plotW, plotH, yScale, { yTicks: 6, yFmt: ".1f" });
+    g.append("line")
+      .attr("x1", 0).attr("x2", plotW)
+      .attr("y1", yScale(1.0)).attr("y2", yScale(1.0))
+      .attr("stroke", "#9a9a9a").attr("stroke-width", 0.2)
+      .attr("stroke-dasharray", "0.9 0.7");
+
+    // Three pair-cells across the subplot. Ctrl on the left, treatment on the
+    // right of each pair; the pair centre carries the shared tick mark + label.
+    const pairCellW = plotW / PAIRS.length;
+    const innerOffset = pairCellW * 0.18;    // half-distance between paired boxes
+    const boxW = Math.min(pairCellW * 0.28, 2.6);
+
+    const sigRows = stMic.filter(r => r.Trait === t.mic);
+
+    PAIRS.forEach((p, pi) => {
+      const pairCx  = pairCellW * (pi + 0.5);
+      const cxCtrl  = pairCx - innerOffset;
+      const cxTreat = pairCx + innerOffset;
+      const col     = EXP_COL[p.exp];
+      const hatchId = "hatch-" + p.exp.replace(" ", "");
+
+      // Control box (hatched).
+      const ctrlVals = dfUsr
+        .filter(r => r.Treatment === "Control" && r.Experiment === p.exp)
+        .map(r => parseFloat(r[t.col])).filter(v => !isNaN(v));
+      const sCtrl = boxStats(ctrlVals);
+      if (sCtrl) drawBox(g, cxCtrl, yScale, sCtrl, col, boxW,
+        { jitterSalt: pi * 11, yMaxData: B_YLIM[1], hatchId });
+
+      // Treatment box (colour-filled).
+      const trtVals = dfUsr
+        .filter(r => r.Treatment === p.treat)
+        .map(r => parseFloat(r[t.col])).filter(v => !isNaN(v));
+      const sTrt = boxStats(trtVals);
+      if (sTrt) drawBox(g, cxTreat, yScale, sTrt, col, boxW,
+        { jitterSalt: 100 + pi * 11, yMaxData: B_YLIM[1] });
+
+      // Sig bracket linking control and treatment boxes - anchored just above
+      // the taller of the two boxes in this pair.
+      const sigRow = sigRows.find(r => r.Treatment === p.treat);
+      if (sigRow && sTrt && sCtrl) {
+        const localTop = Math.min(
+          Math.max(sCtrl.whiskerHi, sTrt.whiskerHi), B_YLIM[1]
+        );
+        sigBracket(g, cxCtrl, cxTreat, yScale(localTop) - 3.5, sigRow.p_label, 1.0);
+      }
+
+      // n counts above each whisker cap.
+      if (sCtrl && ctrlVals.length) drawNCount(g, cxCtrl, yScale, sCtrl, B_YLIM[1], ctrlVals.length);
+      if (sTrt  && trtVals.length)  drawNCount(g, cxTreat, yScale, sTrt, B_YLIM[1], trtVals.length);
+
+      // Tick marks for each box, and one shared tick mark + label at pair centre.
+      [cxCtrl, cxTreat].forEach(cx => {
+        g.append("line").attr("x1", cx).attr("x2", cx)
+          .attr("y1", plotH).attr("y2", plotH + 0.5)
+          .attr("stroke", "black").attr("stroke-width", 0.18);
+      });
+      g.append("line").attr("x1", pairCx).attr("x2", pairCx)
+        .attr("y1", plotH).attr("y2", plotH + 1.0)
+        .attr("stroke", "black").attr("stroke-width", 0.2);
+      g.append("text")
+        .attr("transform", `translate(${pairCx},${plotH + 2.5}) rotate(-25)`)
+        .attr("text-anchor", "end").attr("font-size", FS_TICK)
+        .attr("font-weight", "bold").attr("fill", col)
+        .text(p.treat);
+    });
+
+    // X-title under the rotated treatment labels. "Minimedusa" at -25° projects
+    // ~5.5 mm below the tick anchor, so the title sits ~1.5 mm visible gap below
+    // the longest label.
+    g.append("text").attr("x", plotW / 2).attr("y", plotH + 11.5)
+      .attr("text-anchor", "middle").attr("font-size", FS_TITLE)
+      .attr("font-weight", "bold")
+      .text("Microbe Strain");
+
+    drawYTitle(svg, cx0 + M.left - 5.9, cy0 + M.top + plotH / 2, t.ylabel);
+  });
+
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Panel C - Wox10 aerenchyma ratio across 3 systems (1×3 fig2d-style boxes).
+// ═══════════════════════════════════════════════════════════════════════════
+function drawPanelC(svg, P, dfB, stB) {
+  panelLetter(svg, "c", P.x + 2, P.y + 4);
+
+  const N_CELLS = SYSTEMS.length;
+  // cellGap matches panel b so the inter-subplot whitespace is uniform across
+  // the figure.
+  const cellGap = 7;
+  // Y-title lives in leftPad (cell 0); each cell's M.left also fits its own
+  // y-tick labels.
+  const leftPad = 6;
+  const rightPad = 0.5;
+  const totalCellW = (P.w - leftPad - (N_CELLS - 1) * cellGap - rightPad) / N_CELLS;
+  const M = { top: 3, right: 0.5, bottom: 11.5, left: 1.5 };
+
+  // Fixed y-range across all 3 systems.
+  const plotH = P.h - 4 - M.top - M.bottom;
+  const yScale = d3.scaleLinear().domain([0, 80]).range([plotH, 0]);
+
+  SYSTEMS.forEach((sys, si) => {
+    const cx0 = P.x + leftPad + si * (totalCellW + cellGap);
+    const cy0 = P.y + 4;
+    const plotW = totalCellW - M.left - M.right;
+    const g = svg.append("g").attr("transform", `translate(${cx0 + M.left},${cy0 + M.top})`);
+
+    drawFrame(g, plotW, plotH, yScale, { yTicks: 5, yFmt: ".0f", showY: true, showYLabels: true });
+
+    // System title (centred above subplot).
+    g.append("text")
+      .attr("x", plotW / 2).attr("y", -1.5)
+      .attr("text-anchor", "middle")
+      .attr("font-size", FS_TITLE).attr("font-weight", "bold")
+      .text(sys);
+
+    // Genotype boxes.
+    const xs = d3.scaleBand().domain(GENO_ORDER).range([0, plotW]).paddingInner(0.40);
+    const boxW = Math.min(xs.bandwidth() * 0.7, 5.0);
+    const yTops = {};
+    const cellStats = {};
+    GENO_ORDER.forEach((gn, gi) => {
+      const vals = dfB.filter(r => r.System === sys && r.Genotype === gn)
+                      .map(r => parseFloat(r.aerenchyma_ratio) * 100).filter(v => !isNaN(v));
+      const s = boxStats(vals); if (!s) return;
+      cellStats[gn] = { s, n: vals.length };
+      const cx = xs(gn) + xs.bandwidth() / 2;
+      drawBox(g, cx, yScale, s, GENO_COL[gn], boxW, { jitterSalt: si * 7 + gi });
+      yTops[gn] = Math.max(s.whiskerHi, ...s.vals);
+    });
+
+    // Per-box count above whiskers.
+    GENO_ORDER.forEach(gn => {
+      const cs = cellStats[gn]; if (!cs) return;
+      const cx = xs(gn) + xs.bandwidth() / 2;
+      drawNCount(g, cx, yScale, cs.s, null, cs.n);
+    });
+
+    // X tick labels - rotated -25 colored to match genotype.
+    GENO_ORDER.forEach(gn => {
+      const cx = xs(gn) + xs.bandwidth() / 2;
+      g.append("line").attr("x1", cx).attr("x2", cx)
+        .attr("y1", plotH).attr("y2", plotH + 0.8)
+        .attr("stroke", "black").attr("stroke-width", 0.2);
+      g.append("text")
+        .attr("transform", `translate(${cx},${plotH + 2.5}) rotate(-25)`)
+        .attr("text-anchor", "end").attr("font-size", FS_TICK)
+        .attr("font-weight", "bold").attr("fill", GENO_COL[gn])
+        .text(gn.replace("Wox10-", "WOX10-"));
+    });
+
+    // Sig brackets WT vs each mutant. Each bracket sits just above the taller
+    // of (WT, mutant) for that pair; brackets share the WT box, so subsequent
+    // ones are forced at least 5.5 mm above the previous to avoid overlap.
+    const sigRows = stB
+      .filter(r => r.Trait === "Aerenchyma_ratio" && r.System === sys)
+      .filter(r => r.Mutant !== "WT" && (r.Mutant in GENO_COL));
+    let prevYT = null;
+    sigRows.forEach(row => {
+      const cxWT = xs("WT") + xs.bandwidth() / 2;
+      const cxMut = xs(row.Mutant) + xs.bandwidth() / 2;
+      const localTop = Math.max(
+        cellStats["WT"]       ? cellStats["WT"].s.whiskerHi       : 0,
+        cellStats[row.Mutant] ? cellStats[row.Mutant].s.whiskerHi : 0
+      );
+      let yT = yScale(localTop) - 3.5;
+      if (prevYT !== null) yT = Math.min(yT, prevYT - 5.5);
+      sigBracket(g, cxWT, cxMut, yT, row.p_label, 1.0);
+      prevYT = yT;
+    });
+
+    // Per-subplot y-title.
+    drawYTitle(svg, cx0 + M.left - 5.9, cy0 + M.top + plotH / 2, "Pred. Aerenchyma ratio (%)");
+  });
+
+  // Single shared x-title centred across all 3 subplots (below the rotated
+  // genotype tick labels).
+  const sharedCx = P.x + leftPad + (N_CELLS * totalCellW + (N_CELLS - 1) * cellGap) / 2;
+  const sharedY  = PANEL.C.y + 4 + 3 + plotH + 10.5;      // cy0 + M.top + plotH + 10.5
+  svg.append("text").attr("x", sharedCx).attr("y", sharedY)
+    .attr("text-anchor", "middle").attr("font-size", FS_TITLE)
+    .attr("font-weight", "bold")
+    .text("Genotype");
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Panel D - tomato Control vs myb92. Three columns in a row at 3:3:1:
+// Control example image | myb92 example image | Control-vs-myb92 boxplot.
+// ═══════════════════════════════════════════════════════════════════════════
+function drawPanelD(svg, P, dfC, stC, imgURLs) {
+  panelLetter(svg, "d", P.x - 1, P.y + 4);
+
+  // No example images in this variant - single boxplot centred horizontally
+  // within panel d's column. Top and bottom aligned with panel c's plot area.
+  const D_DISPLAY = { "Control": "WT", "myb92": "myb92" };
+  const M = { right: 0.5, left: 5.5 };
+  const boxTop    = PANEL.C.y + 4 + 3;                 // matches panel C top
+  const boxBottom = PANEL.C.y + PANEL.C.h - 11.5;      // matches panel C bottom
+  const plotY0 = boxTop;
+  const plotH  = boxBottom - boxTop;
+  // Generous left/right side padding so the two-box boxplot stays compact
+  // and doesn't get visually stretched across panel d.
+  const sidePadL = 10;
+  const sidePadR = 10;
+  const plotX0 = P.x + sidePadL + M.left;
+  const plotW = P.w - sidePadL - sidePadR - M.left - M.right;
+
+  const Y = "Exodermis_FITC_thresholded_raw_mean";
+  const conds = ["Control", "myb92"];
+  const yScale = d3.scaleLinear().domain([3000, 10000]).range([plotH, 0]);
+
+  const g = svg.append("g").attr("transform", `translate(${plotX0},${plotY0})`);
+  drawFrame(g, plotW, plotH, yScale, { yTicks: 4, yFmt: "~s" });
+
+  const xs = d3.scaleBand().domain(conds).range([0, plotW]).paddingInner(0.45);
+  const boxW = Math.min(xs.bandwidth() * 0.7, 5.0);
+  const yTops = {};
+  const condStats = {};
+  conds.forEach((cond, ci) => {
+    const vals = dfC.filter(r => r.Condition === cond).map(r => parseFloat(r[Y])).filter(v => !isNaN(v));
+    const s = boxStats(vals); if (!s) return;
+    condStats[cond] = { s, n: vals.length };
+    const cx = xs(cond) + xs.bandwidth() / 2;
+    drawBox(g, cx, yScale, s, D_COL[cond], boxW, { jitterSalt: ci * 13 });
+    yTops[cond] = Math.max(s.whiskerHi, ...vals);
+  });
+
+  // Per-box count above whiskers.
+  conds.forEach(cond => {
+    const cs = condStats[cond]; if (!cs) return;
+    const cx = xs(cond) + xs.bandwidth() / 2;
+    drawNCount(g, cx, yScale, cs.s, null, cs.n);
+  });
+
+  // X-tick marks (labels share the column-3 condition labels below).
+  conds.forEach(cond => {
+    const cx = xs(cond) + xs.bandwidth() / 2;
+    g.append("line").attr("x1", cx).attr("x2", cx)
+      .attr("y1", plotH).attr("y2", plotH + 0.6)
+      .attr("stroke", "black").attr("stroke-width", 0.18);
+  });
+  // X-axis labels under each box (Ctrl / myb92) - rotated so they fit the
+  // narrow column.
+  conds.forEach(cond => {
+    const cx = xs(cond) + xs.bandwidth() / 2;
+    g.append("text")
+      .attr("transform", `translate(${cx},${plotH + 2.0}) rotate(-45)`)
+      .attr("text-anchor", "end").attr("font-size", FS_TICK)
+      .attr("font-weight", "bold").attr("fill", D_COL[cond])
+      .text(D_DISPLAY[cond]);
+  });
+
+  // X-title under the rotated condition labels.
+  g.append("text").attr("x", plotW / 2).attr("y", plotH + 10.5)
+    .attr("text-anchor", "middle").attr("font-size", FS_TITLE)
+    .attr("font-weight", "bold")
+    .text("Genotype");
+
+  // Y-title.
+  // Two-line y-title: outer line "Pred. Exodermis", inner line "Lignin Intensity (a.u.)".
+  const _ytY = plotY0 + plotH / 2;
+  svg.append("text")
+    .attr("transform", `translate(${plotX0 - 8.9},${_ytY}) rotate(-90)`)
+    .attr("text-anchor", "middle").attr("font-size", FS_TITLE).attr("font-weight", "bold")
+    .text("Pred. Exodermis");
+  svg.append("text")
+    .attr("transform", `translate(${plotX0 - 5.9},${_ytY}) rotate(-90)`)
+    .attr("text-anchor", "middle").attr("font-size", FS_TITLE).attr("font-weight", "bold")
+    .text("Lignin Intensity (a.u.)");
+
+  // Sig bracket between the two conditions. Anchor to whisker top only
+  // (matching panel b) so the bracket-to-n-count distance is consistent
+  // across panels - including outlier values would push the bracket higher.
+  if (stC.length) {
+    const row = stC[0];
+    if (row.p_label) {
+      const yCeil = Math.max(
+        condStats.Control ? condStats.Control.s.whiskerHi : 0,
+        condStats.myb92   ? condStats.myb92.s.whiskerHi   : 0
+      );
+      const cx1 = xs("Control") + xs.bandwidth() / 2;
+      const cx2 = xs("myb92") + xs.bandwidth() / 2;
+      sigBracket(g, cx1, cx2, yScale(yCeil) - 3.5, row.p_label, 1.0);
+    }
+  }
+}
+
+
+// ─── Save PNG / Save SVG ───────────────────────────────────────────────────
+function saveSVG() {
+  const svgNode = document.getElementById("fig");
+  const clone = svgNode.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const ser = new XMLSerializer();
+  const blob = new Blob([ser.serializeToString(clone)], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "figure5_assembled.svg"; a.click();
+  URL.revokeObjectURL(url);
+}
+function savePNG() {
+  const dpi = +document.getElementById("dpi").value;
+  const w_mm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--w-mm"));
+  const h_mm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--h-mm"));
+  const pxPerMm = dpi / 25.4;
+  const pxW = Math.round(w_mm * pxPerMm), pxH = Math.round(h_mm * pxPerMm);
+
+  const svgNode = document.getElementById("fig");
+  const clone = svgNode.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width",  pxW);
+  clone.setAttribute("height", pxH);
+  const ser = new XMLSerializer();
+  const blob = new Blob([ser.serializeToString(clone)], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement("canvas");
+    cv.width = pxW; cv.height = pxH;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "white"; ctx.fillRect(0, 0, pxW, pxH);
+    ctx.drawImage(img, 0, 0, pxW, pxH);
+    URL.revokeObjectURL(url);
+    cv.toBlob(b => {
+      const u = URL.createObjectURL(b);
+      const a = document.createElement("a");
+      a.href = u; a.download = `figure5_assembled_${dpi}dpi.png`; a.click();
+      URL.revokeObjectURL(u);
+    }, "image/png");
+  };
+  img.src = url;
+}
+document.getElementById("save").addEventListener("click", savePNG);
+document.getElementById("save-svg").addEventListener("click", saveSVG);
+</script>
+
+</body>
+</html>

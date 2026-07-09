@@ -1,0 +1,7 @@
+Trait,System,Mutant,n_WT,n_mutant,mean_WT,mean_mut,FC_vs_WT,meandiff_mut_minus_WT,p_vsWT,p_method,sig,p_label
+Aerenchyma_ratio,Falcon,Wox10-15,4,4,0.289,0.3213,1.1118,0.0323,0.864,Dunnett,ns,p = 0.864
+Aerenchyma_ratio,Falcon,Wox10-50,4,4,0.289,0.3247,1.1236,0.0357,0.838,Dunnett,ns,p = 0.838
+Aerenchyma_ratio,Pouch,Wox10-15,4,3,0.174,0.1386,0.7966,-0.0354,0.896,Dunnett,ns,p = 0.896
+Aerenchyma_ratio,Pouch,Wox10-50,4,4,0.174,0.1895,1.0888,0.0155,0.975,Dunnett,ns,p = 0.975
+Aerenchyma_ratio,Rhizotron,Wox10-15,4,5,0.2393,0.0919,0.384,-0.1474,0.074,Dunnett,ns,p = 0.074
+Aerenchyma_ratio,Rhizotron,Wox10-50,4,4,0.2393,0.1165,0.4869,-0.1228,0.163,Dunnett,ns,p = 0.163

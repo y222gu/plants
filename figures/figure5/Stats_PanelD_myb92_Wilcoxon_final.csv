@@ -1,0 +1,2 @@
+Trait,column,group1,group2,n_ctrl,n_myb92,median_ctrl,median_myb92,mean_ctrl,mean_myb92,U,p,sig,p_label
+Exo_Suberin_FITC,Exodermis_FITC_thresholded_raw_mean,Control,myb92,4,6,6229.1,5021.38,6875.87,5060.38,22.0,0.038,*,p = 0.038

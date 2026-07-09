@@ -1,0 +1,17 @@
+sample_id,species,microscope,experiment,Epidermis_IoU,Exodermis_IoU,Cortex_IoU,Aerenchyma_IoU,Endodermis_IoU,Vascular_IoU,mean_IoU
+Millet_Olympus_Exp4_1-2cm__08,Millet,Olympus,Exp4,0.8230,0.9151,0.9765,0.2408,0.9425,0.9796,0.8129
+Millet_Olympus_Exp6_5-6cm__28,Millet,Olympus,Exp6,0.7465,0.8904,0.9652,0.0000,0.9565,0.9908,0.7582
+Rice_C10_Exp7_PSY17-4-a,Rice,C10,Exp7,0.8640,0.9369,0.9895,0.0000,0.8146,0.9456,0.7584
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_4_06,Rice,Olympus,Exp10,0.8433,0.9442,0.9908,0.8416,0.9189,0.9800,0.9198
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_1_03,Rice,Olympus,Exp10,0.5521,0.5824,0.9814,0.5361,0.9279,0.9833,0.7605
+Sorghum_Olympus_Exp100_LLC2960_05,Sorghum,Olympus,Exp100,0.8153,0.8975,0.9844,0.7594,0.9558,0.9907,0.9005
+Sorghum_Olympus_Exp16_2_01,Sorghum,Olympus,Exp16,0.7940,0.9469,0.9888,0.5665,0.9408,0.9891,0.8710
+Sorghum_Olympus_Exp16_3_05,Sorghum,Olympus,Exp16,0.7794,0.9093,0.9816,0.3598,0.9466,0.9926,0.8282
+Sorghum_Olympus_Exp59_1_07,Sorghum,Olympus,Exp59,0.8606,0.9375,0.9900,0.7027,0.9579,0.9939,0.9071
+Sorghum_Olympus_Exp75_PDB161_03,Sorghum,Olympus,Exp75,0.0103,0.1033,0.8018,0.5469,0.2892,0.8454,0.4328
+Sorghum_Olympus_Exp94_LLC3456_07,Sorghum,Olympus,Exp94,0.8143,0.8260,0.9830,,0.9269,0.9881,0.9077
+Tomato_C10_Exp3_M82_WT_A8ROI1,Solanum,C10,Exp3,0.7704,0.9013,0.9732,,0.8853,0.9601,0.8981
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_19,Solanum,Olympus,Exp12,0.8278,0.9178,0.9365,,0.7741,0.8995,0.8711
+Tomato_Olympus_Exp18_WT_38_07,Solanum,Olympus,Exp18,0.7995,0.8936,0.9584,,0.8741,0.9680,0.8987
+Tomato_Olympus_Exp1_Lignin_mutants_132,Solanum,Olympus,Exp1,0.8334,0.9185,0.9421,,0.8985,0.9673,0.9120
+Tomato_Olympus_Exp6_Solanum_WendySlide1_04,Solanum,Olympus,Exp6,0.8235,0.9309,0.9797,,0.9139,0.9614,0.9219

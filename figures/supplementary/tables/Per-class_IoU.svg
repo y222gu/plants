@@ -1,0 +1,30 @@
+<svg id="fig" viewBox="0 0 180.000 45.700" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+<g transform="translate(36.000, 0)">
+<line x1="3.000" y1="0.000" x2="105.000" y2="0.000" stroke="black" stroke-width="0.4"/>
+<text x="3.800" y="7.300" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Anatomical Class</text>
+<text x="51.000" y="7.300" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">(mean ± s.d., n = 185)</text>
+<text x="51.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">In-distribution Test IoU</text>
+<text x="88.000" y="7.300" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">(mean ± s.d., n = 35)</text>
+<text x="88.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Zero-shot Test IoU</text>
+<line x1="3.000" y1="8.700" x2="105.000" y2="8.700" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="13.300" font-size="2.47" text-anchor="start" fill="black">Vascular</text>
+<text x="51.000" y="13.300" font-size="2.47" text-anchor="middle" fill="black">0.979 ± 0.016</text>
+<text x="88.000" y="13.300" font-size="2.47" text-anchor="middle" fill="black">0.974 ± 0.009</text>
+<text x="3.800" y="19.300" font-size="2.47" text-anchor="start" fill="black">Exodermis</text>
+<text x="51.000" y="19.300" font-size="2.47" text-anchor="middle" fill="black">0.878 ± 0.187</text>
+<text x="88.000" y="19.300" font-size="2.47" text-anchor="middle" fill="black">0.847 ± 0.084</text>
+<text x="3.800" y="25.300" font-size="2.47" text-anchor="start" fill="black">Endodermis</text>
+<text x="51.000" y="25.300" font-size="2.47" text-anchor="middle" fill="black">0.912 ± 0.045</text>
+<text x="88.000" y="25.300" font-size="2.47" text-anchor="middle" fill="black">0.858 ± 0.046</text>
+<text x="3.800" y="31.300" font-size="2.47" text-anchor="start" fill="black">Cortex</text>
+<text x="51.000" y="31.300" font-size="2.47" text-anchor="middle" fill="black">0.971 ± 0.040</text>
+<text x="88.000" y="31.300" font-size="2.47" text-anchor="middle" fill="black">0.982 ± 0.009</text>
+<text x="3.800" y="37.300" font-size="2.47" text-anchor="start" fill="black">Epidermis</text>
+<text x="51.000" y="37.300" font-size="2.47" text-anchor="middle" fill="black">0.820 ± 0.131</text>
+<text x="88.000" y="37.300" font-size="2.47" text-anchor="middle" fill="black">0.738 ± 0.102</text>
+<text x="3.800" y="43.300" font-size="2.47" text-anchor="start" fill="black">Aerenchyma</text>
+<text x="51.000" y="43.300" font-size="2.47" text-anchor="middle" fill="black">0.601 ± 0.265</text>
+<text x="88.000" y="43.300" font-size="2.47" text-anchor="middle" fill="black">0.835 ± 0.085</text>
+<line x1="3.000" y1="44.700" x2="105.000" y2="44.700" stroke="black" stroke-width="0.4"/>
+</g>
+</svg>

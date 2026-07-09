@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Supplementary Table for Figure 2b,c</title>
+<style>
+  :root { --w-mm: 180.000; --h-mm: 45.700; }
+  body {
+    margin: 0; padding: 18px;
+    font-family: Helvetica, Arial, sans-serif;
+    background: #f4f4f4;
+  }
+  #controls {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  button {
+    padding: 8px 14px; font-size: 13px;
+    background: #333; color: white; border: 0;
+    border-radius: 4px; cursor: pointer;
+  }
+  input[type="number"] { padding: 5px 8px; font-size: 13px; }
+  svg#fig {
+    display: block;
+    width: calc(var(--w-mm) * 1mm);
+    height: calc(var(--h-mm) * 1mm);
+    background: white;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    outline: 1px solid #bbb;
+  }
+  svg#fig text { font-family: Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <button id="save">Save PNG</button>
+  <button id="save-svg">Save SVG</button>
+  <label>DPI <input type="number" id="dpi" value="600" min="72" max="1200" step="50" style="width:70px"></label>
+</div>
+
+<svg id="fig" viewBox="0 0 180.000 45.700" xmlns="http://www.w3.org/2000/svg"
+     font-family="Helvetica, Arial, sans-serif">
+<g transform="translate(36.000, 0)">
+<line x1="3.000" y1="0.000" x2="105.000" y2="0.000" stroke="black" stroke-width="0.4"/>
+<text x="3.800" y="7.300" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Anatomical Class</text>
+<text x="51.000" y="7.300" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">(mean ± s.d., n = 185)</text>
+<text x="51.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">In-distribution Test IoU</text>
+<text x="88.000" y="7.300" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">(mean ± s.d., n = 35)</text>
+<text x="88.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Zero-shot Test IoU</text>
+<line x1="3.000" y1="8.700" x2="105.000" y2="8.700" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="13.300" font-size="2.47" text-anchor="start" fill="black">Vascular</text>
+<text x="51.000" y="13.300" font-size="2.47" text-anchor="middle" fill="black">0.979 ± 0.016</text>
+<text x="88.000" y="13.300" font-size="2.47" text-anchor="middle" fill="black">0.974 ± 0.009</text>
+<text x="3.800" y="19.300" font-size="2.47" text-anchor="start" fill="black">Exodermis</text>
+<text x="51.000" y="19.300" font-size="2.47" text-anchor="middle" fill="black">0.878 ± 0.187</text>
+<text x="88.000" y="19.300" font-size="2.47" text-anchor="middle" fill="black">0.847 ± 0.084</text>
+<text x="3.800" y="25.300" font-size="2.47" text-anchor="start" fill="black">Endodermis</text>
+<text x="51.000" y="25.300" font-size="2.47" text-anchor="middle" fill="black">0.912 ± 0.045</text>
+<text x="88.000" y="25.300" font-size="2.47" text-anchor="middle" fill="black">0.858 ± 0.046</text>
+<text x="3.800" y="31.300" font-size="2.47" text-anchor="start" fill="black">Cortex</text>
+<text x="51.000" y="31.300" font-size="2.47" text-anchor="middle" fill="black">0.971 ± 0.040</text>
+<text x="88.000" y="31.300" font-size="2.47" text-anchor="middle" fill="black">0.982 ± 0.009</text>
+<text x="3.800" y="37.300" font-size="2.47" text-anchor="start" fill="black">Epidermis</text>
+<text x="51.000" y="37.300" font-size="2.47" text-anchor="middle" fill="black">0.820 ± 0.131</text>
+<text x="88.000" y="37.300" font-size="2.47" text-anchor="middle" fill="black">0.738 ± 0.102</text>
+<text x="3.800" y="43.300" font-size="2.47" text-anchor="start" fill="black">Aerenchyma</text>
+<text x="51.000" y="43.300" font-size="2.47" text-anchor="middle" fill="black">0.601 ± 0.265</text>
+<text x="88.000" y="43.300" font-size="2.47" text-anchor="middle" fill="black">0.835 ± 0.085</text>
+<line x1="3.000" y1="44.700" x2="105.000" y2="44.700" stroke="black" stroke-width="0.4"/>
+</g>
+</svg>
+
+<script>
+function saveSVG() {
+    const svgNode = document.getElementById("fig");
+    const clone = svgNode.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    const src = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([src], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "Per-class_IoU.svg"; a.click();
+    URL.revokeObjectURL(url);
+}
+// PNG CRC table for embedding a pHYs chunk so the saved file declares its
+// DPI. Without this, programs like Word and PowerPoint assume 96 DPI and
+// render the image ~6× larger than the live preview. With pHYs, DPI-aware
+// programs scale it to the correct mm size.
+const _CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+        t[n] = c;
+    }
+    return t;
+})();
+function _crc32(buf, start, len) {
+    let c = 0xffffffff;
+    for (let i = 0; i < len; i++) c = _CRC_TABLE[(c ^ buf[start + i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+}
+function _injectPHYs(pngBytes, ppm) {
+    // PNG = 8-byte signature + IHDR (4+4+13+4=25 bytes) + ... Insert pHYs
+    // chunk right after IHDR (bytes 8..32 → insertion at byte 33).
+    const ihdrEnd = 33;
+    const phys = new Uint8Array(21);
+    // length = 9
+    phys[0]=0; phys[1]=0; phys[2]=0; phys[3]=9;
+    // type "pHYs"
+    phys[4]=0x70; phys[5]=0x48; phys[6]=0x59; phys[7]=0x73;
+    const writeU32 = (off, v) => {
+        phys[off]=(v>>>24)&0xff; phys[off+1]=(v>>>16)&0xff;
+        phys[off+2]=(v>>>8)&0xff; phys[off+3]=v&0xff;
+    };
+    writeU32(8,  ppm);   // pixels per metre, X
+    writeU32(12, ppm);   // pixels per metre, Y
+    phys[16] = 1;        // unit = metre
+    writeU32(17, _crc32(phys, 4, 13));  // CRC over type+data
+    const out = new Uint8Array(pngBytes.length + 21);
+    out.set(pngBytes.subarray(0, ihdrEnd), 0);
+    out.set(phys, ihdrEnd);
+    out.set(pngBytes.subarray(ihdrEnd), ihdrEnd + 21);
+    return out;
+}
+function savePNG() {
+    const dpi = +document.getElementById("dpi").value;
+    const w_mm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--w-mm'));
+    const h_mm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--h-mm'));
+    const pxPerMm = dpi / 25.4;
+    const pxW = Math.round(w_mm * pxPerMm), pxH = Math.round(h_mm * pxPerMm);
+    const svgNode = document.getElementById("fig");
+    const clone = svgNode.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width",  pxW);
+    clone.setAttribute("height", pxH);
+    const src = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([src], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = function() {
+        const cv = document.createElement("canvas");
+        cv.width = pxW; cv.height = pxH;
+        const ctx = cv.getContext("2d");
+        ctx.fillStyle = "white"; ctx.fillRect(0, 0, pxW, pxH);
+        ctx.drawImage(img, 0, 0, pxW, pxH);
+        URL.revokeObjectURL(url);
+        cv.toBlob(async b2 => {
+            const raw = new Uint8Array(await b2.arrayBuffer());
+            const ppm = Math.round(dpi / 0.0254);    // pixels per metre
+            const withDpi = _injectPHYs(raw, ppm);
+            const final = new Blob([withDpi], { type: "image/png" });
+            const u2 = URL.createObjectURL(final);
+            const a = document.createElement("a");
+            a.href = u2; a.download = "Per-class_IoU.png"; a.click();
+            URL.revokeObjectURL(u2);
+        }, "image/png");
+    };
+    img.src = url;
+}
+document.getElementById("save").addEventListener("click", savePNG);
+document.getElementById("save-svg").addEventListener("click", saveSVG);
+</script>
+</body>
+</html>

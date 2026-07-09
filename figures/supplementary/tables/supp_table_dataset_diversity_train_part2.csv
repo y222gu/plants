@@ -1,0 +1,40 @@
+Species,Genotype,Train,Val
+Sorghum,ETSL 101866,4,0
+Sorghum,ETSL 101888,3,0
+Sorghum,ETWS 90754,3,0
+Sorghum,ETWS 90787,3,0
+Sorghum,ETWS 91242,3,0
+Sorghum,ETWS 91323,4,0
+Sorghum,Framida,5,0
+Sorghum,Gobiye,5,0
+Sorghum,IESV 23005DL,0,1
+Sorghum,IS 38306,4,0
+Sorghum,IS 38343,6,0
+Sorghum,IS 38408,5,0
+Sorghum,Macia,4,0
+Sorghum,Melkam,5,0
+Sorghum,Misikir,0,2
+Sorghum,NTJ2,0,2
+Sorghum,P9501B,0,2
+Sorghum,S35,5,0
+Sorghum,SQR,16,9
+Sorghum,SRN,9,2
+Sorghum,Teshale,151,18
+*Solanum lycopersicum*,*cerasiforme*,0,2
+*Solanum lycopersicum*,LA0513,0,7
+*Solanum lycopersicum*,M82,301,19
+*Solanum lycopersicum*,*slasft*,49,0
+*Solanum lycopersicum*,*slmyb92*,66,21
+*Solanum lycopersicum*,VF36,0,3
+*Solanum aethiopicum*,PI424860,9,0
+*Solanum anguivi*,ANG1,0,1
+*Solanum arcanum*,LA2157,0,2
+*Solanum candidum*,994750097,7,0
+*Solanum cheesmaniae*,LA1407,3,0
+*Solanum habrochaites*,LA1777,0,2
+*Solanum huaylasense*,LA1364,0,2
+*Solanum insanum*,INS1,0,5
+*Solanum peruvianum*,LA1777,2,0
+*Solanum pimpinellifolium*,LA1589,0,3
+*Solanum quitoense*,PI489701,0,3
+*Solanum violaceum*,PI319855,0,1

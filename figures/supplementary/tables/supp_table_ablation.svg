@@ -1,0 +1,28 @@
+<svg id="fig" viewBox="0 0 180.000 44.500" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+<g transform="translate(14.000, 0)">
+<line x1="3.000" y1="0.000" x2="149.000" y2="0.000" stroke="black" stroke-width="0.4"/>
+<text x="3.800" y="7.300" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Variant</text>
+<text x="93.000" y="7.300" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">(mean ± s.d., n = 185)</text>
+<text x="93.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">In-distribution Test mIoU</text>
+<text x="131.000" y="7.300" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">(mean ± s.d., n = 35)</text>
+<text x="131.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Zero-shot Test mIoU</text>
+<line x1="3.000" y1="8.700" x2="149.000" y2="8.700" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="12.700" font-size="2.47" text-anchor="start" font-weight="bold" font-style="italic" fill="black">Encoder training strategy</text>
+<line x1="3.000" y1="14.000" x2="149.000" y2="14.000" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="18.700" font-size="2.47" text-anchor="start" fill="black">Frozen encoder</text>
+<text x="93.000" y="18.700" font-size="2.47" text-anchor="middle" fill="black">0.881 ± 0.066</text>
+<text x="131.000" y="18.700" font-size="2.47" text-anchor="middle" fill="black">0.881 ± 0.034</text>
+<text x="3.800" y="24.700" font-size="2.47" text-anchor="start" fill="black">Fine-tuned encoder (RADIX)</text>
+<text x="93.000" y="24.700" font-size="2.47" text-anchor="middle" fill="black">0.889 ± 0.065</text>
+<text x="131.000" y="24.700" font-size="2.47" text-anchor="middle" fill="black">0.888 ± 0.036</text>
+<text x="3.800" y="30.100" font-size="2.47" text-anchor="start" font-weight="bold" font-style="italic" fill="black">Loss function</text>
+<line x1="3.000" y1="31.400" x2="149.000" y2="31.400" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="36.100" font-size="2.47" text-anchor="start" fill="black">Dice + Focal + weighted CE</text>
+<text x="93.000" y="36.100" font-size="2.47" text-anchor="middle" fill="black">0.885 ± 0.064</text>
+<text x="131.000" y="36.100" font-size="2.47" text-anchor="middle" fill="black">0.879 ± 0.038</text>
+<text x="3.800" y="42.100" font-size="2.47" text-anchor="start" fill="black">Dice + Focal + weighted CE + Lovasz (RADIX)</text>
+<text x="93.000" y="42.100" font-size="2.47" text-anchor="middle" fill="black">0.889 ± 0.065</text>
+<text x="131.000" y="42.100" font-size="2.47" text-anchor="middle" fill="black">0.888 ± 0.036</text>
+<line x1="3.000" y1="43.500" x2="149.000" y2="43.500" stroke="black" stroke-width="0.4"/>
+</g>
+</svg>

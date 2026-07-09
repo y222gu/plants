@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Figure 4 Assembly - a/b/c/d + e/f</title>
+<style>
+  :root {
+    --main-mm: 72.2;
+    --crop-mm: 35.6;
+    --aer-h-mm: 36.1;       /* 2:1 ratio against the 72.2 mm main column width */
+    --gap-mm: 1;
+    --crop-border-mm: 0.25;
+    --letter-pt: 10;
+    --label-pt: 6;
+    --tag-pt: 7;              /* font size for in-cell tag labels in panels b/c/d (TRITC Channel, FITC Channel, DAPI Channel, Predicted Mask Overlay, Thresholded Mask Overlay) */
+    --crop-box-label-pt: 7;   /* font size for the zoom-in box labels on panel a (Endodermis / Exodermis / Aerenchyma) */
+  }
+  body { margin: 0; padding: 16px; font-family: Helvetica, Arial, sans-serif; background: #f4f4f4; }
+  #controls { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  button {
+    padding: 8px 14px; font-size: 13px; background: #333; color: white;
+    border: none; border-radius: 4px; cursor: pointer;
+  }
+  #info { font-size: 12px; color: #666; }
+  #warn { font-size: 12px; color: #c02020; font-weight: bold; }
+
+  #fig {
+    width:  calc(var(--main-mm) * 1mm + var(--gap-mm) * 1mm + var(--crop-mm) * 3mm);
+    height: calc(var(--main-mm) * 1mm + var(--gap-mm) * 2mm + var(--aer-h-mm) * 2mm);
+    background: white;
+    display: grid;
+    grid-template-columns:
+      calc(var(--main-mm) * 1mm)
+      calc(var(--gap-mm)  * 1mm)
+      calc(var(--crop-mm) * 1mm)
+      calc(var(--crop-mm) * 1mm)
+      calc(var(--crop-mm) * 1mm);
+    grid-template-rows:
+      calc(var(--crop-mm)  * 1mm)
+      calc(var(--crop-mm)  * 1mm)
+      calc(var(--aer-h-mm) * 1mm)
+      calc(var(--aer-h-mm) * 1mm);
+    column-gap: 0;
+    row-gap: calc(var(--gap-mm) * 1mm);
+    outline: 1px solid #bbb;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    position: relative;
+  }
+  .cell { position: relative; background: black; overflow: hidden; }
+  #cell-main              { grid-row: 1 / span 2; grid-column: 1; }
+  #cell-aer               { grid-row: 3; grid-column: 1; }
+  /* Cancel row 3-4 gap on the aer-overlay side only (matches fig4a_overlay). */
+  #cell-aer-overlay       { grid-row: 4; grid-column: 1;
+                            margin-top: calc(-1 * var(--gap-mm) * 1mm); }
+  /* 4e: rows 3-4, cols 3-5 - to the right of 4d, bottom-aligned with the
+     aer-overlay cell. Hosts a 2×3 sub-grid of 5 same-sized correlation plots
+     + species legend in the bottom-right sub-cell. */
+  #cell-4e                { grid-row: 3 / span 2; grid-column: 3 / span 3;
+                            background: white; overflow: visible; }
+  /* col 3 = FITC channel, col 4 = pred overlay, col 5 = thresholded overlay */
+  #cell-exo-tritc         { grid-row: 1; grid-column: 3; }
+  #cell-endo-fitc         { grid-row: 2; grid-column: 3; }
+  #cell-exo-tritc-ovl     { grid-row: 1; grid-column: 4; }
+  #cell-endo-fitc-ovl     { grid-row: 2; grid-column: 4; }
+  #cell-exo-tritc-ovl-thr { grid-row: 1; grid-column: 5; }
+  #cell-endo-fitc-ovl-thr { grid-row: 2; grid-column: 5; }
+
+  /* Grey border around the image crops in panels b/c/d only.
+     Panel a (cell-main) and panels e-i (cell-4e) are left unbordered.
+     Per-side border so the divider between two adjacent crop cells is
+     a single 0.25 mm line, not two 0.25 mm strips touching (which would
+     read as 0.5 mm). The leftmost cell of each row keeps its left
+     border; the cell-aer cell drops its bottom border because
+     cell-aer-overlay's top border is the shared divider with it. */
+  .crop-cell::after {
+    content: ""; position: absolute; inset: 0;
+    border-top:    calc(var(--crop-border-mm) * 1mm) solid #888;
+    border-right:  calc(var(--crop-border-mm) * 1mm) solid #888;
+    border-bottom: calc(var(--crop-border-mm) * 1mm) solid #888;
+    border-left:   calc(var(--crop-border-mm) * 1mm) solid #888;
+    box-sizing: border-box; pointer-events: none; z-index: 3;
+  }
+  /* Cells whose LEFT neighbour is also a crop-cell drop their own left
+     border - the neighbour's right border is the shared divider. */
+  #cell-exo-tritc-ovl::after,
+  #cell-exo-tritc-ovl-thr::after,
+  #cell-endo-fitc-ovl::after,
+  #cell-endo-fitc-ovl-thr::after {
+    border-left: 0;
+  }
+  /* cell-aer-overlay sits flush against cell-aer's bottom (margin-top:
+     -1mm cancels the row-gap), so drop cell-aer's bottom border and let
+     cell-aer-overlay's top border act as the shared divider. */
+  #cell-aer::after {
+    border-bottom: 0;
+  }
+  .cell img.layer {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+  .panel-letter {
+    position: absolute; top: 0; left: 0;
+    width: 4.6mm; height: 4.6mm;
+    display: flex; align-items: center; justify-content: center;
+    color: white; background: black;
+    font-weight: bold; font-size: calc(var(--letter-pt) * 1pt);
+    /* z-index 2 = BELOW the crop-cell grey border (z-index 3) so the
+       grey image border draws ON TOP of the black panel-letter box at
+       the top-left corner. */
+    line-height: 1; z-index: 2; pointer-events: none;
+  }
+  .tag-label {
+    position: absolute; top: 0.8mm; left: 50%;
+    transform: translateX(-50%);
+    color: white; background: rgba(0,0,0,0.5);
+    font-size: calc(var(--tag-pt) * 1pt); font-weight: bold;
+    line-height: 1.1; z-index: 5;
+    white-space: nowrap; pointer-events: none;
+    text-align: center; padding: 0 0.6mm;
+  }
+  .crop-box {
+    position: absolute; border: 0.6mm solid white;
+    pointer-events: none; z-index: 4; box-sizing: border-box;
+  }
+  .crop-box-label {
+    position: absolute; bottom: calc(100% + 0.8mm);   /* clear of the box stroke */
+    left: 50%; transform: translateX(-50%);
+    background: black; color: white;
+    font-weight: bold; font-size: calc(var(--crop-box-label-pt) * 1pt);
+    line-height: 1; padding: 0.4mm 0.8mm;
+    white-space: nowrap; pointer-events: none; z-index: 5;
+  }
+  #connectors {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 6;
+  }
+  /* svg-cell: live D3 plot host */
+  .svg-cell svg { display: block; width: 100%; height: 100%; background: white; overflow: visible; }
+  .svg-cell svg text { font-family: Helvetica, Arial, sans-serif; }
+
+  /* Species / genotype label inside cell-main (panel a) - white text on a
+     translucent black ribbon at top-centre, matching the fig1c / fig2a /
+     fig3 species-label style. */
+  #cell-main .species-label {
+    position: absolute;
+    top: 0.8mm; left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    background: rgba(0, 0, 0, 0.55);
+    font-size: calc(var(--tag-pt) * 1pt);
+    font-weight: bold;
+    line-height: 1.15;
+    white-space: nowrap;
+    pointer-events: none;
+    padding: 0 0.6mm;
+    border-radius: 0.4mm;
+    z-index: 5;
+  }
+
+  /* 100 µm / 10 µm scale bars - same style as fig1c / fig2a / fig3. Bar
+     and label are separate absolutely-positioned children of the cell;
+     JS sets `right`, `bottom`, `width`, `height`, and the label's
+     `bottom` and `font-size` based on the cell's µm / px calibration. */
+  .cell .sb-bar {
+    position: absolute;
+    background: white;
+    pointer-events: none;
+    box-shadow: 0 0 0 0.1mm rgba(0,0,0,0.75);
+    z-index: 5;
+  }
+  .cell .sb-lbl {
+    position: absolute;
+    color: white;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 5;
+    text-shadow:
+       0.1mm  0.1mm 0 rgba(0,0,0,0.85),
+      -0.1mm  0.1mm 0 rgba(0,0,0,0.85),
+       0.1mm -0.1mm 0 rgba(0,0,0,0.85),
+      -0.1mm -0.1mm 0 rgba(0,0,0,0.85);
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Per-microscope image adjustments (auto-applied by filename) ──────
+     Olympus images: brighter, higher contrast, slightly more saturated.
+     C10 images:     lighter touch + slight unsharp-mask sharpening.
+     Cartoons / Zeiss / panel letters are left untouched (the CSS
+     selectors only match _Olympus_ or _C10_ in the src filename). -->
+<svg width="0" height="0" style="position:absolute;visibility:hidden" aria-hidden="true">
+  <defs>
+    <filter id="img-adjust-olympus" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncG type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncB type="linear" slope="1.84" intercept="-0.03"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.2"/>
+    </filter>
+    <filter id="img-adjust-c10" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.15" intercept="-0.075"/>
+        <feFuncG type="linear" slope="1.15" intercept="-0.075"/>
+        <feFuncB type="linear" slope="1.15" intercept="-0.075"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.1"/>
+      <feConvolveMatrix order="3" preserveAlpha="true"
+        kernelMatrix="0 -0.2 0 -0.2 1.8 -0.2 0 -0.2 0"/>
+    </filter>
+  </defs>
+</svg>
+<style>
+  /* Apply only to raw fluorescence images. Exclude predicted masks
+     (pred_*, *_pred), ground truth (gt.png, *_gt.png), and overlays. */
+  img[src*="_Olympus_"]:not([src*="pred"]):not([src*="overlay"]):not([src*="_gt."]):not([src$="/gt.png"]) {
+    filter: url(#img-adjust-olympus);
+  }
+  img[src*="_C10_"]:not([src*="pred"]):not([src*="overlay"]):not([src*="_gt."]):not([src$="/gt.png"]) {
+    filter: url(#img-adjust-c10);
+  }
+</style>
+
+<div id="controls">
+  <button id="save">Save PNG</button>
+  <button id="save-svg">Save SVG</button>
+  <button id="save-defaults" title="Download current crop positions as the new _crops.json">Save crop defaults</button>
+  <label>DPI <input type="number" id="dpi" value="600" min="72" max="1200" step="50" style="width:70px"></label>
+  <label><input type="checkbox" id="show-boxes" checked> show crop boxes on main</label>
+  <span id="info"></span>
+  <span id="warn"></span>
+</div>
+
+<div id="fig">
+  <svg id="connectors" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div class="cell" id="cell-main">
+    <img class="layer" id="img-base" src="" crossorigin="anonymous">
+    <span class="panel-letter">a</span>
+    <span class="species-label">Sorghum, Teshale</span>
+    <div class="crop-box" id="box-endo"><span class="crop-box-label">Endodermis</span></div>
+    <div class="crop-box" id="box-exo"><span class="crop-box-label">Exodermis</span></div>
+    <div class="crop-box" id="box-aer"><span class="crop-box-label">Aerenchyma</span></div>
+  </div>
+
+  <div class="cell crop-cell" id="cell-exo-tritc">
+    <img class="layer" id="img-exo-tritc" src="" crossorigin="anonymous">
+    <span class="panel-letter">b</span>
+    <span class="tag-label">TRITC Channel<br>(Suberin)</span>
+  </div>
+  <div class="cell crop-cell" id="cell-endo-fitc">
+    <img class="layer" id="img-endo-fitc" src="" crossorigin="anonymous">
+    <span class="panel-letter">c</span>
+    <span class="tag-label">FITC Channel<br>(Lignin)</span>
+  </div>
+
+  <div class="cell crop-cell" id="cell-exo-tritc-ovl">
+    <img class="layer" id="img-exo-tritc-ovl-pred" src="" crossorigin="anonymous">
+    <span class="tag-label">Predicted Mask Overlay</span>
+  </div>
+  <div class="cell crop-cell" id="cell-endo-fitc-ovl">
+    <img class="layer" id="img-endo-fitc-ovl-pred" src="" crossorigin="anonymous">
+    <span class="tag-label">Predicted Mask Overlay</span>
+  </div>
+
+  <div class="cell crop-cell" id="cell-exo-tritc-ovl-thr">
+    <img class="layer" id="img-exo-tritc-ovl-thr" src="" crossorigin="anonymous">
+    <span class="tag-label">Thresholded Mask Overlay</span>
+  </div>
+  <div class="cell crop-cell" id="cell-endo-fitc-ovl-thr">
+    <img class="layer" id="img-endo-fitc-ovl-thr" src="" crossorigin="anonymous">
+    <span class="tag-label">Thresholded Mask Overlay</span>
+  </div>
+
+  <div class="cell crop-cell" id="cell-aer">
+    <img class="layer" id="img-aer" src="" crossorigin="anonymous">
+    <span class="panel-letter">d</span>
+    <span class="tag-label">DAPI Channel</span>
+  </div>
+  <div class="cell crop-cell" id="cell-aer-overlay">
+    <img class="layer" id="img-aer-overlay" src="" crossorigin="anonymous">
+    <span class="tag-label">Predicted Mask Overlay</span>
+  </div>
+
+  <div class="cell svg-cell" id="cell-4e">
+    <svg id="fig4e-svg" viewBox="0 0 106.8 73.2" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+</div>
+
+<script src="d3.v7.min.js"></script>
+<script src="fig4_corr_common.js"></script>
+<script>
+// ── 4a image assets ─────────────────────────────────────────────────────
+const UID = "Sorghum_Olympus_Exp88_N3_02";
+const ASSETS = "4a/" + UID;
+const TS = Date.now();
+// Aerenchyma crop is scaled vertically by this factor (height only, centred).
+const AER_HEIGHT_SCALE = 1.5;
+
+// localStorage override key - populated by fig4a_pick_crop.html when the user
+// picks custom endo/exo/aer crops. Honour the same overrides here so this
+// assembler shows exactly what the picker selected.
+const STORAGE_KEY = "fig4a_crops:" + UID;
+function loadOverride() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); }
+  catch (e) { return null; }
+}
+const STORED_OVERRIDE = loadOverride();
+const HAS_OVERRIDE = !!(STORED_OVERRIDE && STORED_OVERRIDE.endo && STORED_OVERRIDE.exo);
+
+document.getElementById("img-base").src = ASSETS + "_image.png?t=" + TS;
+// Only load the pre-rendered endo/exo crops when there's no localStorage
+// override (matches fig4a_overlay.html). With an override, recropAllCells()
+// below redraws them from the full-image sources.
+if (!HAS_OVERRIDE) {
+  document.getElementById("img-exo-tritc").src           = ASSETS + "_crop_exo_tritc.png?t="              + TS;
+  document.getElementById("img-endo-fitc").src           = ASSETS + "_crop_endo_fitc.png?t="              + TS;
+  document.getElementById("img-exo-tritc-ovl-pred").src  = ASSETS + "_crop_exo_tritc_overlay.png?t="      + TS;
+  document.getElementById("img-endo-fitc-ovl-pred").src  = ASSETS + "_crop_endo_fitc_overlay.png?t="      + TS;
+  document.getElementById("img-exo-tritc-ovl-thr").src   = ASSETS + "_crop_exo_tritc_overlay_thr.png?t="  + TS;
+  document.getElementById("img-endo-fitc-ovl-thr").src   = ASSETS + "_crop_endo_fitc_overlay_thr.png?t="  + TS;
+}
+// Aer cells are ALWAYS re-cropped from the full image (because we apply the
+// 1.5× height scale). Load the pre-rendered crops first as a placeholder so
+// the cells aren't blank during the re-crop.
+document.getElementById("img-aer").src         = ASSETS + "_crop_aer_image.png?t="   + TS;
+document.getElementById("img-aer-overlay").src = ASSETS + "_crop_aer_overlay.png?t=" + TS;
+
+// ── On-the-fly cropping (from full-image sources) ───────────────────────
+const FULL_SOURCES = {
+  "img-endo-fitc":          ASSETS + "_full_endo_fitc.png",
+  "img-endo-fitc-ovl-pred": ASSETS + "_full_endo_fitc_overlay.png",
+  "img-endo-fitc-ovl-thr":  ASSETS + "_full_endo_fitc_overlay_thr.png",
+  "img-exo-tritc":          ASSETS + "_full_exo_tritc.png",
+  "img-exo-tritc-ovl-pred": ASSETS + "_full_exo_tritc_overlay.png",
+  "img-exo-tritc-ovl-thr":  ASSETS + "_full_exo_tritc_overlay_thr.png",
+  "img-aer":                ASSETS + "_full_aer_dapi.png",
+  "img-aer-overlay":        ASSETS + "_full_aer_composite_overlay.png",
+};
+const FULL_IMG_CACHE = {};
+function loadFullImg(url) {
+  if (FULL_IMG_CACHE[url]) return FULL_IMG_CACHE[url];
+  FULL_IMG_CACHE[url] = new Promise((resolve, reject) => {
+    const im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = url + "?t=" + TS;
+  });
+  return FULL_IMG_CACHE[url];
+}
+async function cropTo(imgId, fullUrl, x, y, w, h) {
+  try {
+    const full = await loadFullImg(fullUrl);
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(full, x, y, w, h, 0, 0, w, h);
+    document.getElementById(imgId).src = c.toDataURL("image/png");
+  } catch (e) { console.warn("cropTo failed", imgId, e); }
+}
+
+// ── Rotation helpers (mirror fig4a_overlay.html) ────────────────────────
+function rotateUnRotatedToRotated(x, y, size, imgW, imgH, k) {
+  k = ((k % 4) + 4) % 4;
+  for (let i = 0; i < k; i++) {
+    [x, y] = [y, imgW - x - size];
+    [imgW, imgH] = [imgH, imgW];
+  }
+  return { x, y, imgW, imgH };
+}
+function rotateRectUnRotatedToRotated(x, y, w, h, imgW, imgH, k) {
+  k = ((k % 4) + 4) % 4;
+  for (let i = 0; i < k; i++) {
+    [x, y] = [y, imgW - x - w];
+    [w, h] = [h, w];
+    [imgW, imgH] = [imgH, imgW];
+  }
+  return { x, y, w, h };
+}
+function mutateCropsMetaFromOverride(stored) {
+  if (!CROPS_META || !stored) return;
+  const k = CROPS_META.rotation_k_ccw || 0;
+  const [imgWrot, imgHrot] = CROPS_META.image_size;
+  const imgW_un = (k % 2 === 1) ? imgHrot : imgWrot;
+  const imgH_un = (k % 2 === 1) ? imgWrot : imgHrot;
+  for (const tag of ["endo", "exo"]) {
+    const o = stored[tag];
+    if (!o) continue;
+    const r = rotateUnRotatedToRotated(o.x, o.y, o.size, imgW_un, imgH_un, k);
+    CROPS_META.crops[tag] = { ...(CROPS_META.crops[tag] || {}), x: r.x, y: r.y, size: o.size };
+  }
+  if (stored.aer) {
+    const o = stored.aer;
+    const r = rotateRectUnRotatedToRotated(o.x, o.y, o.w, o.h, imgW_un, imgH_un, k);
+    CROPS_META.crops.aer = { ...(CROPS_META.crops.aer || {}), x: r.x, y: r.y, w: r.w, h: r.h };
+  }
+}
+
+// Scale only the aerenchyma crop's HEIGHT, keeping its vertical centre fixed.
+function scaleAerCrop(factor) {
+  if (!CROPS_META || !CROPS_META.crops.aer) return;
+  const a = CROPS_META.crops.aer;
+  const h = a.h != null ? a.h : a.size;
+  const newH = Math.round(h * factor);
+  const newY = Math.round(a.y + h / 2 - newH / 2);
+  a.h = newH; a.y = newY;
+  if (a.w == null) a.w = a.size;
+}
+
+async function recropEndoExo(stored) {
+  for (const tag of ["endo", "exo"]) {
+    const o = stored[tag]; if (!o) continue;
+    const channel = tag === "endo" ? "fitc" : "tritc";
+    for (const id of [`img-${tag}-${channel}`, `img-${tag}-${channel}-ovl-pred`, `img-${tag}-${channel}-ovl-thr`]) {
+      const url = FULL_SOURCES[id]; if (!url) continue;
+      await cropTo(id, url, o.x, o.y, o.size, o.size);
+    }
+  }
+}
+async function recropAer() {
+  if (!CROPS_META || !CROPS_META.crops.aer) return;
+  const a = CROPS_META.crops.aer;
+  await cropTo("img-aer",         FULL_SOURCES["img-aer"],         a.x, a.y, a.w, a.h);
+  await cropTo("img-aer-overlay", FULL_SOURCES["img-aer-overlay"], a.x, a.y, a.w, a.h);
+}
+
+// ── crop boxes (drawn on the main 4a panel) ─────────────────────────────
+let CROPS_META = null;
+const ZOOM_CONNECTOR = {
+  exo:  { cell: "cell-exo-tritc", dir: "right" },
+  endo: { cell: "cell-endo-fitc", dir: "right" },
+  aer:  { cell: "cell-aer",        dir: "down"  },
+};
+const root = document.documentElement;
+const showBoxes = document.getElementById("show-boxes");
+
+function panelMm() {
+  const main = parseFloat(getComputedStyle(root).getPropertyValue("--main-mm"));
+  const crop = parseFloat(getComputedStyle(root).getPropertyValue("--crop-mm"));
+  const aer  = parseFloat(getComputedStyle(root).getPropertyValue("--aer-h-mm"));
+  const gap  = parseFloat(getComputedStyle(root).getPropertyValue("--gap-mm"));
+  return {
+    totalW: main + gap + 3 * crop,
+    totalH: main + 2 * gap + 2 * aer,
+  };
+}
+
+function placeCropBoxes() {
+  if (!CROPS_META) return;
+  const [imgW, imgH] = CROPS_META.image_size;
+  for (const tag of ["endo", "exo", "aer"]) {
+    const c = CROPS_META.crops[tag];
+    const box = document.getElementById(`box-${tag}`);
+    if (!box) continue;
+    if (!c) { box.style.display = "none"; continue; }
+    const cw = c.w != null ? c.w : c.size;
+    const ch = c.h != null ? c.h : c.size;
+    box.style.left   = (c.x / imgW) * 100 + "%";
+    box.style.top    = (c.y / imgH) * 100 + "%";
+    box.style.width  = (cw / imgW) * 100 + "%";
+    box.style.height = (ch / imgH) * 100 + "%";
+  }
+  drawConnectors();
+}
+
+function connectorEndpoints(boxRectMm, cellRectMm, dir) {
+  if (dir === "right") {
+    return [
+      [boxRectMm.right, boxRectMm.top,    cellRectMm.left, cellRectMm.top],
+      [boxRectMm.right, boxRectMm.bottom, cellRectMm.left, cellRectMm.bottom],
+    ];
+  }
+  return [
+    [boxRectMm.left,  boxRectMm.bottom, cellRectMm.left,  cellRectMm.top],
+    [boxRectMm.right, boxRectMm.bottom, cellRectMm.right, cellRectMm.top],
+  ];
+}
+
+function drawConnectors() {
+  const figEl = document.getElementById("fig");
+  const connectors = document.getElementById("connectors");
+  if (!figEl || !connectors) return;
+  const figRect = figEl.getBoundingClientRect();
+  if (figRect.width <= 0) return;
+  const { totalW, totalH } = panelMm();
+  connectors.setAttribute("viewBox", `0 0 ${totalW} ${totalH}`);
+  while (connectors.firstChild) connectors.removeChild(connectors.firstChild);
+  if (!CROPS_META) return;
+  const cssPxPerMm = figRect.width / totalW;
+  const toMm = px => px / cssPxPerMm;
+  const rectMm = el => {
+    const r = el.getBoundingClientRect();
+    return {
+      left:   toMm(r.left   - figRect.left),
+      right:  toMm(r.right  - figRect.left),
+      top:    toMm(r.top    - figRect.top),
+      bottom: toMm(r.bottom - figRect.top),
+    };
+  };
+  for (const tag of ["exo", "endo", "aer"]) {
+    const cfg = ZOOM_CONNECTOR[tag];
+    const box = document.getElementById(`box-${tag}`);
+    const dest = cfg && document.getElementById(cfg.cell);
+    if (!cfg || !box || !dest || box.style.display === "none") continue;
+    const segments = connectorEndpoints(rectMm(box), rectMm(dest), cfg.dir);
+    for (const [x1, y1, x2, y2] of segments) {
+      const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      ln.setAttribute("x1", x1); ln.setAttribute("y1", y1);
+      ln.setAttribute("x2", x2); ln.setAttribute("y2", y2);
+      ln.setAttribute("stroke", "#888");
+      ln.setAttribute("stroke-width", 0.25);
+      ln.setAttribute("stroke-dasharray", "0.8,0.6");
+      connectors.appendChild(ln);
+    }
+  }
+}
+window.addEventListener("resize", drawConnectors);
+showBoxes.addEventListener("change", () => {
+  const v = showBoxes.checked ? "block" : "none";
+  ["box-endo", "box-exo", "box-aer"].forEach(id => document.getElementById(id).style.display = v);
+  document.getElementById("connectors").style.display = v;
+  drawConnectors();
+});
+
+async function applyOverridesAndRecrop() {
+  if (!CROPS_META) return;
+  // 1) Apply user's localStorage override (if any) - restores fig4a_pick_crop
+  //    selections so the assembler matches what fig4a_overlay.html shows.
+  if (STORED_OVERRIDE) {
+    mutateCropsMetaFromOverride(STORED_OVERRIDE);
+  }
+  // 2) Scale the aerenchyma crop's HEIGHT by 1.5× (centred), unless the JSON
+  //    already carries the baked aer-height marker (set by Save crop defaults).
+  if (!CROPS_META.aer_height_baked) {
+    scaleAerCrop(AER_HEIGHT_SCALE);
+  }
+  // 3) Force aer crop to a 2:1 width:height ratio (recentred vertically), so
+  //    the white box on the main image and the zoomed cell are both 2:1
+  //    regardless of any stale localStorage override from the picker tool.
+  if (CROPS_META.crops.aer && CROPS_META.crops.aer.w) {
+    const a = CROPS_META.crops.aer;
+    const targetH = Math.round(a.w / 2);
+    const currentH = a.h != null ? a.h : a.size;
+    a.y = Math.round(a.y + currentH / 2 - targetH / 2);
+    a.h = targetH;
+  }
+  // 4) Always re-crop endo/exo from the full image based on the effective
+  //    CROPS_META positions, so the displayed crops match the white zoom-in
+  //    boxes - the pre-rendered _crop_*.png files may have stale positions
+  //    baked in.
+  await recropEndoExo({
+    endo: CROPS_META.crops.endo,
+    exo:  CROPS_META.crops.exo,
+  });
+  await recropAer();
+  placeCropBoxes();
+}
+
+// ── Save current crops as the new on-disk defaults ──────────────────────
+// Writes the effective CROPS_META (override-applied + aer scaled) to a JSON
+// file and clears the localStorage override so the next load picks up the
+// baked positions without re-scaling.
+function saveCropDefaults() {
+  if (!CROPS_META) { alert("Crops not loaded yet - wait for the figure to render then retry."); return; }
+  const out = {
+    image_size: CROPS_META.image_size,
+    crops: {
+      endo: { ...CROPS_META.crops.endo },
+      exo:  { ...CROPS_META.crops.exo  },
+      aer:  { ...CROPS_META.crops.aer  },
+    },
+    rotation_k_ccw: CROPS_META.rotation_k_ccw || 0,
+    aer_height_baked: true,
+  };
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${UID}_crops.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  localStorage.removeItem(STORAGE_KEY);
+  alert(
+    "Downloaded " + UID + "_crops.json with current positions baked in.\n\n" +
+    "Move it to figures/figure4/4a/ (replace the existing file).\n" +
+    "localStorage override has been cleared, so the baked defaults will load " +
+    "next time."
+  );
+}
+document.getElementById("save-defaults").addEventListener("click", saveCropDefaults);
+
+(async function loadCropsMeta() {
+  try {
+    const res = await fetch(ASSETS + "_crops.json?t=" + TS, { cache: "no-store" });
+    if (res.ok) {
+      CROPS_META = await res.json();
+      await applyOverridesAndRecrop();
+    }
+  } catch (e) { console.warn(e); }
+  await injectFig4ScaleBars();
+})();
+
+// ────────────────────────────────────────────────────────────────────────
+// 100 µm / 10 µm scale-bar injection for cell-main (panel a) and the
+// three channel cells in panels b / c / d. bar-frac is hard-coded from
+// the calibration (Olympus 308 px/100 µm = 3.08 px/µm) and the source-
+// pixel widths each cell shows:
+//   cell-main         : full 2048-px image  → 100 µm bar = 308/2048
+//   cell-exo-tritc / cell-endo-fitc : 128-px crop → 10 µm bar = 30.8/128
+//   cell-aer           : 512-px crop  → 10 µm bar = 30.8/512 (horizontal)
+// ────────────────────────────────────────────────────────────────────────
+const FIG4_SB_MAIN     = { rightMm: 1.2, bottomMm: 1.2, barHmm: 0.40, labelGapMm: 1.0, fontPt: 7 };
+const FIG4_SB_CHANNEL  = { rightMm: 0.7, bottomMm: 0.7, barHmm: 0.25, labelGapMm: 0.7, fontPt: 6 };
+const FIG4_SB_SPECS = [
+  { cellId: "cell-main",      um: 100, frac: 308   / 2048, cfg: FIG4_SB_MAIN },
+  { cellId: "cell-exo-tritc", um: 10,  frac: 30.8  /  128, cfg: FIG4_SB_CHANNEL },
+  { cellId: "cell-endo-fitc", um: 10,  frac: 30.8  /  128, cfg: FIG4_SB_CHANNEL },
+  { cellId: "cell-aer",       um: 20,  frac: 61.6  /  512, cfg: FIG4_SB_CHANNEL },
+];
+function _fig4PxPerMm() {
+  const ruler = document.createElement("div");
+  ruler.style.cssText = "width:10mm;position:absolute;visibility:hidden";
+  document.body.appendChild(ruler);
+  const v = ruler.getBoundingClientRect().width / 10;
+  ruler.remove();
+  return v;
+}
+async function injectFig4ScaleBars() {
+  await waitImgs();
+  const pxPerMm = _fig4PxPerMm();
+  for (const s of FIG4_SB_SPECS) {
+    const cell = document.getElementById(s.cellId);
+    if (!cell) continue;
+    cell.querySelectorAll(":scope > .sb-bar, :scope > .sb-lbl").forEach(n => n.remove());
+    const cellWmm = cell.getBoundingClientRect().width / pxPerMm;
+    const barWmm = s.frac * cellWmm;
+    const c = s.cfg;
+    const bar = document.createElement("div");
+    bar.className = "sb-bar";
+    bar.style.right  = `${c.rightMm}mm`;
+    bar.style.bottom = `${c.bottomMm}mm`;
+    bar.style.width  = `${barWmm}mm`;
+    bar.style.height = `${c.barHmm}mm`;
+    cell.appendChild(bar);
+    const lbl = document.createElement("div");
+    lbl.className = "sb-lbl";
+    lbl.textContent = `${s.um} μm`;
+    lbl.style.right    = `${c.rightMm}mm`;
+    lbl.style.bottom   = `${c.bottomMm + c.barHmm + c.labelGapMm}mm`;
+    lbl.style.fontSize = `${c.fontPt}pt`;
+    cell.appendChild(lbl);
+  }
+}
+
+// Live-update if the picker writes a new override while this tab is open.
+window.addEventListener("storage", e => {
+  if (e.key === STORAGE_KEY) location.reload();
+});
+
+// ── 4e: 2×3 grid of 5 same-sized regression panels + species legend ─────
+//   row 0:  Endo TRITC | Endo FITC  | Aerenchyma Ratio
+//   row 1:  Exo TRITC  | Exo FITC   | Legend
+// Bottom-right sub-cell hosts the species legend.
+const E_SVG = d3.select("#fig4e-svg").attr("font-family", "Helvetica, Arial, sans-serif");
+
+const E_VB_W = 106.8, E_VB_H = 73.2;
+const E_COLS = 3, E_ROWS = 2;
+const SUB_W = E_VB_W / E_COLS;   // 35.6
+const SUB_H = E_VB_H / E_ROWS;   // 27.575
+
+// Margins reserve room for axis titles: bottom ≥ 6.6 (tick labels + x-title)
+// and left ≥ 8 (tick labels + rotated y-title). left + right are balanced so
+// the "plot + y-label" assembly is centred on the sub-panel (which aligns
+// each plot column with the image column above it in panel b/c). Plot area
+// stays square: 35.6 - 9.5 - 3.5 = 22.6 wide, 36.6 - 6 - 8 = 22.6 tall.
+const SUB_MARGINS = { top: 6, right: 3.5, bottom: 8, left: 9.5 };
+
+const PLOT_CONFIGS = [
+  { letter: "e", row: 0, col: 0, title: "Endodermis Suberin",  field: "endodermis_TRITC", tickFmt: "~s", xLabel: "Ground Truth Intensity (a.u.)", yLabel: "Predicted Intensity (a.u.)" },
+  { letter: "g", row: 0, col: 1, title: "Endodermis Lignin",   field: "endodermis_FITC",  tickFmt: "~s", xLabel: "Ground Truth Intensity (a.u.)", yLabel: "Predicted Intensity (a.u.)" },
+  { letter: "i", row: 0, col: 2, title: "Aerenchyma Area",     field: "aerenchyma_ratio", tickFmt: "d",  xLabel: "Ground Truth Ratio (%)",        yLabel: "Predicted Ratio (%)", scale: 100 },
+  { letter: "f", row: 1, col: 0, title: "Exodermis Suberin",   field: "exodermis_TRITC",  tickFmt: "~s", xLabel: "Ground Truth Intensity (a.u.)", yLabel: "Predicted Intensity (a.u.)" },
+  { letter: "h", row: 1, col: 1, title: "Exodermis Lignin",    field: "exodermis_FITC",   tickFmt: "~s", xLabel: "Ground Truth Intensity (a.u.)", yLabel: "Predicted Intensity (a.u.)" },
+];
+const LEGEND_CELL = { row: 1, col: 2 };
+
+d3.csv("GT%26PRED.csv?t=" + TS).then(raw => {
+  E_SVG.selectAll("*").remove();
+
+  let nAer = 0;
+  PLOT_CONFIGS.forEach(cfg => {
+    const scale = cfg.scale || 1;
+    // parseFloat (not unary +) so empty CSV cells become NaN - otherwise
+    // Solanum's blank aerenchyma cells would parse to 0 and pollute the fit.
+    const pts = raw.map(r => ({
+      species: r.species,
+      x: parseFloat(r[`GT_${cfg.field}`])   * scale,
+      y: parseFloat(r[`Pred_${cfg.field}`]) * scale,
+    })).filter(p => isFinite(p.x) && isFinite(p.y));
+    if (cfg.field === "aerenchyma_ratio") nAer = pts.length;
+    Fig4Corr.drawPanel(E_SVG, {
+      x0: cfg.col * SUB_W, y0: cfg.row * SUB_H,
+      w: SUB_W, h: SUB_H,
+      title: cfg.title,
+      points: pts,
+      xLabel: cfg.xLabel, yLabel: cfg.yLabel,
+      tickFmt: cfg.tickFmt,
+      tickCount: 3,
+      margins: SUB_MARGINS,
+    });
+
+    // Sub-panel letter (10 pt bold black, top-left of the sub-cell - no box).
+    if (cfg.letter) {
+      E_SVG.append("text")
+        .attr("x", cfg.col * SUB_W + 0.6)
+        .attr("y", cfg.row * SUB_H + 3.5)
+        .attr("font-size", 3.53)              // 10 pt
+        .attr("font-weight", "bold")
+        .attr("fill", "#000")
+        .text(cfg.letter);
+    }
+  });
+
+  // Legend - bottom-right sub-cell. Single column (species markers first,
+  // then Linear fit / y = x), stacked vertically. The group is rendered at
+  // x = 0 then translated horizontally so its measured bounding box centres
+  // on the sub-cell's centre.
+  const lx0 = LEGEND_CELL.col * SUB_W;
+  const ly0 = LEGEND_CELL.row * SUB_H;
+  const fontSize = 2.47;   // 7 pt
+  const markerSize = 5.0;
+  const swatchHalfW = 2.0;
+  const rowH = 4.0;
+  const textGap = 2.4;
+
+  const speciesItems = Fig4Corr.SPECIES_ORDER.map(sp => {
+    const info = Fig4Corr.SPECIES_INFO[sp];
+    return { type: "marker", label: sp, color: info.color, symbol: info.symbol };
+  });
+  const lineItems = [
+    { type: "line", label: "Linear fit", color: "#222", strokeWidth: 0.4, dash: false },
+    { type: "line", label: "y = x",      color: "#bbb", strokeWidth: 0.3, dash: true  },
+  ];
+  const legendItems = [...speciesItems, ...lineItems];
+
+  const padY = (SUB_H - rowH * legendItems.length) / 2;
+  const legendG = E_SVG.append("g");
+  const swatchCX = 0;
+  const textX   = swatchCX + swatchHalfW + textGap - 0.5;
+  legendItems.forEach((item, i) => {
+    const cy = ly0 + padY + i * rowH + rowH / 2;
+    if (item.type === "marker") {
+      const sym = d3.symbol().type(item.symbol).size(markerSize)();
+      legendG.append("path")
+        .attr("d", sym).attr("transform", `translate(${swatchCX},${cy})`)
+        .attr("fill", item.color).attr("fill-opacity", 0.85);
+    } else {
+      const ln = legendG.append("line")
+        .attr("x1", swatchCX - swatchHalfW).attr("x2", swatchCX + swatchHalfW)
+        .attr("y1", cy).attr("y2", cy)
+        .attr("stroke", item.color).attr("stroke-width", item.strokeWidth);
+      if (item.dash) ln.attr("stroke-dasharray", "0.7 0.5");
+    }
+    legendG.append("text")
+      .attr("x", textX).attr("y", cy + fontSize * 0.35)
+      .attr("font-size", fontSize)
+      .text(item.label);
+  });
+  // Centre the legend horizontally on the sub-cell. getBBox() returns the
+  // tight bounding box of all children in user-space coords.
+  const bbox = legendG.node().getBBox();
+  const targetCx = lx0 + SUB_W / 2;
+  const currentCx = bbox.x + bbox.width / 2;
+  legendG.attr("transform", `translate(${targetCx - currentCx},0)`);
+
+  document.getElementById("info").textContent =
+    `figure 4 - ${raw.length} samples (4 intensity panels), ${nAer} aerenchyma samples`;
+}).catch(err => {
+  console.error(err);
+  document.getElementById("info").textContent = "Failed to load CSV: " + err.message;
+});
+
+// ── Save PNG / SVG ──────────────────────────────────────────────────────
+async function waitImgs() {
+  const imgs = document.querySelectorAll("#fig img.layer");
+  await Promise.all(Array.from(imgs).map(img =>
+    img.complete && img.naturalWidth ? Promise.resolve()
+    : new Promise(r => { img.onload = r; img.onerror = r; })));
+}
+
+function serializeSvg(svgEl) {
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const ser = new XMLSerializer();
+  return ser.serializeToString(clone);
+}
+
+async function rasterizeSvg(svgEl, pxW, pxH) {
+  const xml = serializeSvg(svgEl);
+  const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    await new Promise((ok, err) => { img.onload = ok; img.onerror = err; img.src = url; });
+    const cv = document.createElement("canvas");
+    cv.width = pxW; cv.height = pxH;
+    const ctx = cv.getContext("2d");
+    ctx.drawImage(img, 0, 0, pxW, pxH);
+    return cv;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Per-microscope image-adjustment helpers - same math as the on-screen
+// SVG filter (img-adjust-olympus / img-adjust-c10) so the rasterised PNG
+// and SVG exports match the live preview.
+// ════════════════════════════════════════════════════════════════════════
+const ADJUST_PARAMS = {
+  olympus: { gamma: 0.95, contrast: 84, brightness: 39, saturation: 1.2, sharpness: 0 },
+  c10:     { gamma: 0.90, contrast: 15, brightness: 0,  saturation: 1.1, sharpness: 0.4 },
+};
+function adjustParamsForSrc(src) {
+  if (!src) return null;
+  if (/pred/i.test(src) || /overlay/i.test(src)
+      || /_gt\./i.test(src) || /\/gt\.png/i.test(src)) return null;
+  if (src.includes("_Olympus_")) return ADJUST_PARAMS.olympus;
+  if (src.includes("_C10_"))     return ADJUST_PARAMS.c10;
+  return null;
+}
+function _buildBCGLUT(brightness, contrast, gamma) {
+  const lut = new Uint8ClampedArray(256);
+  const c = (contrast + 100) / 100;
+  for (let i = 0; i < 256; i++) {
+    let v = i / 255;
+    v = Math.pow(v, 1 / gamma);
+    v = (v - 0.5) * c + 0.5;
+    v = v + brightness / 100;
+    lut[i] = Math.max(0, Math.min(1, v)) * 255;
+  }
+  return lut;
+}
+function _applyBCG(imgData, lut) {
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = lut[d[i]]; d[i+1] = lut[d[i+1]]; d[i+2] = lut[d[i+2]];
+  }
+}
+function _applySaturation(imgData, sat) {
+  if (Math.abs(sat - 1) < 1e-3) return;
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i+1], b = d[i+2];
+    const luma = 0.2126*r + 0.7152*g + 0.0722*b;
+    d[i]   = Math.max(0, Math.min(255, luma + (r - luma) * sat));
+    d[i+1] = Math.max(0, Math.min(255, luma + (g - luma) * sat));
+    d[i+2] = Math.max(0, Math.min(255, luma + (b - luma) * sat));
+  }
+}
+function _applyUnsharp(imgData, amount) {
+  const w = imgData.width, h = imgData.height;
+  const src = new Uint8ClampedArray(imgData.data);
+  const dst = imgData.data;
+  const k = amount * 0.5, center = 1 + 4*k;
+  for (let y = 1; y < h - 1; y++) {
+    const ro = y * w * 4;
+    for (let x = 1; x < w - 1; x++) {
+      const i = ro + x * 4;
+      for (let ch = 0; ch < 3; ch++) {
+        dst[i+ch] = Math.max(0, Math.min(255,
+          src[i+ch] * center
+          - (src[i-w*4+ch] + src[i+w*4+ch] + src[i-4+ch] + src[i+4+ch]) * k));
+      }
+    }
+  }
+}
+function applyPixelAdjust(canvas, params) {
+  const ctx = canvas.getContext("2d");
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  _applyBCG(imgData, _buildBCGLUT(params.brightness, params.contrast, params.gamma));
+  _applySaturation(imgData, params.saturation);
+  if (params.sharpness > 0) _applyUnsharp(imgData, params.sharpness);
+  ctx.putImageData(imgData, 0, 0);
+}
+
+async function savePNG() {
+  await waitImgs();
+  const DPI = parseInt(document.getElementById("dpi").value, 10) || 600;
+  const pxPerMm = DPI / 25.4;
+  const cropBorderMm = parseFloat(getComputedStyle(root).getPropertyValue("--crop-border-mm"));
+  const { totalW: totalWmm, totalH: totalHmm } = panelMm();
+
+  const figEl = document.getElementById("fig");
+  const figRect = figEl.getBoundingClientRect();
+  const cssPxPerMm = figRect.width / totalWmm;
+
+  const W = Math.round(totalWmm * pxPerMm);
+  const H = Math.round(totalHmm * pxPerMm);
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "white"; ctx.fillRect(0, 0, W, H);
+
+  // Image-backed cells (everything except svg-cells)
+  for (const cell of figEl.querySelectorAll(".cell:not(.svg-cell)")) {
+    const r = cell.getBoundingClientRect();
+    const x = Math.round((r.left - figRect.left) / cssPxPerMm * pxPerMm);
+    const y = Math.round((r.top  - figRect.top ) / cssPxPerMm * pxPerMm);
+    const w = Math.round(r.width  / cssPxPerMm * pxPerMm);
+    const h = Math.round(r.height / cssPxPerMm * pxPerMm);
+    ctx.fillStyle = "black"; ctx.fillRect(x, y, w, h);
+    for (const img of cell.querySelectorAll("img.layer")) {
+      if (!img.naturalWidth) continue;
+      const sw = img.naturalWidth, sh = img.naturalHeight;
+      const scale = Math.max(w / sw, h / sh);
+      const sCropW = w / scale, sCropH = h / scale;
+      const sx = (sw - sCropW) / 2, sy = (sh - sCropH) / 2;
+      const params = adjustParamsForSrc(img.src);
+      if (params) {
+        // Render into an off-screen canvas at the cell's output size,
+        // apply the same pixel-level boost the on-screen CSS filter does,
+        // then composite onto the master canvas.
+        const off = document.createElement("canvas");
+        off.width  = Math.max(1, w);
+        off.height = Math.max(1, h);
+        off.getContext("2d").drawImage(img, sx, sy, sCropW, sCropH, 0, 0, off.width, off.height);
+        applyPixelAdjust(off, params);
+        ctx.drawImage(off, x, y);
+      } else {
+        ctx.drawImage(img, sx, sy, sCropW, sCropH, x, y, w, h);
+      }
+    }
+    // Grey border around crop-cells (panels b/c/d image tiles) only.
+    // Per-side rects so adjacent cells share a single 0.25 mm divider
+    // instead of two stacking into a 0.5 mm strip. Mirrors the CSS rules
+    // that drop the left border on cells whose left neighbour is also a
+    // crop-cell, and the bottom border on cell-aer.
+    if (cell.classList.contains("crop-cell")) {
+      const bw = Math.max(1, Math.round(cropBorderMm * pxPerMm));
+      const skipLeft = ["cell-exo-tritc-ovl", "cell-exo-tritc-ovl-thr",
+                        "cell-endo-fitc-ovl", "cell-endo-fitc-ovl-thr"].includes(cell.id);
+      const skipBottom = cell.id === "cell-aer";
+      ctx.fillStyle = "#888";
+      ctx.fillRect(x, y, w, bw);                       // top
+      if (!skipBottom) ctx.fillRect(x, y + h - bw, w, bw);  // bottom
+      if (!skipLeft)   ctx.fillRect(x, y, bw, h);            // left
+      ctx.fillRect(x + w - bw, y, bw, h);              // right
+    }
+  }
+
+  // SVG-backed cells (4e and 4f) - rasterize each <svg> at the target DPI
+  for (const cell of figEl.querySelectorAll(".svg-cell")) {
+    const r = cell.getBoundingClientRect();
+    const x = Math.round((r.left - figRect.left) / cssPxPerMm * pxPerMm);
+    const y = Math.round((r.top  - figRect.top ) / cssPxPerMm * pxPerMm);
+    const w = Math.round(r.width  / cssPxPerMm * pxPerMm);
+    const h = Math.round(r.height / cssPxPerMm * pxPerMm);
+    ctx.fillStyle = "white"; ctx.fillRect(x, y, w, h);
+    const svgEl = cell.querySelector("svg");
+    if (svgEl) {
+      const tile = await rasterizeSvg(svgEl, w, h);
+      ctx.drawImage(tile, x, y);
+    }
+  }
+
+  // Crop boxes + dashed connectors on the main 4a panel
+  if (showBoxes.checked && CROPS_META) {
+    const main = document.getElementById("cell-main").getBoundingClientRect();
+    const mainXmm = (main.left - figRect.left) / cssPxPerMm;
+    const mainYmm = (main.top  - figRect.top ) / cssPxPerMm;
+    const mainWmm = main.width  / cssPxPerMm;
+    const mainHmm = main.height / cssPxPerMm;
+    const [imgW, imgH] = CROPS_META.image_size;
+    const boxRectsMm = {};
+    const boxLwPx = Math.max(1, Math.round(0.6 * pxPerMm));
+    ctx.strokeStyle = "white"; ctx.lineWidth = boxLwPx;
+    for (const tag of ["endo", "exo", "aer"]) {
+      const c = CROPS_META.crops[tag];
+      if (!c) continue;
+      const cw = c.w != null ? c.w : c.size;
+      const ch = c.h != null ? c.h : c.size;
+      const xMm = mainXmm + (c.x / imgW) * mainWmm;
+      const yMm = mainYmm + (c.y / imgH) * mainHmm;
+      const wMm = (cw / imgW) * mainWmm;
+      const hMm = (ch / imgH) * mainHmm;
+      // Inset by half-stroke so the visible outline stays INSIDE the box
+      // bounds (matches CSS border-box; keeps the label clear of the stroke).
+      ctx.strokeRect(Math.round(xMm * pxPerMm) + boxLwPx / 2,
+                     Math.round(yMm * pxPerMm) + boxLwPx / 2,
+                     Math.round(wMm * pxPerMm) - boxLwPx,
+                     Math.round(hMm * pxPerMm) - boxLwPx);
+      boxRectsMm[tag] = { left: xMm, right: xMm + wMm, top: yMm, bottom: yMm + hMm };
+    }
+    ctx.strokeStyle = "#888"; ctx.lineWidth = Math.max(1, Math.round(0.25 * pxPerMm));
+    ctx.setLineDash([0.8 * pxPerMm, 0.6 * pxPerMm]);
+    for (const tag of ["exo", "endo", "aer"]) {
+      const cfg = ZOOM_CONNECTOR[tag]; const b = boxRectsMm[tag];
+      if (!cfg || !b) continue;
+      const destEl = document.getElementById(cfg.cell);
+      const dest = destEl.getBoundingClientRect();
+      const cellMm = {
+        left:   (dest.left   - figRect.left) / cssPxPerMm,
+        right:  (dest.right  - figRect.left) / cssPxPerMm,
+        top:    (dest.top    - figRect.top ) / cssPxPerMm,
+        bottom: (dest.bottom - figRect.top ) / cssPxPerMm,
+      };
+      const segments = connectorEndpoints(b, cellMm, cfg.dir);
+      for (const [x1, y1, x2, y2] of segments) {
+        ctx.beginPath();
+        ctx.moveTo(Math.round(x1 * pxPerMm), Math.round(y1 * pxPerMm));
+        ctx.lineTo(Math.round(x2 * pxPerMm), Math.round(y2 * pxPerMm));
+        ctx.stroke();
+      }
+    }
+    ctx.setLineDash([]);
+
+    // Crop-box labels
+    const cropLabelMm = parseFloat(getComputedStyle(root).getPropertyValue("--crop-box-label-pt")) * 0.352778;
+    ctx.font = `bold ${cropLabelMm * pxPerMm}px Helvetica, Arial, sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    for (const span of figEl.querySelectorAll(".crop-box-label")) {
+      const sr = span.getBoundingClientRect();
+      const sxMm = (sr.left - figRect.left) / cssPxPerMm;
+      const syMm = (sr.top  - figRect.top ) / cssPxPerMm;
+      const swMm = sr.width  / cssPxPerMm;
+      const shMm = sr.height / cssPxPerMm;
+      ctx.fillStyle = "black";
+      ctx.fillRect(Math.round(sxMm * pxPerMm), Math.round(syMm * pxPerMm),
+                   Math.round(swMm * pxPerMm), Math.round(shMm * pxPerMm));
+      ctx.fillStyle = "white";
+      ctx.fillText(span.textContent,
+        Math.round((sxMm + 0.8) * pxPerMm),
+        Math.round((syMm + 0.4) * pxPerMm));
+    }
+  }
+
+  // Tag labels (TRITC / FITC / DAPI / overlay headers) - rendered bold to
+  // match the CSS .tag-label rule. Multi-line spans (e.g. "TRITC Channel<br>
+  // (Suberin)") are sized using the span's own bounding rect so the black
+  // background matches what the browser draws.
+  const tagMm = parseFloat(getComputedStyle(root).getPropertyValue("--tag-pt")) * 0.352778;
+  ctx.font = `bold ${tagMm * pxPerMm}px Helvetica, Arial, sans-serif`;
+  ctx.textBaseline = "alphabetic";
+  for (const span of figEl.querySelectorAll(".tag-label")) {
+    const sr = span.getBoundingClientRect();
+    const xMm = (sr.left - figRect.left) / cssPxPerMm;
+    const yMm = (sr.top  - figRect.top ) / cssPxPerMm;
+    const wMm = sr.width  / cssPxPerMm;
+    const hMm = sr.height / cssPxPerMm;
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(Math.round(xMm * pxPerMm), Math.round(yMm * pxPerMm),
+                 Math.round(wMm * pxPerMm), Math.round(hMm * pxPerMm));
+    const lines = span.innerText.split("\n").filter(s => s.length > 0);
+    const lineH = hMm / lines.length;
+    const cxMm = xMm + wMm / 2;
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    lines.forEach((line, i) => {
+      const baselineY = yMm + lineH * (i + 0.8);
+      ctx.fillText(line, Math.round(cxMm * pxPerMm),
+                         Math.round(baselineY * pxPerMm));
+    });
+  }
+  ctx.textAlign = "left";
+
+  // Species / genotype label inside cell-main (bold white text on a
+  // translucent black ribbon at top-centre).
+  ctx.textBaseline = "alphabetic";
+  for (const span of figEl.querySelectorAll(".species-label")) {
+    const sr = span.getBoundingClientRect();
+    const xMm = (sr.left - figRect.left) / cssPxPerMm;
+    const yMm = (sr.top  - figRect.top ) / cssPxPerMm;
+    const wMm = sr.width  / cssPxPerMm;
+    const hMm = sr.height / cssPxPerMm;
+    const fontMm = parseFloat(getComputedStyle(span).fontSize) / 96 * 25.4;
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(Math.round(xMm * pxPerMm), Math.round(yMm * pxPerMm),
+                 Math.round(wMm * pxPerMm), Math.round(hMm * pxPerMm));
+    ctx.fillStyle = "white";
+    ctx.font = `bold ${fontMm * pxPerMm}px Helvetica, Arial, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(span.textContent,
+      Math.round((xMm + wMm / 2) * pxPerMm),
+      Math.round((yMm + hMm * 0.8) * pxPerMm));
+  }
+  ctx.textAlign = "left";
+
+  // 100 µm / 10 µm scale bars in panels a/b/c/d - walk the injected
+  // .sb-bar and .sb-lbl nodes and mirror the CSS rendering (haloed white
+  // bar + right-anchored "N μm" text with black shadow).
+  for (const barEl of figEl.querySelectorAll(".sb-bar")) {
+    const sr = barEl.getBoundingClientRect();
+    const xMm = (sr.left - figRect.left) / cssPxPerMm;
+    const yMm = (sr.top  - figRect.top ) / cssPxPerMm;
+    const wMm = sr.width  / cssPxPerMm;
+    const hMm = sr.height / cssPxPerMm;
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.fillRect(Math.round((xMm - 0.1) * pxPerMm),
+                 Math.round((yMm - 0.1) * pxPerMm),
+                 Math.round((wMm + 0.2) * pxPerMm),
+                 Math.round((hMm + 0.2) * pxPerMm));
+    ctx.fillStyle = "white";
+    ctx.fillRect(Math.round(xMm * pxPerMm), Math.round(yMm * pxPerMm),
+                 Math.round(wMm * pxPerMm), Math.round(hMm * pxPerMm));
+  }
+  for (const lblEl of figEl.querySelectorAll(".sb-lbl")) {
+    const sr = lblEl.getBoundingClientRect();
+    const rightMm  = (sr.right  - figRect.left) / cssPxPerMm;
+    const bottomMm = (sr.bottom - figRect.top ) / cssPxPerMm;
+    const fontPx = parseFloat(getComputedStyle(lblEl).fontSize) * (pxPerMm / cssPxPerMm);
+    ctx.font = `${fontPx}px Helvetica, Arial, sans-serif`;
+    ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+    const stroke = 0.1;
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    for (const [dx, dy] of [[stroke,0],[-stroke,0],[0,stroke],[0,-stroke]]) {
+      ctx.fillText(lblEl.textContent,
+        Math.round((rightMm  + dx) * pxPerMm),
+        Math.round((bottomMm + dy) * pxPerMm));
+    }
+    ctx.fillStyle = "white";
+    ctx.fillText(lblEl.textContent,
+      Math.round(rightMm  * pxPerMm),
+      Math.round(bottomMm * pxPerMm));
+  }
+  ctx.textAlign = "left";
+
+  // Panel letters (a/b/c/d/e/f)
+  const letterMm = parseFloat(getComputedStyle(root).getPropertyValue("--letter-pt")) * 0.352778;
+  ctx.font = `bold ${letterMm * pxPerMm}px Helvetica, Arial, sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const span of figEl.querySelectorAll(".panel-letter")) {
+    const sr = span.getBoundingClientRect();
+    const sxMm = (sr.left - figRect.left) / cssPxPerMm;
+    const syMm = (sr.top  - figRect.top ) / cssPxPerMm;
+    const swMm = sr.width  / cssPxPerMm;
+    const shMm = sr.height / cssPxPerMm;
+    ctx.fillStyle = "black";
+    ctx.fillRect(Math.round(sxMm * pxPerMm), Math.round(syMm * pxPerMm),
+                 Math.round(swMm * pxPerMm), Math.round(shMm * pxPerMm));
+    ctx.fillStyle = "white";
+    ctx.fillText(span.textContent,
+      Math.round((sxMm + swMm / 2) * pxPerMm),
+      Math.round((syMm + shMm / 2) * pxPerMm));
+  }
+
+  canvas.toBlob(blob => {
+    if (!blob) { alert("PNG export failed (canvas tainted). Serve via python3 -m http.server."); return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `figure4_assembled_${DPI}dpi.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, "image/png");
+}
+document.getElementById("save").addEventListener("click", savePNG);
+
+async function fetchDataURL(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`fetch ${url} → ${res.status}`);
+  const blob = await res.blob();
+  return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+}
+
+async function saveSVG() {
+  await waitImgs();
+  const cropBorderMm = parseFloat(getComputedStyle(root).getPropertyValue("--crop-border-mm"));
+  const { totalW: totalWmm, totalH: totalHmm } = panelMm();
+  const labelMm  = parseFloat(getComputedStyle(root).getPropertyValue("--label-pt"))  * 0.352778;
+  const letterMm = parseFloat(getComputedStyle(root).getPropertyValue("--letter-pt")) * 0.352778;
+  const tagMm    = parseFloat(getComputedStyle(root).getPropertyValue("--tag-pt"))    * 0.352778;
+
+  const figEl = document.getElementById("fig");
+  const figRect = figEl.getBoundingClientRect();
+  const cssPxPerMm = figRect.width / totalWmm;
+  const toMm = px => px / cssPxPerMm;
+
+  // Embed image assets as data URLs (so the saved SVG is self-contained)
+  const imgUris = {};
+  for (const img of figEl.querySelectorAll("img.layer")) {
+    try { imgUris[img.id] = await fetchDataURL(img.src.split("?")[0]); }
+    catch (e) { console.warn("fetch", img.id, e); imgUris[img.id] = null; }
+  }
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("xmlns", svgNS);
+  svg.setAttribute("viewBox", `0 0 ${totalWmm} ${totalHmm}`);
+  svg.setAttribute("width",  `${totalWmm}mm`);
+  svg.setAttribute("height", `${totalHmm}mm`);
+  const style = document.createElementNS(svgNS, "style");
+  style.textContent = "text { font-family: Helvetica, Arial, sans-serif; }";
+  svg.appendChild(style);
+
+  // ── Embed per-microscope filter <defs> so the exported SVG carries the
+  //    same boost shown on screen. Fluorescence <image>s below get the
+  //    appropriate filter="url(#...)" attribute.
+  const defs = document.createElementNS(svgNS, "defs");
+  defs.innerHTML = `
+    <filter id="img-adjust-olympus" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.0526" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncG type="linear" slope="1.84" intercept="-0.03"/>
+        <feFuncB type="linear" slope="1.84" intercept="-0.03"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.2"/>
+    </filter>
+    <filter id="img-adjust-c10" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncG type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+        <feFuncB type="gamma" amplitude="1" exponent="1.1111" offset="0"/>
+      </feComponentTransfer>
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="1.15" intercept="-0.075"/>
+        <feFuncG type="linear" slope="1.15" intercept="-0.075"/>
+        <feFuncB type="linear" slope="1.15" intercept="-0.075"/>
+      </feComponentTransfer>
+      <feColorMatrix type="saturate" values="1.1"/>
+      <feConvolveMatrix order="3" preserveAlpha="true"
+        kernelMatrix="0 -0.2 0 -0.2 1.8 -0.2 0 -0.2 0"/>
+    </filter>`;
+  svg.appendChild(defs);
+
+  const bg = document.createElementNS(svgNS, "rect");
+  bg.setAttribute("x", 0); bg.setAttribute("y", 0);
+  bg.setAttribute("width", totalWmm); bg.setAttribute("height", totalHmm);
+  bg.setAttribute("fill", "white");
+  svg.appendChild(bg);
+
+  function rectMm(el) {
+    const r = el.getBoundingClientRect();
+    return {
+      x: toMm(r.left - figRect.left),
+      y: toMm(r.top  - figRect.top),
+      w: toMm(r.width),
+      h: toMm(r.height),
+    };
+  }
+
+  // Image cells
+  for (const cell of figEl.querySelectorAll(".cell:not(.svg-cell)")) {
+    const c = rectMm(cell);
+    const back = document.createElementNS(svgNS, "rect");
+    back.setAttribute("x", c.x); back.setAttribute("y", c.y);
+    back.setAttribute("width", c.w); back.setAttribute("height", c.h);
+    back.setAttribute("fill", "black"); svg.appendChild(back);
+    for (const img of cell.querySelectorAll("img.layer")) {
+      const href = imgUris[img.id]; if (!href) continue;
+      const im = document.createElementNS(svgNS, "image");
+      im.setAttribute("x", c.x); im.setAttribute("y", c.y);
+      im.setAttribute("width", c.w); im.setAttribute("height", c.h);
+      im.setAttribute("preserveAspectRatio", "xMidYMid slice");
+      im.setAttribute("href", href);
+      // Tag fluorescence images with the same filter that runs on screen.
+      const params = adjustParamsForSrc(img.src);
+      if (params === ADJUST_PARAMS.olympus) im.setAttribute("filter", "url(#img-adjust-olympus)");
+      else if (params === ADJUST_PARAMS.c10) im.setAttribute("filter", "url(#img-adjust-c10)");
+      svg.appendChild(im);
+    }
+    // Grey border around crop-cells (panels b/c/d image tiles) only.
+    // Per-side <rect>s so adjacent cells share a single 0.25 mm divider,
+    // matching the on-screen CSS (left border dropped for cells whose
+    // left neighbour is also a crop-cell; bottom border dropped for
+    // cell-aer because cell-aer-overlay's top border is the shared
+    // divider with it).
+    if (cell.classList.contains("crop-cell")) {
+      const skipLeft = ["cell-exo-tritc-ovl", "cell-exo-tritc-ovl-thr",
+                        "cell-endo-fitc-ovl", "cell-endo-fitc-ovl-thr"].includes(cell.id);
+      const skipBottom = cell.id === "cell-aer";
+      const addRect = (x, y, w, h) => {
+        const re = document.createElementNS(svgNS, "rect");
+        re.setAttribute("x", x); re.setAttribute("y", y);
+        re.setAttribute("width", w); re.setAttribute("height", h);
+        re.setAttribute("fill", "#888");
+        svg.appendChild(re);
+      };
+      addRect(c.x, c.y, c.w, cropBorderMm);                            // top
+      if (!skipBottom) addRect(c.x, c.y + c.h - cropBorderMm, c.w, cropBorderMm); // bottom
+      if (!skipLeft)   addRect(c.x, c.y, cropBorderMm, c.h);            // left
+      addRect(c.x + c.w - cropBorderMm, c.y, cropBorderMm, c.h);        // right
+    }
+  }
+
+  // SVG cells (4e/4f) - embed each live <svg>'s children inside a translated <g>
+  for (const cell of figEl.querySelectorAll(".svg-cell")) {
+    const c = rectMm(cell);
+    const src = cell.querySelector("svg");
+    if (!src) continue;
+    const vb = (src.getAttribute("viewBox") || `0 0 ${c.w} ${c.h}`).split(/\s+/).map(Number);
+    const [vbX, vbY, vbW, vbH] = vb;
+    const sx = c.w / vbW, sy = c.h / vbH;
+    const g = document.createElementNS(svgNS, "g");
+    g.setAttribute("transform", `translate(${c.x - vbX * sx},${c.y - vbY * sy}) scale(${sx},${sy})`);
+    for (const child of Array.from(src.childNodes)) g.appendChild(child.cloneNode(true));
+    svg.appendChild(g);
+  }
+
+  // Crop boxes + connectors on main
+  if (showBoxes.checked && CROPS_META) {
+    const main = rectMm(document.getElementById("cell-main"));
+    const [imgW, imgH] = CROPS_META.image_size;
+    const boxes = {};
+    for (const tag of ["endo", "exo", "aer"]) {
+      const c = CROPS_META.crops[tag]; if (!c) continue;
+      const cw = c.w != null ? c.w : c.size;
+      const ch = c.h != null ? c.h : c.size;
+      const xMm = main.x + (c.x / imgW) * main.w;
+      const yMm = main.y + (c.y / imgH) * main.h;
+      const wMm = (cw / imgW) * main.w;
+      const hMm = (ch / imgH) * main.h;
+      // Inset by half-stroke so the visible outline stays INSIDE the box.
+      const re = document.createElementNS(svgNS, "rect");
+      re.setAttribute("x", xMm + 0.3); re.setAttribute("y", yMm + 0.3);
+      re.setAttribute("width", wMm - 0.6); re.setAttribute("height", hMm - 0.6);
+      re.setAttribute("fill", "none");
+      re.setAttribute("stroke", "white");
+      re.setAttribute("stroke-width", 0.6);
+      svg.appendChild(re);
+      boxes[tag] = { left: xMm, right: xMm + wMm, top: yMm, bottom: yMm + hMm };
+    }
+    for (const tag of ["exo", "endo", "aer"]) {
+      const cfg = ZOOM_CONNECTOR[tag]; const b = boxes[tag];
+      if (!cfg || !b) continue;
+      const dest = rectMm(document.getElementById(cfg.cell));
+      const cellMm = { left: dest.x, right: dest.x + dest.w, top: dest.y, bottom: dest.y + dest.h };
+      const segments = connectorEndpoints(b, cellMm, cfg.dir);
+      for (const [x1, y1, x2, y2] of segments) {
+        const ln = document.createElementNS(svgNS, "line");
+        ln.setAttribute("x1", x1); ln.setAttribute("y1", y1);
+        ln.setAttribute("x2", x2); ln.setAttribute("y2", y2);
+        ln.setAttribute("stroke", "#888"); ln.setAttribute("stroke-width", 0.25);
+        ln.setAttribute("stroke-dasharray", "0.8,0.6");
+        svg.appendChild(ln);
+      }
+    }
+    // crop-box labels
+    const cropLabelMm = parseFloat(getComputedStyle(root).getPropertyValue("--crop-box-label-pt")) * 0.352778;
+    for (const span of figEl.querySelectorAll(".crop-box-label")) {
+      const r = rectMm(span);
+      const re = document.createElementNS(svgNS, "rect");
+      re.setAttribute("x", r.x); re.setAttribute("y", r.y);
+      re.setAttribute("width", r.w); re.setAttribute("height", r.h);
+      re.setAttribute("fill", "black"); svg.appendChild(re);
+      const t = document.createElementNS(svgNS, "text");
+      t.setAttribute("x", r.x + r.w / 2); t.setAttribute("y", r.y + r.h / 2);
+      t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "central");
+      t.setAttribute("fill", "white"); t.setAttribute("font-size", cropLabelMm); t.setAttribute("font-weight", "bold");
+      t.textContent = span.textContent; svg.appendChild(t);
+    }
+  }
+
+  // Tag labels (TRITC / FITC / DAPI / overlay headers) - bold. Multi-line
+  // spans (e.g. "TRITC Channel<br>(Suberin)") use the span's own bbox so the
+  // background matches whatever the browser laid out.
+  for (const span of figEl.querySelectorAll(".tag-label")) {
+    const sr = rectMm(span);
+    const re = document.createElementNS(svgNS, "rect");
+    re.setAttribute("x", sr.x); re.setAttribute("y", sr.y);
+    re.setAttribute("width", sr.w); re.setAttribute("height", sr.h);
+    re.setAttribute("fill", "rgba(0,0,0,0.5)"); svg.appendChild(re);
+    const lines = span.innerText.split("\n").filter(s => s.length > 0);
+    const lineH = sr.h / lines.length;
+    lines.forEach((line, i) => {
+      const t = document.createElementNS(svgNS, "text");
+      t.setAttribute("x", sr.x + sr.w / 2);
+      t.setAttribute("y", sr.y + lineH * (i + 0.8));
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("fill", "white");
+      t.setAttribute("font-size", tagMm);
+      t.setAttribute("font-weight", "bold");
+      t.textContent = line;
+      svg.appendChild(t);
+    });
+  }
+
+  // Species / genotype label on cell-main - bold white on translucent
+  // black ribbon at top-centre.
+  for (const span of figEl.querySelectorAll(".species-label")) {
+    const r = rectMm(span);
+    const fontMm = parseFloat(getComputedStyle(span).fontSize) / 96 * 25.4;
+    const re = document.createElementNS(svgNS, "rect");
+    re.setAttribute("x", r.x); re.setAttribute("y", r.y);
+    re.setAttribute("width", r.w); re.setAttribute("height", r.h);
+    re.setAttribute("fill", "rgba(0,0,0,0.55)"); svg.appendChild(re);
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("x", r.x + r.w / 2);
+    t.setAttribute("y", r.y + r.h * 0.8);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("fill", "white");
+    t.setAttribute("font-size", fontMm);
+    t.setAttribute("font-weight", "bold");
+    t.textContent = span.textContent;
+    svg.appendChild(t);
+  }
+
+  // 100 µm / 10 µm scale bars - native SVG primitives: black halo +
+  // white bar rect, plus a right-anchored "N μm" text with black stroke.
+  for (const barEl of figEl.querySelectorAll(".sb-bar")) {
+    const r = rectMm(barEl);
+    const halo = document.createElementNS(svgNS, "rect");
+    halo.setAttribute("x", r.x - 0.1);
+    halo.setAttribute("y", r.y - 0.1);
+    halo.setAttribute("width",  r.w + 0.2);
+    halo.setAttribute("height", r.h + 0.2);
+    halo.setAttribute("fill", "rgba(0,0,0,0.85)");
+    svg.appendChild(halo);
+    const re = document.createElementNS(svgNS, "rect");
+    re.setAttribute("x", r.x); re.setAttribute("y", r.y);
+    re.setAttribute("width", r.w); re.setAttribute("height", r.h);
+    re.setAttribute("fill", "white");
+    svg.appendChild(re);
+  }
+  for (const lblEl of figEl.querySelectorAll(".sb-lbl")) {
+    const r = rectMm(lblEl);
+    const fontMm = parseFloat(getComputedStyle(lblEl).fontSize) / 96 * 25.4;
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("x", r.x + r.w);
+    t.setAttribute("y", r.y + r.h);
+    t.setAttribute("text-anchor", "end");
+    t.setAttribute("dominant-baseline", "text-after-edge");
+    t.setAttribute("font-size", fontMm);
+    t.setAttribute("fill", "white");
+    t.setAttribute("stroke", "rgba(0,0,0,0.85)");
+    t.setAttribute("stroke-width", "0.15");
+    t.setAttribute("paint-order", "stroke fill");
+    t.textContent = lblEl.textContent;
+    svg.appendChild(t);
+  }
+
+  // Panel letters
+  for (const span of figEl.querySelectorAll(".panel-letter")) {
+    const r = rectMm(span);
+    const re = document.createElementNS(svgNS, "rect");
+    re.setAttribute("x", r.x); re.setAttribute("y", r.y);
+    re.setAttribute("width", r.w); re.setAttribute("height", r.h);
+    re.setAttribute("fill", "black"); svg.appendChild(re);
+    const t = document.createElementNS(svgNS, "text");
+    t.setAttribute("x", r.x + r.w / 2); t.setAttribute("y", r.y + r.h / 2);
+    t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "central");
+    t.setAttribute("fill", "white"); t.setAttribute("font-size", letterMm); t.setAttribute("font-weight", "bold");
+    t.textContent = span.textContent; svg.appendChild(t);
+  }
+
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "figure4_assembled.svg";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+document.getElementById("save-svg").addEventListener("click", saveSVG);
+</script>
+
+</body>
+</html>

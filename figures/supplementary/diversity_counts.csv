@@ -1,0 +1,1696 @@
+uid,species,genotype,split
+Millet_Olympus_Exp1_1-2cm_29,Millet,AW23,train
+Millet_Olympus_Exp1_1-2cm_39,Millet,AW23,train
+Millet_Olympus_Exp1_1-2cm_53,Millet,AW23,train
+Millet_Olympus_Exp1_1-2cm_55,Millet,AW23,train
+Millet_Olympus_Exp1_1-2cm_63,Millet,AW23,train
+Millet_Olympus_Exp1_1-2cm_80,Millet,AW23,train
+Millet_Olympus_Exp1_2-3cm_13,Millet,AW23,train
+Millet_Olympus_Exp1_2-3cm_20,Millet,AW23,train
+Millet_Olympus_Exp1_5-6cm_83,Millet,AW23,train
+Millet_Olympus_Exp1_7-8cm__71,Millet,AW23,train
+Millet_Olympus_Exp2_3-4cm__07,Millet,AW23,test
+Millet_Olympus_Exp2_5-6cm_04,Millet,AW23,test
+Millet_Olympus_Exp2_5-6cm_27,Millet,AW23,test
+Millet_Olympus_Exp2_5-6cm_41,Millet,AW23,test
+Millet_Olympus_Exp2_5-6cm_42,Millet,AW23,test
+Millet_Olympus_Exp2_5-6cm_51,Millet,AW23,test
+Millet_Olympus_Exp2_5-6cm_67,Millet,AW23,test
+Millet_Olympus_Exp2_5-6cm_74,Millet,AW23,test
+Millet_Olympus_Exp2_5-6cm_79,Millet,AW23,test
+Millet_Olympus_Exp2_5-6cm_89,Millet,AW23,test
+Millet_Olympus_Exp2_7-8cm_17,Millet,AW23,test
+Millet_Olympus_Exp2_9-10cm_19,Millet,AW23,test
+Millet_Olympus_Exp3_0-1cm_01,Millet,AW23,train
+Millet_Olympus_Exp3_0-1cm_05,Millet,AW23,train
+Millet_Olympus_Exp3_0-1cm_23,Millet,AW23,train
+Millet_Olympus_Exp3_0-1cm_43,Millet,AW23,train
+Millet_Olympus_Exp3_0-1cm_50,Millet,AW23,train
+Millet_Olympus_Exp3_0-1cm_52,Millet,AW23,train
+Millet_Olympus_Exp3_1-2cm_21,Millet,AW23,train
+Millet_Olympus_Exp3_1-2cm_42,Millet,AW23,train
+Millet_Olympus_Exp3_1-2cm_52,Millet,AW23,train
+Millet_Olympus_Exp3_1-2cm_59,Millet,AW23,train
+Millet_Olympus_Exp3_1-2cm_67,Millet,AW23,train
+Millet_Olympus_Exp3_1-2cm_78,Millet,AW23,train
+Millet_Olympus_Exp3_1-2cm_86,Millet,AW23,train
+Millet_Olympus_Exp3_1-2cm_92,Millet,AW23,train
+Millet_Olympus_Exp3_1-2cm__11,Millet,AW23,train
+Millet_Olympus_Exp3_9-10cm_57,Millet,AW23,train
+Millet_Olympus_Exp4_1-2cm__02,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__08,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__16,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__17,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__26,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__37,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__55,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__63,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__64,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__72,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__75,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__81,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__83,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__103,Millet,AW23,test
+Millet_Olympus_Exp4_1-2cm__106,Millet,AW23,test
+Millet_Olympus_Exp5_1-2cm__03,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__04,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__09,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__21,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__45,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__46,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__49,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__62,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__65,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__71,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__74,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__78,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__88,Millet,AW23,train
+Millet_Olympus_Exp5_1-2cm__100,Millet,AW23,train
+Millet_Olympus_Exp6_5-6cm__28,Millet,AW23,test
+Millet_Olympus_Exp6_5-6cm__48,Millet,AW23,test
+Millet_Olympus_Exp6_5-6cm__54,Millet,AW23,test
+Millet_Olympus_Exp6_5-6cm__57,Millet,AW23,test
+Millet_Olympus_Exp6_5-6cm__80,Millet,AW23,test
+Millet_Olympus_Exp7_3-4cm__12,Millet,AW23,train
+Millet_Olympus_Exp7_5-6cm__06,Millet,AW23,train
+Millet_Olympus_Exp7_5-6cm__22,Millet,AW23,train
+Millet_Olympus_Exp7_5-6cm__27,Millet,AW23,train
+Millet_Olympus_Exp7_5-6cm__32,Millet,AW23,train
+Millet_Olympus_Exp7_5-6cm__33,Millet,AW23,train
+Millet_Olympus_Exp7_5-6cm__56,Millet,AW23,train
+Millet_Olympus_Exp7_5-6cm__59,Millet,AW23,train
+Millet_Olympus_Exp7_5-6cm__70,Millet,AW23,train
+Millet_Olympus_Exp8_1-2cm__01,Millet,AW23,train
+Millet_Olympus_Exp8_1-2cm__10,Millet,AW23,train
+Millet_Olympus_Exp8_1-2cm__18,Millet,AW23,train
+Millet_Olympus_Exp8_1-2cm__38,Millet,AW23,train
+Millet_Olympus_Exp8_1-2cm__41,Millet,AW23,train
+Millet_Olympus_Exp8_1-2cm__58,Millet,AW23,train
+Millet_Olympus_Exp8_1-2cm__84,Millet,AW23,train
+Millet_Olympus_Exp8_1-2cm__102,Millet,AW23,train
+Millet_Olympus_Exp8_3-4cm__01,Millet,AW23,train
+Millet_Olympus_Exp9_3-4cm__06,Millet,AW23,train
+Millet_Olympus_Exp9_3-4cm__08,Millet,AW23,train
+Millet_Olympus_Exp9_3-4cm__17,Millet,AW23,train
+Millet_Olympus_Exp9_3-4cm__22,Millet,AW23,train
+Millet_Olympus_Exp9_3-4cm__25,Millet,AW23,train
+Millet_Olympus_Exp9_3-4cm__42,Millet,AW23,train
+Millet_Olympus_Exp9_3-4cm__55,Millet,AW23,train
+Millet_Olympus_Exp9_3-4cm__58,Millet,AW23,train
+Millet_Olympus_Exp10_10-11cm__03,Millet,AW23,val
+Millet_Olympus_Exp10_11-12cm__02,Millet,AW23,val
+Millet_Olympus_Exp11_3-4cm__13,Millet,AW23,val
+Millet_Olympus_Exp11_5-6cm_37,Millet,AW23,val
+Millet_Olympus_Exp11_5-6cm_52,Millet,AW23,val
+Millet_Olympus_Exp11_5-6cm_94,Millet,AW23,val
+Millet_Olympus_Exp11_5-6cm__23,Millet,AW23,val
+Millet_Olympus_Exp12_1-2cm_11,Millet,AW23,train
+Millet_Olympus_Exp12_1-2cm_36,Millet,AW23,train
+Millet_Olympus_Exp12_1-2cm_47,Millet,AW23,train
+Millet_Olympus_Exp12_2-3cm_06,Millet,AW23,train
+Millet_Olympus_Exp12_2-3cm_21,Millet,AW23,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_01,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_02,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_03,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_04,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_06,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_07,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_08,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_09,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_10,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_13,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_14,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_15,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_16,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_17,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_18,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_19,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_20,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_21,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_22,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_23,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_24,Rice,Kittake,train
+Rice_Olympus_Exp1_Kittake_Pouch_1cm_25,Rice,Kittake,train
+Rice_Olympus_Exp2_Kittake_Rhizo_2cm_03,Rice,Kittake,val
+Rice_Olympus_Exp2_Kittake_Rhizo_2cm_04,Rice,Kittake,val
+Rice_Olympus_Exp2_Kittake_Rhizo_2cm_06,Rice,Kittake,val
+Rice_Olympus_Exp2_Kittake_Rhizo_2cm_07,Rice,Kittake,val
+Rice_Olympus_Exp2_Kittake_Rhizo_2cm_08,Rice,Kittake,val
+Rice_Olympus_Exp2_Kittake_Rhizo_2cm_10,Rice,Kittake,val
+Rice_Olympus_Exp2_Kittake_Rhizo_2cm_11,Rice,Kittake,val
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_01,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_02,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_03,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_06,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_07,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_08,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_11,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_14,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_18,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_19,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_22,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_25,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-9_Pouch_1cm_26,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_03,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_05,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_06,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_07,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_09,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_10,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_12,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_14,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_15,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_16,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_17,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_18,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_19,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_20,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_21,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_22,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_23,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_24,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_25,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_26,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_28,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_29,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_30,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_31,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_32,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_33,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_34,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_36,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_40,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_43,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_45,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_47,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_48,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_49,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_50,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_51,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_53,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_54,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_55,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_57,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_58,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp3_PSY1-17_Pouch_1cm_60,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-9-1_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-2_01,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-2_03,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-2_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-2_05,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-2_06,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-2_07,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-3_01,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-3_02,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-3_03,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-3_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-3_05,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-3_06,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-4_05,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-4_07,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-4_08,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-9-4_09,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp4_PSY1-17-1_01,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-1_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-1_03,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-1_04,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-2_01,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-2_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-2_03,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-2_04,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-2_05,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-2_06,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-2_07,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-3_01,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-3_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-3_03,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-3_04,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-3_05,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-3_06,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-4_01,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-4_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-4_03,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-4_04,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-4_05,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-4_06,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp4_PSY1-17-4_07,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp5_WT1_01,Rice,Kittake,val
+Rice_Olympus_Exp5_WT1_02,Rice,Kittake,val
+Rice_Olympus_Exp5_WT1_04,Rice,Kittake,val
+Rice_Olympus_Exp5_WT2_01,Rice,Kittake,val
+Rice_Olympus_Exp5_WT2_02,Rice,Kittake,val
+Rice_Olympus_Exp5_WT2_03,Rice,Kittake,val
+Rice_Olympus_Exp5_WT-3_01,Rice,Kittake,val
+Rice_Olympus_Exp5_WT-3_02,Rice,Kittake,val
+Rice_Olympus_Exp5_WT-3_03,Rice,Kittake,val
+Rice_Olympus_Exp5_WT-3_04,Rice,Kittake,val
+Rice_Olympus_Exp5_WT-3_05,Rice,Kittake,val
+Rice_Olympus_Exp5_WT-3_06,Rice,Kittake,val
+Rice_Olympus_Exp5_WT-3_07,Rice,Kittake,val
+Rice_Olympus_Exp6_Falcon_Wox10-15_1_02,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_1_03,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_1_04,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_1_05,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_2_01,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_2_02,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_2_03,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_2_04,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_2_05,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_2_06,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_3_01,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_3_02,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_3_03,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_3_04,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_3_05,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_3_06,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_3_07,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_4_01,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_4_02,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_4_03,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-15_4_05,Rice,wox10-15,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_1_01,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_1_02,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_1_03,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_1_04,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_1_05,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_2_01,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_2_02,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_2_03,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_2_04,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_3_02,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_3_03,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_4_01,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_4_02,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_4_03,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_4_04,Rice,wox10-50,train
+Rice_Olympus_Exp6_Falcon_Wox10-50_4_05,Rice,wox10-50,train
+Rice_Olympus_Exp7_Falcon_WT_1_03,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_1_04,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_2_02,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_2_03,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_2_06,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_3_01,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_3_02,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_3_03,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_3_04,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_3_05,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_4_01,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_4_02,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_4_03,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_4_04,Rice,Kittake,val
+Rice_Olympus_Exp7_Falcon_WT_4_05,Rice,Kittake,val
+Rice_Olympus_Exp8_Pouch_WOX10-15_1_01,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_1_02,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_1_03,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_1_04,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_1_05,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_2_02,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_2_06,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_3_01,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_3_02,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_3_03,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_3_04,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-15_3_05,Rice,wox10-15,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_1_01,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_1_02,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_1_03,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_1_05,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_1_06,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_2_01,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_2_02,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_2_03,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_3_01,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_3_02,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_3_03,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_3_04,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_3_05,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_4_03,Rice,wox10-50,train
+Rice_Olympus_Exp8_Pouch_WOX10-50_4_05,Rice,wox10-50,train
+Rice_Olympus_Exp9_Pouch_WT_1_01,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_1_02,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_1_03,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_1_04,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_1_05,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_1_06,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_2_01,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_2_02,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_2_03,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_2_05,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_3_01,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_3_02,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_3_03,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_3_04,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_3_05,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_3_06,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_4_01,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_4_02,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_4_03,Rice,Kittake,train
+Rice_Olympus_Exp9_Pouch_WT_4_04,Rice,Kittake,train
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_1_01,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_1_02,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_1_03,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_1_04,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_1_05,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_1_06,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_3_01,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_3_04,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_3_05,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_3_06,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_4_01,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_4_02,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_4_04,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_4_05,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_4_06,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_5_01,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_5_02,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_5_03,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_5_04,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_5_05,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_5_06,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-15_5_07,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_1_01,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_1_02,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_1_03,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_1_04,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_1_05,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_2_01,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_2_03,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_2_04,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_3_01,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_3_02,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_3_03,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_3_04,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_3_05,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_3_06,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_4_01,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_4_02,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_4_03,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_4_04,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_4_05,Rice,wox10-15,test
+Rice_Olympus_Exp10_Rhizotron_Wox10-50_4_06,Rice,wox10-15,test
+Rice_Olympus_Exp11_Rhizotron_WT_1_01,Rice,Kittake,test
+Rice_Olympus_Exp11_Rhizotron_WT_1_02,Rice,Kittake,test
+Rice_Olympus_Exp11_Rhizotron_WT_1_03,Rice,Kittake,test
+Rice_Olympus_Exp11_Rhizotron_WT_1_04,Rice,Kittake,test
+Rice_Olympus_Exp11_Rhizotron_WT_1_05,Rice,Kittake,test
+Rice_Olympus_Exp11_Rhizotron_WT_2_02,Rice,Kittake,test
+Rice_Olympus_Exp11_Rhizotron_WT_3_02,Rice,Kittake,test
+Rice_Olympus_Exp11_Rhizotron_WT_3_03,Rice,Kittake,test
+Rice_Olympus_Exp11_Rhizotron_WT_3_05,Rice,Kittake,test
+Rice_Olympus_Exp12_F-17-1_01,Rice,psy1-17 mutant ,train
+Rice_Olympus_Exp12_F-17-1_02,Rice,psy1-17 mutant ,train
+Rice_Olympus_Exp12_F-17-1_03,Rice,psy1-17 mutant ,train
+Rice_Olympus_Exp12_F-17-1_04,Rice,psy1-17 mutant ,train
+Rice_Olympus_Exp12_F-17-3_01,Rice,psy1-17 mutant ,train
+Rice_Olympus_Exp12_F-17-3_02,Rice,psy1-17 mutant ,train
+Rice_Olympus_Exp12_F-17-3_04,Rice,psy1-17 mutant ,train
+Rice_Olympus_Exp12_F-17-3_07,Rice,psy1-17 mutant ,train
+Rice_Olympus_Exp12_F-17-5_05,Rice,psy1-17 mutant ,train
+Rice_Olympus_Exp12_F-17-5_06,Rice,psy1-17 mutant ,train
+Rice_Olympus_Exp12_F-19-1_01,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp12_F-19-1_02,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp12_F-19-1_03,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp12_F-19-2_01,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp12_F-19-2_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp12_F-19-3_02,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp12_F-K-2_01,Rice,Kittake,train
+Rice_Olympus_Exp12_F-K-2_02,Rice,Kittake,train
+Rice_Olympus_Exp12_F-K-2_03,Rice,Kittake,train
+Rice_Olympus_Exp12_F-K-3_01,Rice,Kittake,train
+Rice_Olympus_Exp12_F-K-3_02,Rice,Kittake,train
+Rice_Olympus_Exp12_F-K-3_03,Rice,Kittake,train
+Rice_Olympus_Exp12_F-K-3_04,Rice,Kittake,train
+Rice_Olympus_Exp13_P-9-1b_01,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-1b_03,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-1b_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-2_01,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-2_02,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-2_03,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-2_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-2_05,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-3_02,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-3_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-4_02,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-4_03,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-9-4_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp13_P-17-1_01,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-1_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-1_04,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-1_05,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-2_07,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-2_09,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-2_11,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-3_01,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-3_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-3_03,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-3_04,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-3_05,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-3_06,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-3_07,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-3_08,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-3_09,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-4_01,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-4_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-4_03,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-17-4_04,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp13_P-K-1_01,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-1_02,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-1_03,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-1_04,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-2_01,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-2_02,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-2_03,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-2_04,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-2_06,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-2_10,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-3_01,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-3_02,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-3_03,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-3_04,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-3_05,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-3_06,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-4_02,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-4_03,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-4_05,Rice,Kittake,train
+Rice_Olympus_Exp13_P-K-4_07,Rice,Kittake,train
+Rice_Olympus_Exp14_R-17-2_04,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-17-3_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-17-3_04,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-17-3_05,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-17-3b_01,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-17-3b_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-17-4_01,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-17-4_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-17-4_03,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-17-4_04,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-17-6_05,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp14_R-19-1_03,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp14_R-19-2_01,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp14_R-19-2_02,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp14_R-19-2_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp14_R-19-2_05,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp14_R-19-3_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp14_R-19-4_01,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp14_R-19-4_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp14_R-19-4_06,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp14_R-K-3_03,Rice,Kittake,train
+Rice_Olympus_Exp14_R-K-3_04,Rice,Kittake,train
+Rice_Olympus_Exp15_R_PSY1-17__02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__03,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__08,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__11,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__12,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__14,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__19,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__20,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__24,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__28,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__29,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__33,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__36,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__38,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__42,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__47,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__48,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__49,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp15_R_PSY1-17__51,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp16_R_WT__01,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__02,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__05,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__11,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__14,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__15,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__16,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__17,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__18,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__20,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__23,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__24,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__26,Rice,Kittake,val
+Rice_Olympus_Exp16_R_WT__29,Rice,Kittake,val
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_02,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_04,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_05,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_06,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_07,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_10,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_13,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_14,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_17,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_20,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_39,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_43,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_45,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_59,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_65,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_71,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_72,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_76,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_82,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_83,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_86,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_88,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_89,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_93,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_94,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_99,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_101,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_103,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_106,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_107,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_109,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_111,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_115,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_122,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_123,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_125,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_127,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-9_3-4cm_128,Rice,psy1-9 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_02,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_05,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_06,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_11,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_16,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_19,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_20,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_24,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_28,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_34,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_36,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_37,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_41,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_43,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_44,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_45,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_47,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_48,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_52,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_54,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_57,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_58,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_60,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_64,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_65,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_68,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_73,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_74,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_75,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_76,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_77,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_80,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_81,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_82,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_83,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_85,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_86,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_87,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_88,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_89,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_92,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_99,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_100,Rice,psy1-17 mutant,train
+Rice_Olympus_Exp17_R_PSY1-17_3-4cm_101,Rice,psy1-17 mutant,train
+Rice_C10_Exp1_PSY9-1-a,Rice,psy1-9 mutant,train
+Rice_C10_Exp1_PSY9-1-b,Rice,psy1-9 mutant,train
+Rice_C10_Exp1_PSY9-1-c,Rice,psy1-9 mutant,train
+Rice_C10_Exp1_PSY9-1-d,Rice,psy1-9 mutant,train
+Rice_C10_Exp2_PSY17-1-a,Rice,psy1-17 mutant,train
+Rice_C10_Exp2_PSY17-1-b,Rice,psy1-17 mutant,train
+Rice_C10_Exp2_PSY17-1-c,Rice,psy1-17 mutant,train
+Rice_C10_Exp2_PSY17-1-d,Rice,psy1-17 mutant,train
+Rice_C10_Exp3_WT-1-a,Rice,Kittake,val
+Rice_C10_Exp3_WT-1-b,Rice,Kittake,val
+Rice_C10_Exp3_WT-1-c,Rice,Kittake,val
+Rice_C10_Exp4_WT-2-a,Rice,Kittake,train
+Rice_C10_Exp4_WT-2-b,Rice,Kittake,train
+Rice_C10_Exp4_WT-2-c,Rice,Kittake,train
+Rice_C10_Exp4_WT-2-d,Rice,Kittake,train
+Rice_C10_Exp4_WT-3-a,Rice,Kittake,train
+Rice_C10_Exp4_WT-3-b,Rice,Kittake,train
+Rice_C10_Exp4_WT-3-c,Rice,Kittake,train
+Rice_C10_Exp4_WT-3-d,Rice,Kittake,train
+Rice_C10_Exp4_WT-3-e,Rice,Kittake,train
+Rice_C10_Exp5_WT-4-a,Rice,Kittake,train
+Rice_C10_Exp5_WT-4-b,Rice,Kittake,train
+Rice_C10_Exp5_WT-4-c,Rice,Kittake,train
+Rice_C10_Exp5_WT-4-d,Rice,Kittake,train
+Rice_C10_Exp5_WT-4-e,Rice,Kittake,train
+Rice_C10_Exp5_WT-4-f,Rice,Kittake,train
+Rice_C10_Exp6_PSY17-2-a,Rice,psy1-17 mutant,train
+Rice_C10_Exp6_PSY17-2-b,Rice,psy1-17 mutant,train
+Rice_C10_Exp6_PSY17-2-c,Rice,psy1-17 mutant,train
+Rice_C10_Exp6_PSY17-2-d,Rice,psy1-17 mutant,train
+Rice_C10_Exp6_PSY17-2-e,Rice,psy1-17 mutant,train
+Rice_C10_Exp6_PSY17-3-a,Rice,psy1-17 mutant,train
+Rice_C10_Exp6_PSY17-3-b,Rice,psy1-17 mutant,train
+Rice_C10_Exp6_PSY17-3-c,Rice,psy1-17 mutant,train
+Rice_C10_Exp6_PSY17-3-d,Rice,psy1-17 mutant,train
+Rice_C10_Exp6_PSY17-3-e,Rice,psy1-17 mutant,train
+Rice_C10_Exp6_PSY17-3-f,Rice,psy1-17 mutant,train
+Rice_C10_Exp7_PSY17-4-a,Rice,psy1-17 mutant,test
+Rice_C10_Exp7_PSY17-4-b,Rice,psy1-17 mutant,test
+Rice_C10_Exp7_PSY17-4-d,Rice,psy1-17 mutant,test
+Rice_C10_Exp8_PSY9-2-a,Rice,psy1-9 mutant,train
+Rice_C10_Exp8_PSY9-2-b,Rice,psy1-9 mutant,train
+Rice_C10_Exp8_PSY9-2-c,Rice,psy1-9 mutant,train
+Rice_C10_Exp8_PSY9-2-d,Rice,psy1-9 mutant,train
+Rice_C10_Exp9_PSY9-3-a,Rice,psy1-9 mutant,val
+Rice_C10_Exp9_PSY9-3-b,Rice,psy1-9 mutant,val
+Rice_C10_Exp9_PSY9-3-d,Rice,psy1-9 mutant,val
+Rice_C10_Exp10_PSY9-4-b,Rice,psy1-9 mutant,test
+Rice_C10_Exp10_PSY9-4-c,Rice,psy1-9 mutant,test
+Rice_C10_Exp10_PSY9-4-d,Rice,psy1-9 mutant,test
+Rice_Zeiss_Exp1_Image_31,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_33,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_34,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_36,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_37,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_39,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_40,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_41,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_42,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_43,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_44,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_45,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_48,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_50,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_51,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_52,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_53,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_54,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_56,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_57,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_58,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_59,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_60,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_61,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_62,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_63,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_64,Rice,Kittake,oneshot
+Rice_Zeiss_Exp1_Image_65,Rice,Kittake,oneshot
+Rice_Zeiss_Exp2_Image_35,Rice,Kittake,oneshot
+Rice_Zeiss_Exp2_Image_47,Rice,Kittake,oneshot
+Rice_Zeiss_Exp2_Image_55,Rice,Kittake,oneshot
+Rice_Zeiss_Exp2_Image_66,Rice,Kittake,oneshot
+Rice_Zeiss_Exp3_Image_32,Rice,Kittake,oneshot
+Rice_Zeiss_Exp3_Image_38,Rice,Kittake,oneshot
+Rice_Zeiss_Exp3_Image_49,Rice,Kittake,oneshot
+Sorghum_Olympus_Exp1_1_02,Sorghum,ETSL 101865,train
+Sorghum_Olympus_Exp1_1_04,Sorghum,ETSL 101865,train
+Sorghum_Olympus_Exp1_2_03,Sorghum,ETSL 101865,train
+Sorghum_Olympus_Exp1_3_01,Sorghum,ETSL 101865,train
+Sorghum_Olympus_Exp1_3_03,Sorghum,ETSL 101865,train
+Sorghum_Olympus_Exp1_3_04,Sorghum,ETSL 101865,train
+Sorghum_Olympus_Exp1_3_07,Sorghum,ETSL 101865,train
+Sorghum_Olympus_Exp2_1_01,Sorghum,ETSL 100312,train
+Sorghum_Olympus_Exp2_1_02,Sorghum,ETSL 100312,train
+Sorghum_Olympus_Exp2_1_04,Sorghum,ETSL 100312,train
+Sorghum_Olympus_Exp3_1_03,Sorghum,ETSL 101851,train
+Sorghum_Olympus_Exp3_2_02,Sorghum,ETSL 101851,train
+Sorghum_Olympus_Exp3_3_02,Sorghum,ETSL 101851,train
+Sorghum_Olympus_Exp3_3_03,Sorghum,ETSL 101851,train
+Sorghum_Olympus_Exp4_3_02,Sorghum,ETSL 101862,train
+Sorghum_Olympus_Exp4_3_04,Sorghum,ETSL 101862,train
+Sorghum_Olympus_Exp4_4_03,Sorghum,ETSL 101862,train
+Sorghum_Olympus_Exp4_4_04,Sorghum,ETSL 101862,train
+Sorghum_Olympus_Exp5_1_04,Sorghum,ETSL 101888,train
+Sorghum_Olympus_Exp5_1_05,Sorghum,ETSL 101888,train
+Sorghum_Olympus_Exp5_4_04,Sorghum,ETSL 101888,train
+Sorghum_Olympus_Exp6_2_01,Sorghum,ETSL 100305,val
+Sorghum_Olympus_Exp6_4_05,Sorghum,ETSL 100305,val
+Sorghum_Olympus_Exp7_1_01,Sorghum,ETSL 100308,train
+Sorghum_Olympus_Exp7_1_05,Sorghum,ETSL 100308,train
+Sorghum_Olympus_Exp7_1_06,Sorghum,ETSL 100308,train
+Sorghum_Olympus_Exp7_2_05,Sorghum,ETSL 100308,train
+Sorghum_Olympus_Exp7_3_01,Sorghum,ETSL 100308,train
+Sorghum_Olympus_Exp8_1_03,Sorghum,ETSL 101847,train
+Sorghum_Olympus_Exp8_2_02,Sorghum,ETSL 101847,train
+Sorghum_Olympus_Exp8_2_06,Sorghum,ETSL 101847,train
+Sorghum_Olympus_Exp8_4_01,Sorghum,ETSL 101847,train
+Sorghum_Olympus_Exp8_4_05,Sorghum,ETSL 101847,train
+Sorghum_Olympus_Exp9_1_05,Sorghum,ETSL 101866,train
+Sorghum_Olympus_Exp9_2_01,Sorghum,ETSL 101866,train
+Sorghum_Olympus_Exp9_2_04,Sorghum,ETSL 101866,train
+Sorghum_Olympus_Exp9_4_01,Sorghum,ETSL 101866,train
+Sorghum_Olympus_Exp10_1_02,Sorghum,ETSL 101844,train
+Sorghum_Olympus_Exp10_1_05,Sorghum,ETSL 101844,train
+Sorghum_Olympus_Exp10_2_01,Sorghum,ETSL 101844,train
+Sorghum_Olympus_Exp10_3_02,Sorghum,ETSL 101844,train
+Sorghum_Olympus_Exp10_3_05,Sorghum,ETSL 101844,train
+Sorghum_Olympus_Exp11_3_06,Sorghum,ETSL 101843,val
+Sorghum_Olympus_Exp11_4_06,Sorghum,ETSL 101843,val
+Sorghum_Olympus_Exp12_1_01,Sorghum,ETSL 101857,val
+Sorghum_Olympus_Exp12_2_03,Sorghum,ETSL 101857,val
+Sorghum_Olympus_Exp12_2_04,Sorghum,ETSL 101857,val
+Sorghum_Olympus_Exp13_1_01,Sorghum,ETSL 101845,train
+Sorghum_Olympus_Exp13_1_04,Sorghum,ETSL 101845,train
+Sorghum_Olympus_Exp13_2_01,Sorghum,ETSL 101845,train
+Sorghum_Olympus_Exp13_3_05,Sorghum,ETSL 101845,train
+Sorghum_Olympus_Exp13_4_01,Sorghum,ETSL 101845,train
+Sorghum_Olympus_Exp14_1_04,Sorghum,Gobiye,train
+Sorghum_Olympus_Exp14_2_03,Sorghum,Gobiye,train
+Sorghum_Olympus_Exp14_2_04,Sorghum,Gobiye,train
+Sorghum_Olympus_Exp14_3_01,Sorghum,Gobiye,train
+Sorghum_Olympus_Exp14_4_01,Sorghum,Gobiye,train
+Sorghum_Olympus_Exp16_2_01,Sorghum,SRN39,test
+Sorghum_Olympus_Exp16_2_02,Sorghum,SRN39,test
+Sorghum_Olympus_Exp16_2_04,Sorghum,SRN39,test
+Sorghum_Olympus_Exp16_3_05,Sorghum,SRN39,test
+Sorghum_Olympus_Exp17_1_01,Sorghum,Framida,train
+Sorghum_Olympus_Exp17_1_04,Sorghum,Framida,train
+Sorghum_Olympus_Exp17_3_04,Sorghum,Framida,train
+Sorghum_Olympus_Exp17_4_01,Sorghum,Framida,train
+Sorghum_Olympus_Exp17_4_05,Sorghum,Framida,train
+Sorghum_Olympus_Exp18_1_01,Sorghum,S35,train
+Sorghum_Olympus_Exp18_1_04,Sorghum,S35,train
+Sorghum_Olympus_Exp18_3_01,Sorghum,S35,train
+Sorghum_Olympus_Exp18_3_03,Sorghum,S35,train
+Sorghum_Olympus_Exp18_4_04,Sorghum,S35,train
+Sorghum_Olympus_Exp19_3_05,Sorghum,B35,val
+Sorghum_Olympus_Exp21_1_03,Sorghum,Dekeba,train
+Sorghum_Olympus_Exp21_3_02,Sorghum,Dekeba,train
+Sorghum_Olympus_Exp21_3_04,Sorghum,Dekeba,train
+Sorghum_Olympus_Exp21_3_05,Sorghum,Dekeba,train
+Sorghum_Olympus_Exp22_1_02,Sorghum,Melkam,train
+Sorghum_Olympus_Exp22_1_04,Sorghum,Melkam,train
+Sorghum_Olympus_Exp22_2_01,Sorghum,Melkam,train
+Sorghum_Olympus_Exp22_2_02,Sorghum,Melkam,train
+Sorghum_Olympus_Exp22_2_04,Sorghum,Melkam,train
+Sorghum_Olympus_Exp23_3_04,Sorghum,Teshale,train
+Sorghum_Olympus_Exp23_3_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp23_4_03,Sorghum,Teshale,train
+Sorghum_Olympus_Exp23_4_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp24_2_04,Sorghum,2005MI5064,val
+Sorghum_Olympus_Exp24_3_01,Sorghum,2005MI5064,val
+Sorghum_Olympus_Exp24_3_02,Sorghum,2005MI5064,val
+Sorghum_Olympus_Exp25_1_03,Sorghum,Macia,train
+Sorghum_Olympus_Exp25_1_04,Sorghum,Macia,train
+Sorghum_Olympus_Exp25_1_06,Sorghum,Macia,train
+Sorghum_Olympus_Exp25_2_04,Sorghum,Macia,train
+Sorghum_Olympus_Exp26_2_04,Sorghum,NTJ2,val
+Sorghum_Olympus_Exp26_4_01,Sorghum,NTJ2,val
+Sorghum_Olympus_Exp27_1_01,Sorghum,A2267-2,train
+Sorghum_Olympus_Exp27_1_02,Sorghum,A2267-2,train
+Sorghum_Olympus_Exp27_1_05,Sorghum,A2267-2,train
+Sorghum_Olympus_Exp27_2_01,Sorghum,A2267-2,train
+Sorghum_Olympus_Exp27_3_01,Sorghum,A2267-2,train
+Sorghum_Olympus_Exp27_3_03,Sorghum,A2267-2,train
+Sorghum_Olympus_Exp30_1_01,Sorghum,ETSL 100143,train
+Sorghum_Olympus_Exp30_1_04,Sorghum,ETSL 100143,train
+Sorghum_Olympus_Exp30_3_03,Sorghum,ETSL 100143,train
+Sorghum_Olympus_Exp30_4_04,Sorghum,ETSL 100143,train
+Sorghum_Olympus_Exp31_1_05,Sorghum,ETSL 100316,train
+Sorghum_Olympus_Exp31_2_01,Sorghum,ETSL 100316,train
+Sorghum_Olympus_Exp31_4_02,Sorghum,ETSL 100316,train
+Sorghum_Olympus_Exp31_4_03,Sorghum,ETSL 100316,train
+Sorghum_Olympus_Exp32_2_01,Sorghum,ETSL 100046,train
+Sorghum_Olympus_Exp32_3_01,Sorghum,ETSL 100046,train
+Sorghum_Olympus_Exp32_3_05,Sorghum,ETSL 100046,train
+Sorghum_Olympus_Exp34_2_01,Sorghum,P9501B,val
+Sorghum_Olympus_Exp34_3_07,Sorghum,P9501B,val
+Sorghum_Olympus_Exp36_2_04,Sorghum,ETSL 100307,train
+Sorghum_Olympus_Exp36_3_01,Sorghum,ETSL 100307,train
+Sorghum_Olympus_Exp36_3_03,Sorghum,ETSL 100307,train
+Sorghum_Olympus_Exp37_1_02,Sorghum,ETSL 101853,val
+Sorghum_Olympus_Exp37_4_02,Sorghum,ETSL 101853,val
+Sorghum_Olympus_Exp38_1b_02,Sorghum,ETSL 100309,train
+Sorghum_Olympus_Exp38_2_05,Sorghum,ETSL 100309,train
+Sorghum_Olympus_Exp38_3_02,Sorghum,ETSL 100309,train
+Sorghum_Olympus_Exp38_3_03,Sorghum,ETSL 100309,train
+Sorghum_Olympus_Exp39_2_01,Sorghum,ETWS 90754,train
+Sorghum_Olympus_Exp39_2_04,Sorghum,ETWS 90754,train
+Sorghum_Olympus_Exp39_4_01,Sorghum,ETWS 90754,train
+Sorghum_Olympus_Exp40_1_02,Sorghum,ETWS 90787,train
+Sorghum_Olympus_Exp40_1_04,Sorghum,ETWS 90787,train
+Sorghum_Olympus_Exp40_3_04,Sorghum,ETWS 90787,train
+Sorghum_Olympus_Exp41_1_01,Sorghum,ETWS 91242,train
+Sorghum_Olympus_Exp41_1_06,Sorghum,ETWS 91242,train
+Sorghum_Olympus_Exp41_2_02,Sorghum,ETWS 91242,train
+Sorghum_Olympus_Exp42_2_03,Sorghum,ETWS 91323,train
+Sorghum_Olympus_Exp42_2_04,Sorghum,ETWS 91323,train
+Sorghum_Olympus_Exp42_3_02,Sorghum,ETWS 91323,train
+Sorghum_Olympus_Exp42_4_04,Sorghum,ETWS 91323,train
+Sorghum_Olympus_Exp43_3_02,Sorghum,IESV 23005DL,val
+Sorghum_Olympus_Exp44_1_03,Sorghum,IS 38408,train
+Sorghum_Olympus_Exp44_2_01,Sorghum,IS 38408,train
+Sorghum_Olympus_Exp44_3_04,Sorghum,IS 38408,train
+Sorghum_Olympus_Exp44_4_01,Sorghum,IS 38408,train
+Sorghum_Olympus_Exp44_4_02,Sorghum,IS 38408,train
+Sorghum_Olympus_Exp45_1_04,Sorghum,IS 38343,train
+Sorghum_Olympus_Exp45_1_05,Sorghum,IS 38343,train
+Sorghum_Olympus_Exp45_3_02,Sorghum,IS 38343,train
+Sorghum_Olympus_Exp45_3_03,Sorghum,IS 38343,train
+Sorghum_Olympus_Exp45_4_02,Sorghum,IS 38343,train
+Sorghum_Olympus_Exp45_4_03,Sorghum,IS 38343,train
+Sorghum_Olympus_Exp46_1_01,Sorghum,ETSL 100016,train
+Sorghum_Olympus_Exp46_1_02,Sorghum,ETSL 100016,train
+Sorghum_Olympus_Exp46_2_01,Sorghum,ETSL 100016,train
+Sorghum_Olympus_Exp46_2_02,Sorghum,ETSL 100016,train
+Sorghum_Olympus_Exp46_2_03,Sorghum,ETSL 100016,train
+Sorghum_Olympus_Exp46_3_02,Sorghum,ETSL 100016,train
+Sorghum_Olympus_Exp46_3_04,Sorghum,ETSL 100016,train
+Sorghum_Olympus_Exp46_4_01,Sorghum,ETSL 100016,train
+Sorghum_Olympus_Exp46_4_02,Sorghum,ETSL 100016,train
+Sorghum_Olympus_Exp47_1_01,Sorghum,Misikir,val
+Sorghum_Olympus_Exp47_2_04,Sorghum,Misikir,val
+Sorghum_Olympus_Exp48_1_02,Sorghum,ETSL 101728,train
+Sorghum_Olympus_Exp48_1_04,Sorghum,ETSL 101728,train
+Sorghum_Olympus_Exp48_2_01,Sorghum,ETSL 101728,train
+Sorghum_Olympus_Exp48_2_03,Sorghum,ETSL 101728,train
+Sorghum_Olympus_Exp48_3_01,Sorghum,ETSL 101728,train
+Sorghum_Olympus_Exp48_3_02,Sorghum,ETSL 101728,train
+Sorghum_Olympus_Exp49_1_01,Sorghum,IS 38306,train
+Sorghum_Olympus_Exp49_2_01,Sorghum,IS 38306,train
+Sorghum_Olympus_Exp49_3_02,Sorghum,IS 38306,train
+Sorghum_Olympus_Exp49_3_04,Sorghum,IS 38306,train
+Sorghum_Olympus_Exp50_1_01,Sorghum,ETSL 100726,train
+Sorghum_Olympus_Exp50_3_02,Sorghum,ETSL 100726,train
+Sorghum_Olympus_Exp50_3_03,Sorghum,ETSL 100726,train
+Sorghum_Olympus_Exp50_4_02,Sorghum,ETSL 100726,train
+Sorghum_Olympus_Exp52_2_01,Sorghum,ETSL 101295,train
+Sorghum_Olympus_Exp52_2_04,Sorghum,ETSL 101295,train
+Sorghum_Olympus_Exp52_2_05,Sorghum,ETSL 101295,train
+Sorghum_Olympus_Exp53_3_01,Sorghum,235464,train
+Sorghum_Olympus_Exp53_3_05,Sorghum,235464,train
+Sorghum_Olympus_Exp53_4_01,Sorghum,235464,train
+Sorghum_Olympus_Exp53_4_03,Sorghum,235464,train
+Sorghum_Olympus_Exp54_1_05,Sorghum,235467,train
+Sorghum_Olympus_Exp54_3_01,Sorghum,235467,train
+Sorghum_Olympus_Exp54_3_04,Sorghum,235467,train
+Sorghum_Olympus_Exp55_1_03,Sorghum,235761,train
+Sorghum_Olympus_Exp55_2_02,Sorghum,235761,train
+Sorghum_Olympus_Exp55_2_03,Sorghum,235761,train
+Sorghum_Olympus_Exp55_4_01,Sorghum,235761,train
+Sorghum_Olympus_Exp56_1_02,Sorghum,235763,train
+Sorghum_Olympus_Exp56_3_01,Sorghum,235763,train
+Sorghum_Olympus_Exp56_4_02,Sorghum,235763,train
+Sorghum_Olympus_Exp57_1_02,Sorghum,235921,train
+Sorghum_Olympus_Exp57_1_03,Sorghum,235921,train
+Sorghum_Olympus_Exp57_2_03,Sorghum,235921,train
+Sorghum_Olympus_Exp57_3_02,Sorghum,235921,train
+Sorghum_Olympus_Exp58_1_03,Sorghum,235925,train
+Sorghum_Olympus_Exp58_1_05,Sorghum,235925,train
+Sorghum_Olympus_Exp58_3_02,Sorghum,235925,train
+Sorghum_Olympus_Exp58_3_05,Sorghum,235925,train
+Sorghum_Olympus_Exp59_1_01,Sorghum,SQR,test
+Sorghum_Olympus_Exp59_1_07,Sorghum,SQR,test
+Sorghum_Olympus_Exp59_2_04,Sorghum,SQR,test
+Sorghum_Olympus_Exp59_2_06,Sorghum,SQR,test
+Sorghum_Olympus_Exp59_4_04,Sorghum,SQR,test
+Sorghum_Olympus_Exp60_Control_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp60_Control_09,Sorghum,Teshale,train
+Sorghum_Olympus_Exp60_Control_16,Sorghum,Teshale,train
+Sorghum_Olympus_Exp60_Control_19,Sorghum,Teshale,train
+Sorghum_Olympus_Exp60_Control_30,Sorghum,Teshale,train
+Sorghum_Olympus_Exp60_Control_36,Sorghum,Teshale,train
+Sorghum_Olympus_Exp60_Control_43,Sorghum,Teshale,train
+Sorghum_Olympus_Exp61_PMB10_03,Sorghum,Teshale,train
+Sorghum_Olympus_Exp61_PMB10_04,Sorghum,Teshale,train
+Sorghum_Olympus_Exp61_PMB10_07,Sorghum,Teshale,train
+Sorghum_Olympus_Exp61_PMB10_10,Sorghum,Teshale,train
+Sorghum_Olympus_Exp63_PMB23_10,Sorghum,Teshale,val
+Sorghum_Olympus_Exp63_PMB23_18,Sorghum,Teshale,val
+Sorghum_Olympus_Exp64_Control_15,Sorghum,Teshale,val
+Sorghum_Olympus_Exp65_PDB79_04,Sorghum,Teshale,val
+Sorghum_Olympus_Exp66_PDB85_01,Sorghum,Teshale,val
+Sorghum_Olympus_Exp66_PDB85_03,Sorghum,Teshale,val
+Sorghum_Olympus_Exp67_PMB29_10,Sorghum,Teshale,val
+Sorghum_Olympus_Exp67_PMB29_15,Sorghum,Teshale,val
+Sorghum_Olympus_Exp68_Control_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp68_Control_03,Sorghum,Teshale,train
+Sorghum_Olympus_Exp68_Control_06,Sorghum,Teshale,train
+Sorghum_Olympus_Exp68_Control_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp68_Control_20,Sorghum,Teshale,train
+Sorghum_Olympus_Exp69_PDB108_08,Sorghum,Teshale,train
+Sorghum_Olympus_Exp69_PDB108_15,Sorghum,Teshale,train
+Sorghum_Olympus_Exp69_PDB108_17,Sorghum,Teshale,train
+Sorghum_Olympus_Exp69_PDB108_26,Sorghum,Teshale,train
+Sorghum_Olympus_Exp69_PDB108_45,Sorghum,Teshale,train
+Sorghum_Olympus_Exp70_PDB127_02,Sorghum,Teshale,val
+Sorghum_Olympus_Exp70_PDB127_18,Sorghum,Teshale,val
+Sorghum_Olympus_Exp71_PDB134_04,Sorghum,Teshale,test
+Sorghum_Olympus_Exp72_PDB136_04,Sorghum,Teshale,val
+Sorghum_Olympus_Exp73_Control_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp73_Control_10,Sorghum,Teshale,train
+Sorghum_Olympus_Exp73_Control_16,Sorghum,Teshale,train
+Sorghum_Olympus_Exp73_Control_30,Sorghum,Teshale,train
+Sorghum_Olympus_Exp74_PDB143_03,Sorghum,Teshale,test
+Sorghum_Olympus_Exp74_PDB143_15,Sorghum,Teshale,test
+Sorghum_Olympus_Exp74_PDB143_24,Sorghum,Teshale,test
+Sorghum_Olympus_Exp75_PDB161_03,Sorghum,Teshale,test
+Sorghum_Olympus_Exp75_PDB161_06,Sorghum,Teshale,test
+Sorghum_Olympus_Exp75_PDB161_09,Sorghum,Teshale,test
+Sorghum_Olympus_Exp76_PDB175_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp76_PDB175_04,Sorghum,Teshale,train
+Sorghum_Olympus_Exp76_PDB175_10,Sorghum,Teshale,train
+Sorghum_Olympus_Exp77_PDB186_03,Sorghum,Teshale,train
+Sorghum_Olympus_Exp77_PDB186_06,Sorghum,Teshale,train
+Sorghum_Olympus_Exp77_PDB186_09,Sorghum,Teshale,train
+Sorghum_Olympus_Exp77_PDB186_25,Sorghum,Teshale,train
+Sorghum_Olympus_Exp78_PDB189_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp78_PDB189_14,Sorghum,Teshale,train
+Sorghum_Olympus_Exp78_PDB189_17,Sorghum,Teshale,train
+Sorghum_Olympus_Exp78_PDB189_18,Sorghum,Teshale,train
+Sorghum_Olympus_Exp79_PDB214_01,Sorghum,Teshale,train
+Sorghum_Olympus_Exp79_PDB214_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp79_PDB214_06,Sorghum,Teshale,train
+Sorghum_Olympus_Exp79_PDB214_15,Sorghum,Teshale,train
+Sorghum_Olympus_Exp80_Control_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp80_Control_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp80_Control_13,Sorghum,Teshale,train
+Sorghum_Olympus_Exp81_PDB265_05,Sorghum,Teshale,val
+Sorghum_Olympus_Exp81_PDB265_07,Sorghum,Teshale,val
+Sorghum_Olympus_Exp82_PDB289_04,Sorghum,Teshale,train
+Sorghum_Olympus_Exp82_PDB289_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp82_PDB289_07,Sorghum,Teshale,train
+Sorghum_Olympus_Exp83_PDB290_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp83_PDB290_08,Sorghum,Teshale,train
+Sorghum_Olympus_Exp83_PDB290_20,Sorghum,Teshale,train
+Sorghum_Olympus_Exp84_PDB68_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp84_PDB68_06,Sorghum,Teshale,train
+Sorghum_Olympus_Exp84_PDB68_07,Sorghum,Teshale,train
+Sorghum_Olympus_Exp84_PDB68_11,Sorghum,Teshale,train
+Sorghum_Olympus_Exp84_PDB68_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp84_PDB68_13,Sorghum,Teshale,train
+Sorghum_Olympus_Exp84_PDB68_19,Sorghum,Teshale,train
+Sorghum_Olympus_Exp84_PDB68_20,Sorghum,Teshale,train
+Sorghum_Olympus_Exp84_PDB68_23,Sorghum,Teshale,train
+Sorghum_Olympus_Exp85_PDB75_08,Sorghum,Teshale,train
+Sorghum_Olympus_Exp85_PDB75_10,Sorghum,Teshale,train
+Sorghum_Olympus_Exp85_PDB75_14,Sorghum,Teshale,train
+Sorghum_Olympus_Exp85_PDB75_16,Sorghum,Teshale,train
+Sorghum_Olympus_Exp85_PDB75_22,Sorghum,Teshale,train
+Sorghum_Olympus_Exp85_PDB75_24,Sorghum,Teshale,train
+Sorghum_Olympus_Exp86_PDB89_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp86_PDB89_03,Sorghum,Teshale,train
+Sorghum_Olympus_Exp86_PDB89_09,Sorghum,Teshale,train
+Sorghum_Olympus_Exp86_PDB89_14,Sorghum,Teshale,train
+Sorghum_Olympus_Exp86_PDB89_20,Sorghum,Teshale,train
+Sorghum_Olympus_Exp87_Control_01,Sorghum,Teshale,val
+Sorghum_Olympus_Exp87_Control_04,Sorghum,Teshale,val
+Sorghum_Olympus_Exp88_N3_02,Sorghum,Teshale,test
+Sorghum_Olympus_Exp88_N3_03,Sorghum,Teshale,test
+Sorghum_Olympus_Exp88_N3_12,Sorghum,Teshale,test
+Sorghum_Olympus_Exp88_N3_13,Sorghum,Teshale,test
+Sorghum_Olympus_Exp89_N5_04,Sorghum,Teshale,train
+Sorghum_Olympus_Exp89_N5_10,Sorghum,Teshale,train
+Sorghum_Olympus_Exp89_N5_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp90_PDB93_01,Sorghum,Teshale,train
+Sorghum_Olympus_Exp90_PDB93_07,Sorghum,Teshale,train
+Sorghum_Olympus_Exp90_PDB93_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp90_PDB93_24,Sorghum,Teshale,train
+Sorghum_Olympus_Exp91_Control_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp91_Control_04,Sorghum,Teshale,train
+Sorghum_Olympus_Exp91_Control_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp91_Control_06,Sorghum,Teshale,train
+Sorghum_Olympus_Exp91_Control_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp91_Control_18,Sorghum,Teshale,train
+Sorghum_Olympus_Exp92_LLC1593_01,Sorghum,Teshale,train
+Sorghum_Olympus_Exp92_LLC1593_07,Sorghum,Teshale,train
+Sorghum_Olympus_Exp92_LLC1593_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp92_LLC1593_13,Sorghum,Teshale,train
+Sorghum_Olympus_Exp93_LLC2243_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp93_LLC2243_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp93_LLC2243_10,Sorghum,Teshale,train
+Sorghum_Olympus_Exp93_LLC2243_11,Sorghum,Teshale,train
+Sorghum_Olympus_Exp93_LLC2243_14,Sorghum,Teshale,train
+Sorghum_Olympus_Exp93_LLC2243_15,Sorghum,Teshale,train
+Sorghum_Olympus_Exp93_LLC2243_21,Sorghum,Teshale,train
+Sorghum_Olympus_Exp94_LLC3456_05,Sorghum,Teshale,test
+Sorghum_Olympus_Exp94_LLC3456_06,Sorghum,Teshale,test
+Sorghum_Olympus_Exp94_LLC3456_07,Sorghum,Teshale,test
+Sorghum_Olympus_Exp94_LLC3456_16,Sorghum,Teshale,test
+Sorghum_Olympus_Exp95_Control_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp95_Control_09,Sorghum,Teshale,train
+Sorghum_Olympus_Exp95_Control_11,Sorghum,Teshale,train
+Sorghum_Olympus_Exp95_Control_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp95_Control_15,Sorghum,Teshale,train
+Sorghum_Olympus_Exp95_Control_17,Sorghum,Teshale,train
+Sorghum_Olympus_Exp95_Control_18,Sorghum,Teshale,train
+Sorghum_Olympus_Exp95_Control_26,Sorghum,Teshale,train
+Sorghum_Olympus_Exp96_LLC1358_01,Sorghum,Teshale,train
+Sorghum_Olympus_Exp96_LLC1358_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp96_LLC1358_07,Sorghum,Teshale,train
+Sorghum_Olympus_Exp96_LLC1358_09,Sorghum,Teshale,train
+Sorghum_Olympus_Exp96_LLC1358_16,Sorghum,Teshale,train
+Sorghum_Olympus_Exp96_LLC1358_17,Sorghum,Teshale,train
+Sorghum_Olympus_Exp96_LLC1358_18,Sorghum,Teshale,train
+Sorghum_Olympus_Exp96_LLC1358_22,Sorghum,Teshale,train
+Sorghum_Olympus_Exp96_LLC1358_24,Sorghum,Teshale,train
+Sorghum_Olympus_Exp97_LLC1592_03,Sorghum,Teshale,train
+Sorghum_Olympus_Exp97_LLC1592_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp97_LLC1592_09,Sorghum,Teshale,train
+Sorghum_Olympus_Exp97_LLC1592_11,Sorghum,Teshale,train
+Sorghum_Olympus_Exp97_LLC1592_13,Sorghum,Teshale,train
+Sorghum_Olympus_Exp97_LLC1592_14,Sorghum,Teshale,train
+Sorghum_Olympus_Exp97_LLC1592_15,Sorghum,Teshale,train
+Sorghum_Olympus_Exp97_LLC1592_16,Sorghum,Teshale,train
+Sorghum_Olympus_Exp97_LLC1592_18,Sorghum,Teshale,train
+Sorghum_Olympus_Exp98_LLC1807_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp98_LLC1807_09,Sorghum,Teshale,train
+Sorghum_Olympus_Exp98_LLC1807_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp98_LLC1807_13,Sorghum,Teshale,train
+Sorghum_Olympus_Exp98_LLC1807_18,Sorghum,Teshale,train
+Sorghum_Olympus_Exp98_LLC1807_20,Sorghum,Teshale,train
+Sorghum_Olympus_Exp98_LLC1807_22,Sorghum,Teshale,train
+Sorghum_Olympus_Exp98_LLC1807_23,Sorghum,Teshale,train
+Sorghum_Olympus_Exp98_LLC1807_24,Sorghum,Teshale,train
+Sorghum_Olympus_Exp99_LLC2210_02,Sorghum,Teshale,train
+Sorghum_Olympus_Exp99_LLC2210_03,Sorghum,Teshale,train
+Sorghum_Olympus_Exp99_LLC2210_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp99_LLC2210_06,Sorghum,Teshale,train
+Sorghum_Olympus_Exp99_LLC2210_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp99_LLC2210_14,Sorghum,Teshale,train
+Sorghum_Olympus_Exp99_LLC2210_20,Sorghum,Teshale,train
+Sorghum_Olympus_Exp100_LLC2960_05,Sorghum,Teshale,test
+Sorghum_Olympus_Exp100_LLC2960_11,Sorghum,Teshale,test
+Sorghum_Olympus_Exp100_LLC2960_15,Sorghum,Teshale,test
+Sorghum_Olympus_Exp101_Control_37,Sorghum,Teshale,val
+Sorghum_Olympus_Exp101_Control_43,Sorghum,Teshale,val
+Sorghum_Olympus_Exp101_Control_46,Sorghum,Teshale,val
+Sorghum_Olympus_Exp102_Minimedusa_04,Sorghum,Teshale,train
+Sorghum_Olympus_Exp102_Minimedusa_05,Sorghum,Teshale,train
+Sorghum_Olympus_Exp102_Minimedusa_07,Sorghum,Teshale,train
+Sorghum_Olympus_Exp102_Minimedusa_10,Sorghum,Teshale,train
+Sorghum_Olympus_Exp102_Minimedusa_11,Sorghum,Teshale,train
+Sorghum_Olympus_Exp102_Minimedusa_13,Sorghum,Teshale,train
+Sorghum_Olympus_Exp102_Minimedusa_16,Sorghum,Teshale,train
+Sorghum_Olympus_Exp102_Minimedusa_19,Sorghum,Teshale,train
+Sorghum_Olympus_Exp103_Hypocotyl_AF_04,Sorghum,Teshale,train
+Sorghum_Olympus_Exp103_Hypocotyl_AF_12,Sorghum,Teshale,train
+Sorghum_Olympus_Exp103_Hypocotyl_AF_15,Sorghum,Teshale,train
+Sorghum_Olympus_Exp103_Hypocotyl_AF_19,Sorghum,Teshale,train
+Sorghum_C10_Exp1_A2,Sorghum,SQR,val
+Sorghum_C10_Exp2_A10,Sorghum,SQR,val
+Sorghum_C10_Exp2_B2,Sorghum,SQR,val
+Sorghum_C10_Exp2_B3,Sorghum,SRN,val
+Sorghum_C10_Exp2_B4,Sorghum,SQR,val
+Sorghum_C10_Exp2_B7,Sorghum,SRN,val
+Sorghum_C10_Exp2_C2,Sorghum,SQR,val
+Sorghum_C10_Exp2_C8,Sorghum,SQR,val
+Sorghum_C10_Exp2_C10,Sorghum,SQR,val
+Sorghum_C10_Exp2_D6,Sorghum,SQR,val
+Sorghum_C10_Exp2_D8,Sorghum,SQR,val
+Sorghum_C10_Exp3_D3,Sorghum,SRN,test
+Sorghum_C10_Exp3_G1,Sorghum,SRN,test
+Sorghum_C10_Exp3_G12,Sorghum,SQR,test
+Sorghum_C10_Exp3_H3,Sorghum,SRN,test
+Sorghum_C10_Exp4_E2,Sorghum,SQR,test
+Sorghum_C10_Exp4_G1,Sorghum,SRN,test
+Sorghum_C10_Exp4_G6,Sorghum,SQR,test
+Sorghum_C10_Exp4_H1,Sorghum,SRN,test
+Sorghum_C10_Exp5_A2,Sorghum,SQR,train
+Sorghum_C10_Exp5_A7,Sorghum,SRN,train
+Sorghum_C10_Exp5_A8,Sorghum,SQR,train
+Sorghum_C10_Exp5_A9,Sorghum,SRN,train
+Sorghum_C10_Exp5_B4,Sorghum,SQR,train
+Sorghum_C10_Exp5_B7,Sorghum,SRN,train
+Sorghum_C10_Exp5_C7,Sorghum,SRN,train
+Sorghum_C10_Exp5_D12,Sorghum,SQR,train
+Sorghum_C10_Exp5_E2,Sorghum,SQR,train
+Sorghum_C10_Exp5_E4,Sorghum,SQR,train
+Sorghum_C10_Exp5_E8,Sorghum,SQR,train
+Sorghum_C10_Exp5_E9,Sorghum,SRN,train
+Sorghum_C10_Exp5_E11,Sorghum,SRN,train
+Sorghum_C10_Exp5_E12,Sorghum,SQR,train
+Sorghum_C10_Exp5_F2,Sorghum,SQR,train
+Sorghum_C10_Exp5_F4,Sorghum,SQR,train
+Sorghum_C10_Exp5_F10,Sorghum,SQR,train
+Sorghum_C10_Exp5_G1,Sorghum,SRN,train
+Sorghum_C10_Exp5_G2,Sorghum,SQR,train
+Sorghum_C10_Exp5_G4,Sorghum,SQR,train
+Sorghum_C10_Exp5_G10,Sorghum,SQR,train
+Sorghum_C10_Exp5_H1,Sorghum,SRN,train
+Sorghum_C10_Exp5_H4,Sorghum,SQR,train
+Sorghum_C10_Exp5_H9,Sorghum,SRN,train
+Sorghum_C10_Exp5_H10,Sorghum,SQR,train
+Tomato_Olympus_Exp1_Lignin_mutants_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_06,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_09,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_15,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_16,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp1_Lignin_mutants_20,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_102,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_103,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_104,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_105,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_106,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_107,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_110,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_111,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_112,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_114,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_115,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_117,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_118,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_119,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_120,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_121,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_123,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_127,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_128,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_130,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_131,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_132,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp1_Lignin_mutants_133,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_135,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_137,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_146,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_149,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_152,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_154,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_156,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_159,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_161,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_163,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_193,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_195,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_197,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_198,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_199,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_200,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_201,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_204,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_209,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_210,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_211,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_213,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_216,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_217,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_218,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_221,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_222,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_223,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp1_Lignin_mutants_224,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp1_Lignin_mutants_226,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_06,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp2_Lignin_mutants_07,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_10,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_11,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_14,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_16,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_17,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_18,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_23,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_24,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_25,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_26,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_27,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_28,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_29,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_30,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_31,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_34,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_35,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp2_Lignin_mutants_36,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_38,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_40,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_41,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_42,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_43,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_44,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_46,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_47,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_48,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_49,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_50,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_51,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_59,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_60,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_75,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_76,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_78,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_80,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp2_Lignin_mutants_84,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_05,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_06,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_07,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_08,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_10,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_14,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_15,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_18,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_19,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_20,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_23,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_25,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_26,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_27,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_29,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_30,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_31,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_32,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_33,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_34,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_35,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_36,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp3_Lignin_mutants_38,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_39,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_42,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_45,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_47,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_48,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_54,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_56,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_57,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp3_Lignin_mutants_62,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp4_Solanum_IzzyDemarco_01,Solanum_lycopersicum,VF36,val
+Tomato_Olympus_Exp4_Solanum_IzzyDemarco_03,Solanum_lycopersicum,VF36,val
+Tomato_Olympus_Exp4_Solanum_IzzyDemarco_08,Solanum_lycopersicum,VF36,val
+Tomato_Olympus_Exp4_Solanum_IzzyDemarco_12,Solanum_habrochaites,LA1777,val
+Tomato_Olympus_Exp4_Solanum_IzzyDemarco_13,Solanum_habrochaites,LA1777,val
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_05,Solanum_peruvianum,LA0446,test
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_08,Solanum_peruvianum,LA1777,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_09,Solanum_peruvianum,LA1777,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_11,Solanum_cheesmaniae,LA1407,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_12,Solanum_cheesmaniae,LA1407,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_14,Solanum_cheesmaniae,LA1407,test
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_17,Solanum_cheesmaniae,LA1407,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_28,Solanum_candidum,994750097,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_29,Solanum_candidum,994750097,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_30,Solanum_candidum,994750097,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_31,Solanum_candidum,994750097,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_33,Solanum_candidum,994750097,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_34,Solanum_candidum,994750097,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_35,Solanum_candidum,994750097,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_36,Solanum_candidum,994750097,test
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_37,Solanum_aethiopicum,PI424860,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_38,Solanum_aethiopicum,PI424860,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_39,Solanum_aethiopicum,PI424860,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_40,Solanum_aethiopicum,PI424860,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_41,Solanum_aethiopicum,PI424860,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_42,Solanum_aethiopicum,PI424860,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_43,Solanum_aethiopicum,PI424860,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_44,Solanum_aethiopicum,PI424860,train
+Tomato_Olympus_Exp5_Solanum_MajkenSlide1_45,Solanum_aethiopicum,PI424860,train
+Tomato_Olympus_Exp6_Solanum_WendySlide1_01,Solanum_insanum,INS1,val
+Tomato_Olympus_Exp6_Solanum_WendySlide1_02,Solanum_insanum,INS1,val
+Tomato_Olympus_Exp6_Solanum_WendySlide1_03,Solanum_insanum,INS1,val
+Tomato_Olympus_Exp6_Solanum_WendySlide1_04,Solanum_insanum,INS1,test
+Tomato_Olympus_Exp6_Solanum_WendySlide1_05,Solanum_insanum,INS1,val
+Tomato_Olympus_Exp6_Solanum_WendySlide1_06,Solanum_insanum,INS1,val
+Tomato_Olympus_Exp6_Solanum_WendySlide1_12,Solanum_anguivi,ANG1,val
+Tomato_Olympus_Exp6_Solanum_WendySlide1_19,Solanum_abutiloides,Baker_Creek,test
+Tomato_Olympus_Exp6_Solanum_WendySlide1_23,Solanum_arcanum,LA2157,val
+Tomato_Olympus_Exp7_Solanum_WendySlide3_01,Solanum_lycopersicum,cerasiforme,val
+Tomato_Olympus_Exp7_Solanum_WendySlide3_02,Solanum_lycopersicum,cerasiforme,val
+Tomato_Olympus_Exp7_Solanum_WendySlide3_05,Solanum_arcanum,LA2157,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_05,Solanum_huaylasense,LA1364,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_06,Solanum_huaylasense,LA1364,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide2_02,Solanum_lycopersicum,LA0513,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide2_03,Solanum_lycopersicum,LA0513,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide2_05,Solanum_lycopersicum,LA0513,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide2_07,Solanum_lycopersicum,LA0513,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide2_08,Solanum_lycopersicum,LA0513,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide2_09,Solanum_lycopersicum,LA0513,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide2_10,Solanum_lycopersicum,LA0513,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide3_02,Solanum_pimpinellifolium,LA1589,test
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide3_05,Solanum_pimpinellifolium,LA1589,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide3_07,Solanum_pimpinellifolium,LA1589,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide3_08,Solanum_pimpinellifolium,LA1589,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide6_05,Solanum_violaceum,PI319855,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide8_05,Solanum_quitoense,PI489701,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide8_06,Solanum_quitoense,PI489701,val
+Tomato_Olympus_Exp8_Solanum_Yeonjoon_Slide8_07,Solanum_quitoense,PI489701,val
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_01,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_02,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_03,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_06,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_07,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_08,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_09,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_10,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_11,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_12,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_13,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_14,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_15,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_16,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_19,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_20,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_21,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_22,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_23,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_24,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_25,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_28,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_29,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_30,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_32,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_33,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp9_Suberin_mutants_1-10_36,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_02,Solanum_lycopersicum,slasft,test
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_05,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_07,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_08,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_10,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_13,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_14,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_17,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_18,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_22,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_24,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_26,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_27,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_28,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_29,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_31,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_32,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_33,Solanum_lycopersicum,slasft,test
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_35,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_38,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_39,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_40,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_41,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_42,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_43,Solanum_lycopersicum,slasft,test
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_46,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp10_Suberin_mutants_1-12_47,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_07,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_08,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_10,Solanum_lycopersicum,slmyb92,test
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_15,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_16,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_19,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_20,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_21,Solanum_lycopersicum,slmyb92,test
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_27,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_29,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_31,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_33,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_35,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_37,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp11_Suberin_mutants_11-20_38,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_02,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_03,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_06,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_07,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_08,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_10,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_11,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_12,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_14,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_16,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_18,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_19,Solanum_lycopersicum,slasft,test
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_21,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_22,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_24,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_26,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_29,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_30,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_31,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_32,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_33,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_36,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_38,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_39,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_40,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp12_Suberin_mutants_13-24_41,Solanum_lycopersicum,slasft,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_02,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_04,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_06,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_07,Solanum_lycopersicum,slmyb92,test
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_10,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_11,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_12,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_13,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_14,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_17,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_18,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_21,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_22,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_24,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_25,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_28,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_29,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_31,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_32,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_34,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_35,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_37,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp13_Suberin_mutants_21-30_38,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_01,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_04,Solanum_lycopersicum,slmyb92,test
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_05,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_07,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_08,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_10,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_12,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_13,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_16,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_18,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_20,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_21,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_22,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_24,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_25,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_27,Solanum_lycopersicum,slmyb92,test
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_32,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_34,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp14_Suberin_mutants_31-40_35,Solanum_lycopersicum,slmyb92,train
+Tomato_Olympus_Exp15_Suberin_mutants_41-45_01,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp15_Suberin_mutants_41-45_05,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp15_Suberin_mutants_41-45_08,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp15_Suberin_mutants_41-45_11,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp15_Suberin_mutants_41-45_13,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp15_Suberin_mutants_41-45_15,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp15_Suberin_mutants_41-45_18,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp15_Suberin_mutants_41-45_19,Solanum_lycopersicum,slmyb92,val
+Tomato_Olympus_Exp16_WT_7_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_7_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_7_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_8_01,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp16_WT_8_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_9_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_9_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_11_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_11_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_11_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_13_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_13_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_13_03,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp16_WT_14_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_14_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_14_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_15_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_15_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_15_04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_19_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_19_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_19_04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_20_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_20_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_22_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_22_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_23_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_23_03,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp16_WT_24_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_24_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_25_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_25_05,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_26_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_26_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_27_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_27_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_27_04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_28_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_28_04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_29_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_30_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_30_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_31_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_31_04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_32_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_32_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_32_03,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp16_WT_33_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_33_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_34_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp16_WT_34_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_34_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_35_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_36_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_37_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_38_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_40_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_42_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_43_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_43_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_44_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_45_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_46_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_47_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_48_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_49_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_50_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_52_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_53_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_54_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_55_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp17_WT_56_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp18_WT_34_07,Solanum_lycopersicum,M82,val
+Tomato_Olympus_Exp18_WT_35_03,Solanum_lycopersicum,M82,val
+Tomato_Olympus_Exp18_WT_36_03,Solanum_lycopersicum,M82,val
+Tomato_Olympus_Exp18_WT_37_06,Solanum_lycopersicum,M82,val
+Tomato_Olympus_Exp18_WT_38_07,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp18_WT_39_06,Solanum_lycopersicum,M82,val
+Tomato_Olympus_Exp18_WT_40_04,Solanum_lycopersicum,M82,val
+Tomato_Olympus_Exp18_WT_41_03,Solanum_lycopersicum,M82,val
+Tomato_Olympus_Exp18_WT_42_04,Solanum_lycopersicum,M82,val
+Tomato_Olympus_Exp19_WT_43_24-02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_44_24-01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_45_24-03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_46_24-02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_46_24-03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_47_24-03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_47_24-05,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_48_24-01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_49_24-04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_50_24-02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_51_24-03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_52_24-01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_52_24-03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_53_24-04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_53_24-05,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_53_24-06,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_54_24-02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_54_24-04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_54_24-05,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_54_24-06,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_55_24-01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp19_WT_55_24-03,Solanum_lycopersicum,M82,test
+Tomato_Olympus_Exp19_WT_56_24-01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_71-72-73_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_71-72-73_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_71-72-73_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-77-82_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-77-82_04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-77-82_06,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-77-82_07,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-77-82_09,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-77-82_13,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-77-82_18,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-83-88_04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-83-88_10,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-83-88_15,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-83-88_19,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-89-94_11,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-89-94_15,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-89-94_19,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-95-97_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-95-97_03,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-95-97_07,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-95-97_09,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-98-100_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-98-100_05,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-101-106_05,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-101-106_10,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-101-106_13,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-110-114_05,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-110-114_07,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-110-114_10,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-110-114_14,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-115-117_01,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-115-117_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-118-120_02,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-118-120_05,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-118-120_06,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-118-120_07,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-121-126_04,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-121-126_11,Solanum_lycopersicum,M82,train
+Tomato_Olympus_Exp20_WT_-121-126_13,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp1_M82_WT_A2ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp1_M82_WT_A4ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp1_M82_WT_A7ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp1_M82_WT_A8ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp2_M82_WT_B1ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp2_M82_WT_B2ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp2_M82_WT_B3ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp2_M82_WT_B5ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp2_M82_WT_B6ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp2_M82_WT_B8ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp2_M82_WT_G10ROI1,Solanum_lycopersicum,M82,val
+Tomato_C10_Exp3_M82_WT_A1ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_A2ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_A4ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_A5,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_A6,Solanum_lycopersicum,M82,test
+Tomato_C10_Exp3_M82_WT_A7ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_A8ROI1,Solanum_lycopersicum,M82,test
+Tomato_C10_Exp3_M82_WT_A9,Solanum_lycopersicum,M82,test
+Tomato_C10_Exp3_M82_WT_A10,Solanum_lycopersicum,M82,test
+Tomato_C10_Exp3_M82_WT_A12ROI1,Solanum_lycopersicum,M82,test
+Tomato_C10_Exp3_M82_WT_B1ROI1,Solanum_lycopersicum,M82,test
+Tomato_C10_Exp3_M82_WT_B2ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_B3,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_B3ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_B4,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_B5ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_B6ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_B10,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_C4ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_C12ROI1,Solanum_lycopersicum,M82,test
+Tomato_C10_Exp3_M82_WT_D5,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_D7,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_D8,Solanum_lycopersicum,M82,test
+Tomato_C10_Exp3_M82_WT_E4ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_E5ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_E6ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_E7ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_E8,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_E9ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_E10,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_E11,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_E12ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_F2ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_F7,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_F10ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_F11ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_G3ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_G7,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_G9,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_G10ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_G11ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_G12ROI1,Solanum_lycopersicum,M82,test
+Tomato_C10_Exp3_M82_WT_H1ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_H2ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_H3ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_H4ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_H5ROI1,Solanum_lycopersicum,M82,test
+Tomato_C10_Exp3_M82_WT_H6ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_H7ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_H8,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_H9,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_H9ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_H11ROI1,Solanum_lycopersicum,M82,train
+Tomato_C10_Exp3_M82_WT_H12ROI1,Solanum_lycopersicum,M82,train
+Sorghum_Olympus_Exp100_LLC2960_03,Sorghum,Teshale,test
+Sorghum_Olympus_Exp100_LLC2960_07,Sorghum,Teshale,test
+Sorghum_Olympus_Exp100_LLC2960_13,Sorghum,Teshale,test
+Sorghum_Olympus_Exp100_LLC2960_20,Sorghum,Teshale,test
+Sorghum_Olympus_Exp71_PDB134_01,Sorghum,Teshale,test
+Sorghum_Olympus_Exp71_PDB134_02,Sorghum,Teshale,test
+Sorghum_Olympus_Exp71_PDB134_06,Sorghum,Teshale,test
+Sorghum_Olympus_Exp71_PDB134_10,Sorghum,Teshale,test
+Sorghum_Olympus_Exp74_PDB143_01,Sorghum,Teshale,test
+Sorghum_Olympus_Exp74_PDB143_05,Sorghum,Teshale,test
+Sorghum_Olympus_Exp74_PDB143_14,Sorghum,Teshale,test
+Sorghum_Olympus_Exp74_PDB143_22,Sorghum,Teshale,test
+Sorghum_Olympus_Exp75_PDB161_07,Sorghum,Teshale,test
+Sorghum_Olympus_Exp75_PDB161_12,Sorghum,Teshale,test
+Sorghum_Olympus_Exp75_PDB161_16,Sorghum,Teshale,test
+Sorghum_Olympus_Exp75_PDB161_27,Sorghum,Teshale,test
+Sorghum_Olympus_Exp88_N3_11,Sorghum,Teshale,test
+Sorghum_Olympus_Exp88_N3_14,Sorghum,Teshale,test
+Sorghum_Olympus_Exp88_N3_19,Sorghum,Teshale,test
+Sorghum_Olympus_Exp88_N3_22,Sorghum,Teshale,test
+Sorghum_Olympus_Exp94_LLC3456_03,Sorghum,Teshale,test
+Sorghum_Olympus_Exp94_LLC3456_09,Sorghum,Teshale,test
+Sorghum_Olympus_Exp94_LLC3456_11,Sorghum,Teshale,test
+Sorghum_Olympus_Exp94_LLC3456_13,Sorghum,Teshale,test

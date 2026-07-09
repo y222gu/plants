@@ -1,0 +1,9 @@
+Model,Encoder,Pretrained Dataset,Fine-tuned Encoder (M),Decoder (M),Total Params (M),In-distribution Test n,In-distribution Test mIoU (mean ± std),Zero-shot Test n,Zero-shot Test mIoU (mean ± std)
+RADIX,DINOv3-S/16,LVD-1.69B,21.6,19.3,40.9,185,0.873 ± 0.076,35,0.872 ± 0.042
+DINOv2 + DPT,DINOv2-S/14,LVD-142M,23.6,19.3,42.9,185,0.869 ± 0.071,35,0.872 ± 0.034
+ResNet50 + UNet++,ResNet50,ImageNet-1k,23.5,25.5,49.0,185,0.868 ± 0.075,35,0.832 ± 0.055
+ResNet34 + UNet++,ResNet34,ImageNet-1k,21.3,4.8,26.1,185,0.867 ± 0.078,35,0.854 ± 0.048
+YOLO26m-seg,YOLO26m,COCO,10.4,16.7,27.1,185,0.866 ± 0.079,35,0.785 ± 0.112
+DINOv2 + MS-Linear,DINOv2-S/14,LVD-142M,23.6,0.01,23.7,185,0.858 ± 0.077,35,0.846 ± 0.036
+SegDINO-MLP,DINOv3-S/16,LVD-1.69B,21.6,1.0,22.6,185,0.856 ± 0.071,35,0.836 ± 0.042
+MicroSAM + UNETR,SAM ViT-B,SA-1B + LM,0.20,99.7,189.4,185,0.827 ± 0.088,35,0.811 ± 0.059

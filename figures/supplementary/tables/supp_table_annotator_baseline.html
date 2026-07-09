@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Supplementary Table: inter-annotator baseline</title>
+<style>
+  :root { --w-mm: 180.000; --h-mm: 108.200; }
+  body {
+    margin: 0; padding: 18px;
+    font-family: Helvetica, Arial, sans-serif;
+    background: #f4f4f4;
+  }
+  #controls {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  button {
+    padding: 8px 14px; font-size: 13px;
+    background: #333; color: white; border: 0;
+    border-radius: 4px; cursor: pointer;
+  }
+  input[type="number"] { padding: 5px 8px; font-size: 13px; }
+  svg#fig {
+    display: block;
+    width: calc(var(--w-mm) * 1mm);
+    height: calc(var(--h-mm) * 1mm);
+    background: white;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    outline: 1px solid #bbb;
+  }
+  svg#fig text { font-family: Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <button id="save">Save PNG</button>
+  <button id="save-svg">Save SVG</button>
+  <label>DPI <input type="number" id="dpi" value="600" min="72" max="1200" step="50" style="width:70px"></label>
+</div>
+
+<svg id="fig" viewBox="0 0 180.000 108.200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Helvetica, Arial, sans-serif">
+<g transform="translate(1.000, 0)">
+<line x1="3.000" y1="0.000" x2="175.000" y2="0.000" stroke="black" stroke-width="0.4"/>
+<text x="58.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Vascular</text>
+<line x1="49.500" y1="5.600" x2="66.500" y2="5.600" stroke="black" stroke-width="0.2"/>
+<text x="76.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Exodermis</text>
+<line x1="67.500" y1="5.600" x2="84.500" y2="5.600" stroke="black" stroke-width="0.2"/>
+<text x="94.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Endodermis</text>
+<line x1="85.500" y1="5.600" x2="102.500" y2="5.600" stroke="black" stroke-width="0.2"/>
+<text x="112.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Cortex</text>
+<line x1="103.500" y1="5.600" x2="120.500" y2="5.600" stroke="black" stroke-width="0.2"/>
+<text x="130.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Epidermis</text>
+<line x1="121.500" y1="5.600" x2="138.500" y2="5.600" stroke="black" stroke-width="0.2"/>
+<text x="148.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Aerenchyma</text>
+<line x1="139.500" y1="5.600" x2="156.500" y2="5.600" stroke="black" stroke-width="0.2"/>
+<text x="166.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">mIoU</text>
+<line x1="157.500" y1="5.600" x2="174.500" y2="5.600" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="9.800" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Species</text>
+<text x="16.800" y="9.800" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Microscope</text>
+<text x="31.800" y="9.800" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Genotype</text>
+<text x="53.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Model</text>
+<text x="62.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Human</text>
+<text x="71.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Model</text>
+<text x="80.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Human</text>
+<text x="89.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Model</text>
+<text x="98.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Human</text>
+<text x="107.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Model</text>
+<text x="116.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Human</text>
+<text x="125.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Model</text>
+<text x="134.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Human</text>
+<text x="143.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Model</text>
+<text x="152.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Human</text>
+<text x="161.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Model</text>
+<text x="170.500" y="9.800" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Human</text>
+<line x1="3.000" y1="11.200" x2="175.000" y2="11.200" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="15.800" font-size="2.47" text-anchor="start" fill="black">Millet</text>
+<text x="16.800" y="15.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="15.800" font-size="2.47" text-anchor="start" fill="black">AW23</text>
+<text x="53.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.983</text>
+<text x="62.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.980</text>
+<text x="71.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.955</text>
+<text x="80.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.915</text>
+<text x="89.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.947</text>
+<text x="98.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.943</text>
+<text x="107.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.977</text>
+<text x="116.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.977</text>
+<text x="125.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.910</text>
+<text x="134.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.823</text>
+<text x="143.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.115</text>
+<text x="152.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.241</text>
+<text x="161.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.814</text>
+<text x="170.500" y="15.800" font-size="2.47" text-anchor="middle" fill="black">0.813</text>
+<text x="3.800" y="21.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="21.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="21.800" font-size="2.47" text-anchor="start" fill="black">AW23</text>
+<text x="53.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.991</text>
+<text x="62.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.991</text>
+<text x="71.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.914</text>
+<text x="80.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.890</text>
+<text x="89.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.961</text>
+<text x="98.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.957</text>
+<text x="107.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.977</text>
+<text x="116.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.965</text>
+<text x="125.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.858</text>
+<text x="134.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.747</text>
+<text x="143.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.133</text>
+<text x="152.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.000</text>
+<text x="161.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.806</text>
+<text x="170.500" y="21.800" font-size="2.47" text-anchor="middle" fill="black">0.758</text>
+<line x1="3.000" y1="23.200" x2="175.000" y2="23.200" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="27.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="27.800" font-size="2.47" text-anchor="start" fill="black">C10</text>
+<text x="31.800" y="27.800" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">psy1-17</tspan></text>
+<text x="53.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.959</text>
+<text x="62.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.946</text>
+<text x="71.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.968</text>
+<text x="80.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.937</text>
+<text x="89.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.821</text>
+<text x="98.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.815</text>
+<text x="107.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.994</text>
+<text x="116.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.990</text>
+<text x="125.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.915</text>
+<text x="134.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.864</text>
+<text x="143.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.492</text>
+<text x="152.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.000</text>
+<text x="161.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.858</text>
+<text x="170.500" y="27.800" font-size="2.47" text-anchor="middle" fill="black">0.758</text>
+<text x="3.800" y="33.800" font-size="2.47" text-anchor="start" fill="black">Rice</text>
+<text x="16.800" y="33.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="33.800" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">wox10-15</tspan></text>
+<text x="53.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.982</text>
+<text x="62.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.980</text>
+<text x="71.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.964</text>
+<text x="80.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.944</text>
+<text x="89.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.920</text>
+<text x="98.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.919</text>
+<text x="107.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.994</text>
+<text x="116.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.991</text>
+<text x="125.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.873</text>
+<text x="134.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.843</text>
+<text x="143.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.815</text>
+<text x="152.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.842</text>
+<text x="161.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.925</text>
+<text x="170.500" y="33.800" font-size="2.47" text-anchor="middle" fill="black">0.920</text>
+<text x="3.800" y="39.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="39.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="39.800" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">wox10-15</tspan></text>
+<text x="53.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.982</text>
+<text x="62.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.983</text>
+<text x="71.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.059</text>
+<text x="80.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.582</text>
+<text x="89.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.930</text>
+<text x="98.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.928</text>
+<text x="107.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.831</text>
+<text x="116.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.981</text>
+<text x="125.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.248</text>
+<text x="134.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.552</text>
+<text x="143.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.578</text>
+<text x="152.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.536</text>
+<text x="161.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.605</text>
+<text x="170.500" y="39.800" font-size="2.47" text-anchor="middle" fill="black">0.761</text>
+<line x1="3.000" y1="41.200" x2="175.000" y2="41.200" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="45.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="45.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="45.800" font-size="2.47" text-anchor="start" fill="black">Teshale</text>
+<text x="53.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.991</text>
+<text x="62.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.991</text>
+<text x="71.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.930</text>
+<text x="80.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.897</text>
+<text x="89.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.949</text>
+<text x="98.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.956</text>
+<text x="107.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.989</text>
+<text x="116.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.984</text>
+<text x="125.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.855</text>
+<text x="134.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.815</text>
+<text x="143.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.871</text>
+<text x="152.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.759</text>
+<text x="161.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.931</text>
+<text x="170.500" y="45.800" font-size="2.47" text-anchor="middle" fill="black">0.901</text>
+<text x="3.800" y="51.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="51.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="51.800" font-size="2.47" text-anchor="start" fill="black">SRN39</text>
+<text x="53.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.992</text>
+<text x="62.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.989</text>
+<text x="71.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.950</text>
+<text x="80.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.947</text>
+<text x="89.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.946</text>
+<text x="98.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.941</text>
+<text x="107.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.988</text>
+<text x="116.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.989</text>
+<text x="125.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.853</text>
+<text x="134.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.794</text>
+<text x="143.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.287</text>
+<text x="152.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.567</text>
+<text x="161.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.836</text>
+<text x="170.500" y="51.800" font-size="2.47" text-anchor="middle" fill="black">0.871</text>
+<text x="3.800" y="57.800" font-size="2.47" text-anchor="start" fill="black">Sorghum</text>
+<text x="16.800" y="57.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="57.800" font-size="2.47" text-anchor="start" fill="black">SRN39</text>
+<text x="53.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.991</text>
+<text x="62.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.993</text>
+<text x="71.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.910</text>
+<text x="80.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.909</text>
+<text x="89.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.943</text>
+<text x="98.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.947</text>
+<text x="107.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.983</text>
+<text x="116.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.982</text>
+<text x="125.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.832</text>
+<text x="134.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.779</text>
+<text x="143.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.255</text>
+<text x="152.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.360</text>
+<text x="161.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.819</text>
+<text x="170.500" y="57.800" font-size="2.47" text-anchor="middle" fill="black">0.828</text>
+<text x="3.800" y="63.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="63.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="63.800" font-size="2.47" text-anchor="start" fill="black">SQR</text>
+<text x="53.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.991</text>
+<text x="62.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.994</text>
+<text x="71.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.966</text>
+<text x="80.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.938</text>
+<text x="89.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.943</text>
+<text x="98.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.958</text>
+<text x="107.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.994</text>
+<text x="116.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.990</text>
+<text x="125.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.910</text>
+<text x="134.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.861</text>
+<text x="143.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.765</text>
+<text x="152.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.703</text>
+<text x="161.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.928</text>
+<text x="170.500" y="63.800" font-size="2.47" text-anchor="middle" fill="black">0.907</text>
+<text x="3.800" y="69.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="69.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="69.800" font-size="2.47" text-anchor="start" fill="black">Teshale</text>
+<text x="53.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.988</text>
+<text x="62.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.845</text>
+<text x="71.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.942</text>
+<text x="80.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.103</text>
+<text x="89.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.926</text>
+<text x="98.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.289</text>
+<text x="107.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.992</text>
+<text x="116.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.802</text>
+<text x="125.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.829</text>
+<text x="134.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.010</text>
+<text x="143.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.870</text>
+<text x="152.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.547</text>
+<text x="161.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.924</text>
+<text x="170.500" y="69.800" font-size="2.47" text-anchor="middle" fill="black">0.433</text>
+<text x="3.800" y="75.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="75.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="75.800" font-size="2.47" text-anchor="start" fill="black">Teshale</text>
+<text x="53.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.990</text>
+<text x="62.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.988</text>
+<text x="71.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.774</text>
+<text x="80.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.826</text>
+<text x="89.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.911</text>
+<text x="98.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.927</text>
+<text x="107.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.974</text>
+<text x="116.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.983</text>
+<text x="125.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.772</text>
+<text x="134.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.814</text>
+<text x="143.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="152.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="161.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.884</text>
+<text x="170.500" y="75.800" font-size="2.47" text-anchor="middle" fill="black">0.908</text>
+<line x1="3.000" y1="77.200" x2="175.000" y2="77.200" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="81.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="81.800" font-size="2.47" text-anchor="start" fill="black">C10</text>
+<text x="31.800" y="81.800" font-size="2.47" text-anchor="start" fill="black">M82</text>
+<text x="53.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.979</text>
+<text x="62.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.960</text>
+<text x="71.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.963</text>
+<text x="80.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.901</text>
+<text x="89.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.915</text>
+<text x="98.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.885</text>
+<text x="107.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.988</text>
+<text x="116.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.973</text>
+<text x="125.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.894</text>
+<text x="134.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.770</text>
+<text x="143.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="152.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="161.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.948</text>
+<text x="170.500" y="81.800" font-size="2.47" text-anchor="middle" fill="black">0.898</text>
+<text x="3.800" y="87.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="87.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="87.800" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">slasft</tspan></text>
+<text x="53.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.876</text>
+<text x="62.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.899</text>
+<text x="71.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.951</text>
+<text x="80.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.918</text>
+<text x="89.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.846</text>
+<text x="98.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.774</text>
+<text x="107.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.944</text>
+<text x="116.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.936</text>
+<text x="125.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.874</text>
+<text x="134.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.828</text>
+<text x="143.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="152.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="161.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.898</text>
+<text x="170.500" y="87.800" font-size="2.47" text-anchor="middle" fill="black">0.871</text>
+<text x="3.800" y="93.800" font-size="2.47" text-anchor="start" fill="black">Solanums</text>
+<text x="16.800" y="93.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="93.800" font-size="2.47" text-anchor="start" fill="black">M82</text>
+<text x="53.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.987</text>
+<text x="62.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.968</text>
+<text x="71.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.968</text>
+<text x="80.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.894</text>
+<text x="89.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.940</text>
+<text x="98.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.874</text>
+<text x="107.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.988</text>
+<text x="116.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.958</text>
+<text x="125.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.906</text>
+<text x="134.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.799</text>
+<text x="143.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="152.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="161.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.958</text>
+<text x="170.500" y="93.800" font-size="2.47" text-anchor="middle" fill="black">0.899</text>
+<text x="3.800" y="99.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="99.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="99.800" font-size="2.47" text-anchor="start" fill="black">M82</text>
+<text x="53.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.971</text>
+<text x="62.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.967</text>
+<text x="71.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.952</text>
+<text x="80.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.918</text>
+<text x="89.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.914</text>
+<text x="98.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.898</text>
+<text x="107.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.966</text>
+<text x="116.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.942</text>
+<text x="125.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.889</text>
+<text x="134.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.833</text>
+<text x="143.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="152.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="161.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.939</text>
+<text x="170.500" y="99.800" font-size="2.47" text-anchor="middle" fill="black">0.912</text>
+<text x="3.800" y="105.800" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="16.800" y="105.800" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="31.800" y="105.800" font-size="2.47" text-anchor="start" fill="black">INS1</text>
+<text x="53.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.980</text>
+<text x="62.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.961</text>
+<text x="71.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.962</text>
+<text x="80.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.931</text>
+<text x="89.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.932</text>
+<text x="98.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.914</text>
+<text x="107.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.988</text>
+<text x="116.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.980</text>
+<text x="125.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.863</text>
+<text x="134.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.824</text>
+<text x="143.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="152.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="161.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.945</text>
+<text x="170.500" y="105.800" font-size="2.47" text-anchor="middle" fill="black">0.922</text>
+<line x1="3.000" y1="107.200" x2="175.000" y2="107.200" stroke="black" stroke-width="0.4"/>
+</g>
+</svg>
+
+<script>
+function saveSVG() {
+    const svgNode = document.getElementById("fig");
+    const clone = svgNode.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    const src = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([src], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "supp_table_annotator_baseline.svg"; a.click();
+    URL.revokeObjectURL(url);
+}
+// PNG CRC table for embedding a pHYs chunk so the saved file declares its
+// DPI. Without this, programs like Word and PowerPoint assume 96 DPI and
+// render the image ~6× larger than the live preview. With pHYs, DPI-aware
+// programs scale it to the correct mm size.
+const _CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+        t[n] = c;
+    }
+    return t;
+})();
+function _crc32(buf, start, len) {
+    let c = 0xffffffff;
+    for (let i = 0; i < len; i++) c = _CRC_TABLE[(c ^ buf[start + i]) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+}
+function _injectPHYs(pngBytes, ppm) {
+    // PNG = 8-byte signature + IHDR (4+4+13+4=25 bytes) + ... Insert pHYs
+    // chunk right after IHDR (bytes 8..32 → insertion at byte 33).
+    const ihdrEnd = 33;
+    const phys = new Uint8Array(21);
+    // length = 9
+    phys[0]=0; phys[1]=0; phys[2]=0; phys[3]=9;
+    // type "pHYs"
+    phys[4]=0x70; phys[5]=0x48; phys[6]=0x59; phys[7]=0x73;
+    const writeU32 = (off, v) => {
+        phys[off]=(v>>>24)&0xff; phys[off+1]=(v>>>16)&0xff;
+        phys[off+2]=(v>>>8)&0xff; phys[off+3]=v&0xff;
+    };
+    writeU32(8,  ppm);   // pixels per metre, X
+    writeU32(12, ppm);   // pixels per metre, Y
+    phys[16] = 1;        // unit = metre
+    writeU32(17, _crc32(phys, 4, 13));  // CRC over type+data
+    const out = new Uint8Array(pngBytes.length + 21);
+    out.set(pngBytes.subarray(0, ihdrEnd), 0);
+    out.set(phys, ihdrEnd);
+    out.set(pngBytes.subarray(ihdrEnd), ihdrEnd + 21);
+    return out;
+}
+function savePNG() {
+    const dpi = +document.getElementById("dpi").value;
+    const w_mm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--w-mm'));
+    const h_mm = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--h-mm'));
+    const pxPerMm = dpi / 25.4;
+    const pxW = Math.round(w_mm * pxPerMm), pxH = Math.round(h_mm * pxPerMm);
+    const svgNode = document.getElementById("fig");
+    const clone = svgNode.cloneNode(true);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width",  pxW);
+    clone.setAttribute("height", pxH);
+    const src = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([src], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = function() {
+        const cv = document.createElement("canvas");
+        cv.width = pxW; cv.height = pxH;
+        const ctx = cv.getContext("2d");
+        ctx.fillStyle = "white"; ctx.fillRect(0, 0, pxW, pxH);
+        ctx.drawImage(img, 0, 0, pxW, pxH);
+        URL.revokeObjectURL(url);
+        cv.toBlob(async b2 => {
+            const raw = new Uint8Array(await b2.arrayBuffer());
+            const ppm = Math.round(dpi / 0.0254);    // pixels per metre
+            const withDpi = _injectPHYs(raw, ppm);
+            const final = new Blob([withDpi], { type: "image/png" });
+            const u2 = URL.createObjectURL(final);
+            const a = document.createElement("a");
+            a.href = u2; a.download = "supp_table_annotator_baseline.png"; a.click();
+            URL.revokeObjectURL(u2);
+        }, "image/png");
+    };
+    img.src = url;
+}
+document.getElementById("save").addEventListener("click", savePNG);
+document.getElementById("save-svg").addEventListener("click", saveSVG);
+</script>
+</body>
+</html>

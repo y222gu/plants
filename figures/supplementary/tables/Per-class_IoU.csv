@@ -1,0 +1,7 @@
+Anatomical Class,In-distribution Test n,In-distribution Test IoU (mean ± std),Zero-shot Test n,Zero-shot Test IoU (mean ± std)
+Vascular,185,0.979 ± 0.016,35,0.974 ± 0.009
+Exodermis,185,0.878 ± 0.187,35,0.847 ± 0.084
+Endodermis,185,0.912 ± 0.045,35,0.858 ± 0.046
+Cortex,185,0.971 ± 0.040,35,0.982 ± 0.009
+Epidermis,185,0.820 ± 0.131,35,0.738 ± 0.102
+Aerenchyma,143,0.601 ± 0.265,35,0.835 ± 0.085

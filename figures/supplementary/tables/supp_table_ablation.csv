@@ -1,0 +1,5 @@
+Section,Variant,Test n,Test mIoU,Zero n,Zero mIoU
+Encoder training strategy,Frozen encoder,185,0.881 ± 0.066,35,0.881 ± 0.034
+Encoder training strategy,Fine-tuned encoder (RADIX),185,0.889 ± 0.065,35,0.888 ± 0.036
+Loss function,Dice + Focal + weighted CE,185,0.885 ± 0.064,35,0.879 ± 0.038
+Loss function,Dice + Focal + weighted CE + Lovasz (RADIX),185,0.889 ± 0.065,35,0.888 ± 0.036
