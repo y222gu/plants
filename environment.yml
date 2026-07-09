@@ -1,21 +1,51 @@
 name: plants
 channels:
+  - pytorch
+  - nvidia
   - conda-forge
   - defaults
 
 dependencies:
   - python=3.11
+
+  # PyTorch (CUDA 12.1 build; drop cuda for CPU-only)
+  - pytorch>=2.1
+  - torchvision
+  - pytorch-cuda=12.1
+
   # Core scientific
   - numpy<2.0
   - scipy
   - pandas
   - scikit-image
+  - scikit-learn
   - matplotlib
+
   # Image I/O
   - tifffile
   - py-opencv
   - pillow
+
   # Utilities
   - tqdm
   - pyyaml
+  - openpyxl
+  - python-docx
+
+  # GUI (polygon_editor.py)
+  - pyqt
+
+  # Deep-learning stack
+  - pytorch-lightning>=2.0
+  - timm
+
+  # Model-specific baselines (comment out if not needed)
+  - micro-sam
+
   - pip
+  - pip:
+      - segmentation-models-pytorch
+      - albumentations
+      - ultralytics
+      - cellpose>=3.0
+      - pytorch-3dunet

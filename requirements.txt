@@ -1,23 +1,37 @@
-# Pip-only fallback — install PyTorch separately first:
-#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-#
+# Pip-only fallback. Install PyTorch first from the official channel:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 # Then: pip install -r requirements.txt
 
+# Core scientific
 numpy<2.0
 scipy
 pandas
 scikit-image
+scikit-learn
 matplotlib
+
+# Image I/O
 tifffile
 opencv-python-headless
 pillow
+
+# Utilities
 tqdm
 pyyaml
+openpyxl
+python-docx
 
-ultralytics
-segmentation-models-pytorch
+# GUI (polygon_editor.py)
+PyQt5
+
+# Deep-learning stack
 pytorch-lightning>=2.0
+timm
+segmentation-models-pytorch
 albumentations
-cellpose>=3.0
-pycocotools
-git+https://github.com/facebookresearch/segment-anything.git
+
+# Model-specific baselines (comment out if not needed)
+ultralytics                                # YOLO baseline
+cellpose>=3.0                              # Cellpose baseline
+micro-sam                                  # microSAM baseline (also on conda-forge)
+pytorch-3dunet                             # PlantSeg baseline
