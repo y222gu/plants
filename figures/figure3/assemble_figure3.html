@@ -11,26 +11,25 @@
        grow ~5 % (21.2 vs 20.25 mm displayed). The col-header band is sized
        to fit a 2-line 7-pt label. Canvas height follows panel a. */
     --fig-w-mm: 180;
-    --fig-h-mm: 75.0;             /* panel a (69.49) + mask legend (~5.5)   */
+    --fig-h-mm: 77.9;             /* panel a (72.40) + mask legend (~5.5)   */
     --3a-legend-h-mm: 5.5;        /* swatch + label strip below the grid    */
-    --3a-legend-top-mm: 69.49;    /* sits flush under panel a's bottom edge */
+    --3a-legend-top-mm: 72.40;    /* sits flush under panel a's bottom edge */
 
     /* ── Panel a (mask grid, fig3a) ─────────────────────────── */
     --3a-w-mm:     113;          /* slot width (was 108) */
-    --3a-h-mm:      69.49;        /* slot height = 113 × 78.7 / 128 */
+    --3a-h-mm:      72.40;        /* slot height = 113 × 82.0 / 128 */
     --3a-native-w: 128;          /* internal grid width  (= 6 + 5×24 + 2 padding)*/
-    --3a-native-h:  78.7;        /* internal grid height (= 6.2 + 3×24 + 0.5)    */
+    --3a-native-h:  82.0;         /* internal grid height (= 6.2 + 3×24.6 + 4×0.5 + 0.5) */
 
     /* fig3a internal sizing (in native mm - before the 115/128 scale).
-       cell-mm shrunk from 24 → 23.5 to free up 3 × 0.5 mm of vertical
-       space for the new white inter-cell gaps without changing the
-       panel's overall height. With the row 1fr columns (= 23.8 mm at
-       gap 0.5), cells stay close to square (23.8 × 23.5, aspect 1.013). */
+       cell-mm grown from 23.5 → 24.6 mm so bar-mm can grow to 3.5 mm
+       (was 2.4 mm - clipped 7-pt mIoU text) without reducing the
+       visible image area. Aspect stays ~square (23.8 × 24.6, 0.968). */
     --rowlbl-mm:   6;
-    --cell-mm:    23.5;
+    --cell-mm:    24.6;
     --grouphdr-mm: 4;
     --colhdr-mm:   6.2;          /* room for 2-line col labels at 7 pt */
-    --bar-mm:      2.4;
+    --bar-mm:      3.5;          /* tall enough for 7-pt mIoU text + margin */
 
     /* Font sizes (pt). Header / row / miou bumped to 7 pt per request. */
     --grp-pt:     6;
@@ -42,7 +41,7 @@
     /* ── Panel b (boxplot, fig3b) ───────────────────────────── */
     /* Fills the entire space to the right of panel a (full canvas height). */
     --3b-w-mm:    67;             /* slot width = 180 − 113         */
-    --3b-h-mm:    69.49;          /* slot height matches panel a    */
+    --3b-h-mm:    72.40;          /* slot height matches panel a    */
   }
 
   body {
@@ -337,8 +336,8 @@
       <div class="cell"><img src="fig3a_assets/Tomato_Olympus_Exp13_Suberin_mutants_21-30_07/pred_Bmono.png"><div class="metric-bar" data-uid="Tomato_Olympus_Exp13_Suberin_mutants_21-30_07" data-model="Bmono"><span class="metric-text"></span></div></div>
       <div class="cell"><img src="fig3a_assets/Tomato_Olympus_Exp13_Suberin_mutants_21-30_07/pred_Bdico.png"><div class="metric-bar" data-uid="Tomato_Olympus_Exp13_Suberin_mutants_21-30_07" data-model="Bdico"><span class="metric-text"></span></div></div>
 
-      <!-- Row 5: Monocot Zero-shot Test (Rice Zeiss) -->
-      <div class="row-hdr"><div class="row-stack"><div>Zero-shot</div><div>Monocot</div></div></div>
+      <!-- Row 5: Monocot Out-of-distribution Test (Rice Zeiss) -->
+      <div class="row-hdr"><div class="row-stack"><div>Out-of-distribution</div><div>Monocot</div></div></div>
       <div class="cell"><img src="fig3a_assets/Rice_Zeiss_Exp1_Image_39/original.png" data-bar-frac="0.1060"><span class="species-label">Rice, Kitaake</span></div>
       <div class="cell"><img src="fig3a_assets/Rice_Zeiss_Exp1_Image_39/gt.png"></div>
       <div class="cell"><img src="fig3a_assets/Rice_Zeiss_Exp1_Image_39/pred_A.png"><div class="metric-bar" data-uid="Rice_Zeiss_Exp1_Image_39" data-model="A"><span class="metric-text"></span></div></div>
@@ -360,7 +359,7 @@
   <!-- ── Panel b - strategy mIoU boxplot (fig3b) ────────────── -->
   <div id="panel-3b" class="panel">
     <span class="panel-letter">b</span>
-    <svg id="svg-3b" viewBox="0 0 67 69.49" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg id="svg-3b" viewBox="0 0 67 72.40" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
 </div>
 
@@ -443,7 +442,7 @@ const COLORS = {
 // Margin/padding ratios mirror figure 2d's boxplot (M.top 6.5 / right 3 /
 // bottom 11 / left 8; Y-title offset 5.94 from M.left; X-title baseline
 // offset 8.5 from PLOT bottom; tick labels 2.12 mm; titles 2.47 mm bold).
-const FIG3B_W = 67, FIG3B_H = 69.49;
+const FIG3B_W = 67, FIG3B_H = 72.40;
 const FONT_TITLE = 2.47;             // 7 pt - axis titles, x group labels
 const FONT_TICK  = 2.12;             // 6 pt - tick numerals
 const FONT_N     = 1.76;             // 5 pt - n-count, "n=" key
@@ -711,7 +710,7 @@ async function drawFig3b() {
     // mark's end (PLOT_H + 0.8) to the closest point of the rotated text,
     // matching the y-axis tick-mark-to-tick-label gap (also 0.4 mm).
     const xLabel = g.append("text")
-      .attr("transform", `translate(${cxGroup},${PLOT_H + 1.2}) rotate(-25)`)
+      .attr("transform", `translate(${cxGroup + 2},${PLOT_H + 1.2}) rotate(-15)`)
       .attr("text-anchor", "end").attr("font-size", FONT_TICK)
       .classed("x-tick-label", true);
     xLabel.append("tspan")

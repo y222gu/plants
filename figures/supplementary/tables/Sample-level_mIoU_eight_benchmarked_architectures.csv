@@ -1,4 +1,4 @@
-Model,Encoder,Pretrained Dataset,Fine-tuned Encoder (M),Decoder (M),Total Params (M),In-distribution Test n,In-distribution Test mIoU (mean ± std),Zero-shot Test n,Zero-shot Test mIoU (mean ± std)
+Model,Encoder,Pretrained Dataset,Fine-tuned Encoder (M),Decoder (M),Total Params (M),In-distribution Test n,In-distribution Test mIoU (mean ± std),Out-of-distribution Test n,Out-of-distribution Test mIoU (mean ± std)
 RADIX,DINOv3-S/16,LVD-1.69B,21.6,19.3,40.9,185,0.873 ± 0.076,35,0.872 ± 0.042
 DINOv2 + DPT,DINOv2-S/14,LVD-142M,23.6,19.3,42.9,185,0.869 ± 0.071,35,0.872 ± 0.034
 ResNet50 + UNet++,ResNet50,ImageNet-1k,23.5,25.5,49.0,185,0.868 ± 0.075,35,0.832 ± 0.055

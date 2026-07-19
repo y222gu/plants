@@ -64,7 +64,7 @@ SPECIES_LABEL = {"Rice": "Rice", "Millet": "Millet",
 MICROSCOPE_ROWS = [
     ("Olympus", "test",      "Olympus"),
     ("C10",     "test",      "C10"),
-    ("Zeiss",   "zero-shot", "Zeiss"),
+    ("Zeiss",   "zero-shot", "Zeiss"),  # split key kept lowercase to match CSV data
 ]
 
 
@@ -105,10 +105,10 @@ def load_csv(p: Path) -> list[dict]:
 
 
 def build_per_class_table() -> tuple[list[dict], list[str]]:
-    """Panels b (in-distribution test) and c (Zeiss zero-shot).
+    """Panels b (in-distribution test) and c (Zeiss out-of-distribution).
 
     Mean ± std of IoU across samples, per class, for RADIX on the in-distribution
-    test split and the Zeiss zero-shot split.
+    test split and the Zeiss out-of-distribution split.
     """
     model_rows = load_csv(HERE.parent / "per_sample_iou.csv")
 
@@ -123,8 +123,8 @@ def build_per_class_table() -> tuple[list[dict], list[str]]:
             "Anatomical Class": c,
             "In-distribution Test n":                test_iou["n"],
             "In-distribution Test IoU (mean ± std)": fmt_mean_std(test_iou),
-            "Zero-shot Test n":                      zs_iou["n"],
-            "Zero-shot Test IoU (mean ± std)":       fmt_mean_std(zs_iou),
+            "Out-of-distribution Test n":                      zs_iou["n"],
+            "Out-of-distribution Test IoU (mean ± std)":       fmt_mean_std(zs_iou),
         })
     fields = list(out[0].keys())
     return out, fields
@@ -151,7 +151,7 @@ MODEL_META = {
 
 def build_panel_f_table() -> tuple[list[dict], list[str]]:
     """Panel f: per-model sample-level mIoU on in-distribution test and
-    Zeiss zero-shot test, summarised as mean ± std across samples, plus
+    Zeiss out-of-distribution test, summarised as mean ± std across samples, plus
     total parameter count per model.
 
     Reads ../figure2/per_sample_miou_all_models.csv (the same file the
@@ -211,8 +211,8 @@ def build_panel_f_table() -> tuple[list[dict], list[str]]:
             "In-distribution Test n":                  s_test["n"],
             "In-distribution Test mIoU (mean ± std)":  fmt_mean_std(s_test),
             "_t_sort":                                 s_test["mean"] or 0.0,
-            "Zero-shot Test n":                        s_zs["n"],
-            "Zero-shot Test mIoU (mean ± std)":        fmt_mean_std(s_zs),
+            "Out-of-distribution Test n":                        s_zs["n"],
+            "Out-of-distribution Test mIoU (mean ± std)":        fmt_mean_std(s_zs),
         })
     out.sort(key=lambda r: r["_t_sort"], reverse=True)
     for r in out:
@@ -223,7 +223,7 @@ def build_panel_f_table() -> tuple[list[dict], list[str]]:
 
 def build_panel_f_html_svg(rows_f: list[dict]) -> tuple[str, float, float]:
     """Compact Nature-style table for panel f: per-model sample-level mIoU
-    on in-distribution test and Zeiss zero-shot test."""
+    on in-distribution test and Zeiss out-of-distribution test."""
     columns = [
         {"key": "Model",      "label": "Model",
          "width_mm": 32, "align": "start"},
@@ -235,7 +235,7 @@ def build_panel_f_html_svg(rows_f: list[dict]) -> tuple[str, float, float]:
          "label": ["In-distribution Test mIoU", "(mean ± s.d., n = 185)"],
          "width_mm": 38, "align": "middle"},
         {"key": "z_iou",
-         "label": ["Zero-shot Test mIoU", "(mean ± s.d., n = 35)"],
+         "label": ["Out-of-distribution Test mIoU", "(mean ± s.d., n = 35)"],
          "width_mm": 32, "align": "middle"},
     ]
     f_rows = []
@@ -245,7 +245,7 @@ def build_panel_f_html_svg(rows_f: list[dict]) -> tuple[str, float, float]:
             "Encoder":    r["Encoder"],
             "Pretrained": r["Pretrained Dataset"],
             "t_iou":      r["In-distribution Test mIoU (mean ± std)"],
-            "z_iou":      r["Zero-shot Test mIoU (mean ± std)"],
+            "z_iou":      r["Out-of-distribution Test mIoU (mean ± std)"],
         })
     return render_table_svg(columns, f_rows,
                             group_headers=None,
@@ -254,7 +254,7 @@ def build_panel_f_html_svg(rows_f: list[dict]) -> tuple[str, float, float]:
 
 def build_per_class_by_species_table() -> tuple[list[dict], list[str]]:
     """Per-class IoU broken down by species for RADIX. Rice pools both test
-    sets (in-distribution + Zeiss zero-shot), matching the species block of
+    sets (in-distribution + Zeiss out-of-distribution), matching the species block of
     the panel d/e table; the other species use the in-distribution test
     split only. Aerenchyma is computed only over samples in which the class
     is present (Solanums lack the class entirely and show n/a).
@@ -377,7 +377,7 @@ def build_diversity_table() -> tuple[list[dict], list[str]]:
             "Train":     c["train"],
             "Val":       c["val"],
             "Test":      c["test"],
-            "Zero-shot": c["oneshot"],
+            "Out-of-distribution": c["oneshot"],
             "Total":     total,
         })
     fields = list(out[0].keys()) if out else []
@@ -482,13 +482,13 @@ def build_diversity_train_parallel_html_svg(
 
 def build_diversity_test_html_svg(test_rows: list[dict]) -> tuple[str, float, float]:
     """Test half of the dataset-composition table. Rows must already be the
-    pre-filtered (Species, Genotype, In-distribution Test, Zero-shot Test,
+    pre-filtered (Species, Genotype, In-distribution Test, Out-of-distribution Test,
     Total) shape produced in main()."""
     columns = [
         {"key": "Species",   "label": "Species",                            "width_mm": 44, "align": "start"},
         {"key": "Genotype",  "label": "Genotype",                           "width_mm": 32, "align": "start"},
         {"key": "In-distribution Test", "label": ["In-distribution", "Test"], "width_mm": 22, "align": "middle"},
-        {"key": "Zero-shot Test",       "label": ["Zero-shot", "Test"],     "width_mm": 16, "align": "middle"},
+        {"key": "Out-of-distribution Test",       "label": ["Out-of-distribution", "Test"],     "width_mm": 26, "align": "middle"},
         {"key": "Total",     "label": "Total",                              "width_mm": 14, "align": "middle"},
     ]
     return render_table_svg(columns, test_rows,
@@ -581,10 +581,10 @@ def build_per_class_by_group_table() -> tuple[list[dict], list[str]]:
 
     For each group, report per-class IoU mean ± std plus sample-level mIoU
     mean ± std. Rice (the only species spanning both test sets) pools the
-    in-distribution test and Zeiss zero-shot splits, matching the panel d
+    in-distribution test and Zeiss out-of-distribution splits, matching the panel d
     convention; the other species use in-distribution test only. Microscope
     rows are non-overlapping by construction (each sample has one
-    microscope); Zeiss is the zero-shot row.
+    microscope); Zeiss is the out-of-distribution row.
     """
     miou_rows = load_csv(HERE.parent / "per_sample_iou.csv")
     test = [r for r in miou_rows if r["split"] == "test"]
@@ -1020,7 +1020,7 @@ document.getElementById("save-svg").addEventListener("click", saveSVG);
 def build_bc_html_svg(rows_bc: list[dict]) -> tuple[str, float, float]:
     """Compact Nature-style table for panels b + c. IoU mean ± s.d. across
     samples for the in-distribution test split, inter-annotator baseline,
-    and Zeiss zero-shot split."""
+    and Zeiss out-of-distribution split."""
     columns = [
         {"key": "Class", "label": "Anatomical Class",
          "width_mm": 28, "align": "start"},
@@ -1028,7 +1028,7 @@ def build_bc_html_svg(rows_bc: list[dict]) -> tuple[str, float, float]:
          "label": ["In-distribution Test IoU", "(mean ± s.d., n = 185)"],
          "width_mm": 40, "align": "middle"},
         {"key": "z_iou",
-         "label": ["Zero-shot Test IoU", "(mean ± s.d., n = 35)"],
+         "label": ["Out-of-distribution Test IoU", "(mean ± s.d., n = 35)"],
          "width_mm": 34, "align": "middle"},
     ]
     bc_rows = []
@@ -1036,7 +1036,7 @@ def build_bc_html_svg(rows_bc: list[dict]) -> tuple[str, float, float]:
         bc_rows.append({
             "Class": r["Anatomical Class"],
             "t_iou": r["In-distribution Test IoU (mean ± std)"],
-            "z_iou": r["Zero-shot Test IoU (mean ± std)"],
+            "z_iou": r["Out-of-distribution Test IoU (mean ± std)"],
         })
     return render_table_svg(columns, bc_rows,
                             group_headers=None,
@@ -1152,17 +1152,17 @@ def main() -> None:
 
     div_test_rows = []
     for r in rows_div:
-        tt = (r["Test"] or 0) + (r["Zero-shot"] or 0)
+        tt = (r["Test"] or 0) + (r["Out-of-distribution"] or 0)
         if tt > 0:
             div_test_rows.append({
                 "Species":            r["Species"],
                 "Genotype":           r["Genotype"],
                 "In-distribution Test": r["Test"],
-                "Zero-shot Test":     r["Zero-shot"],
+                "Out-of-distribution Test":     r["Out-of-distribution"],
                 "Total":              tt,
             })
     div_test_fields = ["Species", "Genotype",
-                       "In-distribution Test", "Zero-shot Test", "Total"]
+                       "In-distribution Test", "Out-of-distribution Test", "Total"]
     div_trainval_fields = ["Species", "Genotype", "Train", "Val"]
 
     write_csv(rows_bc,  fields_bc,  csv_bc)
@@ -1177,7 +1177,7 @@ def main() -> None:
         "Supplementary Table. Figure 2b,c per-class IoU",
         "Per-class IoU for RADIX (Root Anatomy Deep Identification across "
         "species) on the in-distribution test split (n=185 samples; panel b) "
-        "and on the Zeiss zero-shot split (n=35 samples; panel c). Aerenchyma "
+        "and on the Zeiss out-of-distribution split (n=35 samples; panel c). Aerenchyma "
         "is reported only over samples in which the class is present (tomato "
         "samples are excluded). Whole Root is omitted per project convention; "
         "it scores ~0.98 IoU across all splits and contributes no signal "
@@ -1190,9 +1190,9 @@ def main() -> None:
         "for RADIX, broken down by species (top block) and by microscope "
         "(bottom block). Sample-level mIoU is the unweighted mean over the six "
         "anatomy classes for each sample. Rice pools both test sets "
-        "(in-distribution and Zeiss zero-shot); the other species use the "
+        "(in-distribution and Zeiss out-of-distribution); the other species use the "
         "in-distribution test split only. Microscope rows are non-overlapping "
-        "by construction; Zeiss is the held-out zero-shot row. n is the "
+        "by construction; Zeiss is the held-out out-of-distribution row. n is the "
         "number of samples per row. Aerenchyma is computed only over samples "
         "in which the class is present; Solanums lack the class entirely. "
         "Values correspond to Figure 2d and 2e.",
@@ -1204,7 +1204,7 @@ def main() -> None:
         "every model in the Figure 2f benchmark, summarised as mean ± standard "
         "deviation across samples. In-distribution Test (n = 185) is the "
         "Strategy A test split pooled across all species and microscopes; "
-        "Zero-shot Test (n = 35) is the held-out Zeiss split. Rows are sorted "
+        "Out-of-distribution Test (n = 35) is the held-out Zeiss split. Rows are sorted "
         "by in-distribution mIoU, best first.",
     )
     train_total = sum((r.get("Train") or 0) for r in div_trainval_all)
@@ -1233,21 +1233,21 @@ def main() -> None:
         "sorting, and italic conventions as part 1.",
     )
     test_in   = sum((r.get("In-distribution Test") or 0) for r in div_test_rows)
-    test_zero = sum((r.get("Zero-shot Test") or 0) for r in div_test_rows)
+    test_zero = sum((r.get("Out-of-distribution Test") or 0) for r in div_test_rows)
     test_total = test_in + test_zero
     write_markdown(
         div_test_rows, div_test_fields, md_div_test,
         f"Supplementary Table. Test dataset composition by species and "
         f"genotype (n = {test_total:,} test samples in total: "
-        f"{test_in:,} in-distribution, {test_zero:,} Zeiss zero-shot)",
+        f"{test_in:,} in-distribution, {test_zero:,} Zeiss out-of-distribution)",
         "Per-genotype sample counts in the test splits: the in-distribution "
-        "test split and the Zeiss zero-shot test split. Filtered to "
+        "test split and the Zeiss out-of-distribution test split. Filtered to "
         "genotypes with at least one sample in either test split. Rows are "
         "sorted by species in the monocots-then-Solanums order used "
         "throughout the paper. Solanum binomials are italicised per "
         "botanical convention; gene/allele names in the genotype column are "
-        "also italicised. The Total column is in-distribution + zero-shot "
-        "for that row. All zero-shot samples are Rice (Kitaake) on the "
+        "also italicised. The Total column is in-distribution + out-of-distribution "
+        "for that row. All out-of-distribution samples are Rice (Kitaake) on the "
         "held-out Zeiss microscope.",
     )
     write_markdown(

@@ -1,0 +1,55 @@
+<svg id="fig" viewBox="0 0 180.000 57.700" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+<g transform="translate(13.000, 0)">
+<line x1="3.000" y1="0.000" x2="151.000" y2="0.000" stroke="black" stroke-width="0.4"/>
+<text x="3.800" y="7.300" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Model</text>
+<text x="35.800" y="7.300" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Encoder</text>
+<text x="57.800" y="7.300" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Dataset</text>
+<text x="57.800" y="4.200" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Pretrained</text>
+<text x="100.000" y="7.300" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">(mean ± s.d., n = 185)</text>
+<text x="100.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">In-distribution Test mIoU</text>
+<text x="135.000" y="7.300" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">(mean ± s.d., n = 35)</text>
+<text x="135.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Out-of-distribution Test mIoU</text>
+<line x1="3.000" y1="8.700" x2="151.000" y2="8.700" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="13.300" font-size="2.47" text-anchor="start" fill="black">RADIX</text>
+<text x="35.800" y="13.300" font-size="2.47" text-anchor="start" fill="black">DINOv3-S/16</text>
+<text x="57.800" y="13.300" font-size="2.47" text-anchor="start" fill="black">LVD-1.69B</text>
+<text x="100.000" y="13.300" font-size="2.47" text-anchor="middle" fill="black">0.873 ± 0.076</text>
+<text x="135.000" y="13.300" font-size="2.47" text-anchor="middle" fill="black">0.872 ± 0.042</text>
+<text x="3.800" y="19.300" font-size="2.47" text-anchor="start" fill="black">DINOv2 + DPT</text>
+<text x="35.800" y="19.300" font-size="2.47" text-anchor="start" fill="black">DINOv2-S/14</text>
+<text x="57.800" y="19.300" font-size="2.47" text-anchor="start" fill="black">LVD-142M</text>
+<text x="100.000" y="19.300" font-size="2.47" text-anchor="middle" fill="black">0.869 ± 0.071</text>
+<text x="135.000" y="19.300" font-size="2.47" text-anchor="middle" fill="black">0.872 ± 0.034</text>
+<text x="3.800" y="25.300" font-size="2.47" text-anchor="start" fill="black">ResNet50 + UNet++</text>
+<text x="35.800" y="25.300" font-size="2.47" text-anchor="start" fill="black">ResNet50</text>
+<text x="57.800" y="25.300" font-size="2.47" text-anchor="start" fill="black">ImageNet-1k</text>
+<text x="100.000" y="25.300" font-size="2.47" text-anchor="middle" fill="black">0.868 ± 0.075</text>
+<text x="135.000" y="25.300" font-size="2.47" text-anchor="middle" fill="black">0.832 ± 0.055</text>
+<text x="3.800" y="31.300" font-size="2.47" text-anchor="start" fill="black">ResNet34 + UNet++</text>
+<text x="35.800" y="31.300" font-size="2.47" text-anchor="start" fill="black">ResNet34</text>
+<text x="57.800" y="31.300" font-size="2.47" text-anchor="start" fill="black">ImageNet-1k</text>
+<text x="100.000" y="31.300" font-size="2.47" text-anchor="middle" fill="black">0.867 ± 0.078</text>
+<text x="135.000" y="31.300" font-size="2.47" text-anchor="middle" fill="black">0.854 ± 0.048</text>
+<text x="3.800" y="37.300" font-size="2.47" text-anchor="start" fill="black">YOLO26m-seg</text>
+<text x="35.800" y="37.300" font-size="2.47" text-anchor="start" fill="black">YOLO26m</text>
+<text x="57.800" y="37.300" font-size="2.47" text-anchor="start" fill="black">COCO</text>
+<text x="100.000" y="37.300" font-size="2.47" text-anchor="middle" fill="black">0.866 ± 0.079</text>
+<text x="135.000" y="37.300" font-size="2.47" text-anchor="middle" fill="black">0.785 ± 0.112</text>
+<text x="3.800" y="43.300" font-size="2.47" text-anchor="start" fill="black">DINOv2 + MS-Linear</text>
+<text x="35.800" y="43.300" font-size="2.47" text-anchor="start" fill="black">DINOv2-S/14</text>
+<text x="57.800" y="43.300" font-size="2.47" text-anchor="start" fill="black">LVD-142M</text>
+<text x="100.000" y="43.300" font-size="2.47" text-anchor="middle" fill="black">0.858 ± 0.077</text>
+<text x="135.000" y="43.300" font-size="2.47" text-anchor="middle" fill="black">0.846 ± 0.036</text>
+<text x="3.800" y="49.300" font-size="2.47" text-anchor="start" fill="black">SegDINO-MLP</text>
+<text x="35.800" y="49.300" font-size="2.47" text-anchor="start" fill="black">DINOv3-S/16</text>
+<text x="57.800" y="49.300" font-size="2.47" text-anchor="start" fill="black">LVD-1.69B</text>
+<text x="100.000" y="49.300" font-size="2.47" text-anchor="middle" fill="black">0.856 ± 0.071</text>
+<text x="135.000" y="49.300" font-size="2.47" text-anchor="middle" fill="black">0.836 ± 0.042</text>
+<text x="3.800" y="55.300" font-size="2.47" text-anchor="start" fill="black">MicroSAM + UNETR</text>
+<text x="35.800" y="55.300" font-size="2.47" text-anchor="start" fill="black">SAM ViT-B</text>
+<text x="57.800" y="55.300" font-size="2.47" text-anchor="start" fill="black">SA-1B + LM</text>
+<text x="100.000" y="55.300" font-size="2.47" text-anchor="middle" fill="black">0.827 ± 0.088</text>
+<text x="135.000" y="55.300" font-size="2.47" text-anchor="middle" fill="black">0.811 ± 0.059</text>
+<line x1="3.000" y1="56.700" x2="151.000" y2="56.700" stroke="black" stroke-width="0.4"/>
+</g>
+</svg>

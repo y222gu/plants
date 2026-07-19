@@ -1,4 +1,6 @@
-<svg id="fig" viewBox="0 0 180.000 234.600" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg viewBox="0 0 180.000 240.600" xmlns="http://www.w3.org/2000/svg"
+     font-family="Helvetica, Arial, sans-serif">
 <g transform="translate(5.000, 0)">
 <g transform="translate(0, 0)">
 <line x1="3.000" y1="0.000" x2="79.000" y2="0.000" stroke="black" stroke-width="0.4"/>
@@ -12,154 +14,154 @@
 <text x="64.000" y="10.200" font-size="2.47" text-anchor="middle" fill="black">71</text>
 <text x="74.000" y="10.200" font-size="2.47" text-anchor="middle" fill="black">7</text>
 <line x1="3.000" y1="11.600" x2="79.000" y2="11.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="16.200" font-size="2.47" text-anchor="start" fill="black"/>
+<text x="3.800" y="16.200" font-size="2.47" text-anchor="start" fill="black"></text>
 <text x="35.800" y="16.200" font-size="2.47" text-anchor="start" fill="black">Kitaake</text>
 <text x="64.000" y="16.200" font-size="2.47" text-anchor="middle" fill="black">86</text>
 <text x="74.000" y="16.200" font-size="2.47" text-anchor="middle" fill="black">52</text>
-<text x="3.800" y="22.200" font-size="2.47" text-anchor="start" fill="black"/>
+<text x="3.800" y="22.200" font-size="2.47" text-anchor="start" fill="black"></text>
 <text x="35.800" y="22.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">psy1-17</tspan></text>
-<text x="64.000" y="22.200" font-size="2.47" text-anchor="middle" fill="black">185</text>
+<text x="64.000" y="22.200" font-size="2.47" text-anchor="middle" fill="black">175</text>
 <text x="74.000" y="22.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
 <text x="3.800" y="28.200" font-size="2.47" text-anchor="start" fill="black">Rice</text>
-<text x="35.800" y="28.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">psy1-9</tspan></text>
-<text x="64.000" y="28.200" font-size="2.47" text-anchor="middle" fill="black">105</text>
-<text x="74.000" y="28.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
-<text x="3.800" y="34.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="34.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">wox10-15</tspan></text>
-<text x="64.000" y="34.200" font-size="2.47" text-anchor="middle" fill="black">33</text>
-<text x="74.000" y="34.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="40.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="40.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">wox10-50</tspan></text>
-<text x="64.000" y="40.200" font-size="2.47" text-anchor="middle" fill="black">31</text>
+<text x="35.800" y="28.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">psy1-17</tspan></text>
+<text x="64.000" y="28.200" font-size="2.47" text-anchor="middle" fill="black">10</text>
+<text x="74.000" y="28.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="34.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="34.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">psy1-9</tspan></text>
+<text x="64.000" y="34.200" font-size="2.47" text-anchor="middle" fill="black">105</text>
+<text x="74.000" y="34.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="40.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="40.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">wox10-15</tspan></text>
+<text x="64.000" y="40.200" font-size="2.47" text-anchor="middle" fill="black">33</text>
 <text x="74.000" y="40.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<line x1="3.000" y1="41.600" x2="79.000" y2="41.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="46.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="46.200" font-size="2.47" text-anchor="start" fill="black">2005MI5064</text>
-<text x="64.000" y="46.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="46.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
-<text x="3.800" y="52.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="52.200" font-size="2.47" text-anchor="start" fill="black">235464</text>
-<text x="64.000" y="52.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
-<text x="74.000" y="52.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="58.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="58.200" font-size="2.47" text-anchor="start" fill="black">235467</text>
-<text x="64.000" y="58.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="46.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="46.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">wox10-50</tspan></text>
+<text x="64.000" y="46.200" font-size="2.47" text-anchor="middle" fill="black">31</text>
+<text x="74.000" y="46.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<line x1="3.000" y1="47.600" x2="79.000" y2="47.600" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="52.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="52.200" font-size="2.47" text-anchor="start" fill="black">2005MI5064</text>
+<text x="64.000" y="52.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="52.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="58.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="58.200" font-size="2.47" text-anchor="start" fill="black">235464</text>
+<text x="64.000" y="58.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="58.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="64.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="64.200" font-size="2.47" text-anchor="start" fill="black">235761</text>
-<text x="64.000" y="64.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="3.800" y="64.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="64.200" font-size="2.47" text-anchor="start" fill="black">235467</text>
+<text x="64.000" y="64.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <text x="74.000" y="64.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="70.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="70.200" font-size="2.47" text-anchor="start" fill="black">235763</text>
-<text x="64.000" y="70.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="70.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="70.200" font-size="2.47" text-anchor="start" fill="black">235761</text>
+<text x="64.000" y="70.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="70.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="76.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="76.200" font-size="2.47" text-anchor="start" fill="black">235921</text>
-<text x="64.000" y="76.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="3.800" y="76.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="76.200" font-size="2.47" text-anchor="start" fill="black">235763</text>
+<text x="64.000" y="76.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <text x="74.000" y="76.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="82.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="82.200" font-size="2.47" text-anchor="start" fill="black">235925</text>
+<text x="3.800" y="82.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="82.200" font-size="2.47" text-anchor="start" fill="black">235921</text>
 <text x="64.000" y="82.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="82.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="88.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="88.200" font-size="2.47" text-anchor="start" fill="black">A2267-2</text>
-<text x="64.000" y="88.200" font-size="2.47" text-anchor="middle" fill="black">6</text>
+<text x="3.800" y="88.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="88.200" font-size="2.47" text-anchor="start" fill="black">235925</text>
+<text x="64.000" y="88.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="88.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="94.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="94.200" font-size="2.47" text-anchor="start" fill="black">B35</text>
-<text x="64.000" y="94.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="94.200" font-size="2.47" text-anchor="middle" fill="black">1</text>
-<text x="3.800" y="100.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="100.200" font-size="2.47" text-anchor="start" fill="black">Dekeba</text>
-<text x="64.000" y="100.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
-<text x="74.000" y="100.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="106.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="106.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100016</text>
-<text x="64.000" y="106.200" font-size="2.47" text-anchor="middle" fill="black">9</text>
+<text x="3.800" y="94.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="94.200" font-size="2.47" text-anchor="start" fill="black">A2267-2</text>
+<text x="64.000" y="94.200" font-size="2.47" text-anchor="middle" fill="black">6</text>
+<text x="74.000" y="94.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="100.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="100.200" font-size="2.47" text-anchor="start" fill="black">B35</text>
+<text x="64.000" y="100.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="100.200" font-size="2.47" text-anchor="middle" fill="black">1</text>
+<text x="3.800" y="106.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="106.200" font-size="2.47" text-anchor="start" fill="black">Dekeba</text>
+<text x="64.000" y="106.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="106.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="112.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="112.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100046</text>
-<text x="64.000" y="112.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="112.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="112.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100016</text>
+<text x="64.000" y="112.200" font-size="2.47" text-anchor="middle" fill="black">9</text>
 <text x="74.000" y="112.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="118.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="118.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100143</text>
-<text x="64.000" y="118.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="3.800" y="118.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="118.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100046</text>
+<text x="64.000" y="118.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <text x="74.000" y="118.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="124.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="124.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100305</text>
-<text x="64.000" y="124.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="124.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
-<text x="3.800" y="130.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="130.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100307</text>
-<text x="64.000" y="130.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
-<text x="74.000" y="130.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="136.200" font-size="2.47" text-anchor="start" fill="black">Sorghum</text>
-<text x="35.800" y="136.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100308</text>
-<text x="64.000" y="136.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
+<text x="3.800" y="124.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="124.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100143</text>
+<text x="64.000" y="124.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="74.000" y="124.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="130.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="130.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100305</text>
+<text x="64.000" y="130.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="130.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
+<text x="3.800" y="136.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="136.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100307</text>
+<text x="64.000" y="136.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <text x="74.000" y="136.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="142.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="142.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100309</text>
-<text x="64.000" y="142.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="3.800" y="142.200" font-size="2.47" text-anchor="start" fill="black">Sorghum</text>
+<text x="35.800" y="142.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100308</text>
+<text x="64.000" y="142.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
 <text x="74.000" y="142.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="148.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="148.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100312</text>
-<text x="64.000" y="148.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="148.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="148.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100309</text>
+<text x="64.000" y="148.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="148.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="154.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="154.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100316</text>
-<text x="64.000" y="154.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="3.800" y="154.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="154.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100312</text>
+<text x="64.000" y="154.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <text x="74.000" y="154.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="160.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="160.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100726</text>
+<text x="3.800" y="160.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="160.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100316</text>
 <text x="64.000" y="160.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="160.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="166.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="166.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101295</text>
-<text x="64.000" y="166.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="166.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="166.200" font-size="2.47" text-anchor="start" fill="black">ETSL 100726</text>
+<text x="64.000" y="166.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="166.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="172.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="172.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101728</text>
-<text x="64.000" y="172.200" font-size="2.47" text-anchor="middle" fill="black">6</text>
+<text x="3.800" y="172.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="172.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101295</text>
+<text x="64.000" y="172.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <text x="74.000" y="172.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="178.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="178.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101843</text>
-<text x="64.000" y="178.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="178.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
-<text x="3.800" y="184.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="184.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101844</text>
-<text x="64.000" y="184.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
-<text x="74.000" y="184.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="190.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="190.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101845</text>
+<text x="3.800" y="178.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="178.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101728</text>
+<text x="64.000" y="178.200" font-size="2.47" text-anchor="middle" fill="black">6</text>
+<text x="74.000" y="178.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="184.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="184.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101843</text>
+<text x="64.000" y="184.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="184.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
+<text x="3.800" y="190.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="190.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101844</text>
 <text x="64.000" y="190.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
 <text x="74.000" y="190.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="196.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="196.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101847</text>
+<text x="3.800" y="196.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="196.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101845</text>
 <text x="64.000" y="196.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
 <text x="74.000" y="196.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="202.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="202.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101851</text>
-<text x="64.000" y="202.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="3.800" y="202.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="202.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101847</text>
+<text x="64.000" y="202.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
 <text x="74.000" y="202.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="208.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="208.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101853</text>
-<text x="64.000" y="208.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="208.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
-<text x="3.800" y="214.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="214.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101857</text>
+<text x="3.800" y="208.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="208.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101851</text>
+<text x="64.000" y="208.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="74.000" y="208.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="214.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="214.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101853</text>
 <text x="64.000" y="214.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="214.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
-<text x="3.800" y="220.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="220.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101862</text>
-<text x="64.000" y="220.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
-<text x="74.000" y="220.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="226.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="226.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101865</text>
-<text x="64.000" y="226.200" font-size="2.47" text-anchor="middle" fill="black">7</text>
+<text x="74.000" y="214.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
+<text x="3.800" y="220.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="220.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101857</text>
+<text x="64.000" y="220.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="220.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="226.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="226.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101862</text>
+<text x="64.000" y="226.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="226.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="232.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="232.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101866</text>
-<text x="64.000" y="232.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="3.800" y="232.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="232.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101865</text>
+<text x="64.000" y="232.200" font-size="2.47" text-anchor="middle" fill="black">7</text>
 <text x="74.000" y="232.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
 <line x1="3.000" y1="233.600" x2="79.000" y2="233.600" stroke="black" stroke-width="0.4"/>
 </g>
@@ -170,172 +172,176 @@
 <text x="64.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Train</text>
 <text x="74.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Val</text>
 <line x1="3.000" y1="5.600" x2="79.000" y2="5.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="10.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="10.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101888</text>
-<text x="64.000" y="10.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="10.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="10.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101866</text>
+<text x="64.000" y="10.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="10.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="16.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="16.200" font-size="2.47" text-anchor="start" fill="black">ETWS 90754</text>
+<text x="3.800" y="16.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="16.200" font-size="2.47" text-anchor="start" fill="black">ETSL 101888</text>
 <text x="64.000" y="16.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <text x="74.000" y="16.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="22.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="22.200" font-size="2.47" text-anchor="start" fill="black">ETWS 90787</text>
+<text x="3.800" y="22.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="22.200" font-size="2.47" text-anchor="start" fill="black">ETWS 90754</text>
 <text x="64.000" y="22.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <text x="74.000" y="22.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="28.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="28.200" font-size="2.47" text-anchor="start" fill="black">ETWS 91242</text>
+<text x="3.800" y="28.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="28.200" font-size="2.47" text-anchor="start" fill="black">ETWS 90787</text>
 <text x="64.000" y="28.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <text x="74.000" y="28.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="34.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="34.200" font-size="2.47" text-anchor="start" fill="black">ETWS 91323</text>
-<text x="64.000" y="34.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="3.800" y="34.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="34.200" font-size="2.47" text-anchor="start" fill="black">ETWS 91242</text>
+<text x="64.000" y="34.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <text x="74.000" y="34.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="40.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="40.200" font-size="2.47" text-anchor="start" fill="black">Framida</text>
-<text x="64.000" y="40.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
+<text x="3.800" y="40.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="40.200" font-size="2.47" text-anchor="start" fill="black">ETWS 91323</text>
+<text x="64.000" y="40.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="40.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="46.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="46.200" font-size="2.47" text-anchor="start" fill="black">Gobiye</text>
+<text x="3.800" y="46.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="46.200" font-size="2.47" text-anchor="start" fill="black">Framida</text>
 <text x="64.000" y="46.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
 <text x="74.000" y="46.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="52.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="52.200" font-size="2.47" text-anchor="start" fill="black">IESV 23005DL</text>
-<text x="64.000" y="52.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="52.200" font-size="2.47" text-anchor="middle" fill="black">1</text>
-<text x="3.800" y="58.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="58.200" font-size="2.47" text-anchor="start" fill="black">IS 38306</text>
-<text x="64.000" y="58.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
-<text x="74.000" y="58.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="64.200" font-size="2.47" text-anchor="start" fill="black">Sorghum</text>
-<text x="35.800" y="64.200" font-size="2.47" text-anchor="start" fill="black">IS 38343</text>
-<text x="64.000" y="64.200" font-size="2.47" text-anchor="middle" fill="black">6</text>
+<text x="3.800" y="52.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="52.200" font-size="2.47" text-anchor="start" fill="black">Gobiye</text>
+<text x="64.000" y="52.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
+<text x="74.000" y="52.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="58.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="58.200" font-size="2.47" text-anchor="start" fill="black">IESV 23005DL</text>
+<text x="64.000" y="58.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="58.200" font-size="2.47" text-anchor="middle" fill="black">1</text>
+<text x="3.800" y="64.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="64.200" font-size="2.47" text-anchor="start" fill="black">IS 38306</text>
+<text x="64.000" y="64.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="64.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="70.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="70.200" font-size="2.47" text-anchor="start" fill="black">IS 38408</text>
-<text x="64.000" y="70.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
+<text x="3.800" y="70.200" font-size="2.47" text-anchor="start" fill="black">Sorghum</text>
+<text x="35.800" y="70.200" font-size="2.47" text-anchor="start" fill="black">IS 38343</text>
+<text x="64.000" y="70.200" font-size="2.47" text-anchor="middle" fill="black">6</text>
 <text x="74.000" y="70.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="76.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="76.200" font-size="2.47" text-anchor="start" fill="black">Macia</text>
-<text x="64.000" y="76.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
+<text x="3.800" y="76.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="76.200" font-size="2.47" text-anchor="start" fill="black">IS 38408</text>
+<text x="64.000" y="76.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
 <text x="74.000" y="76.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="82.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="82.200" font-size="2.47" text-anchor="start" fill="black">Melkam</text>
-<text x="64.000" y="82.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
+<text x="3.800" y="82.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="82.200" font-size="2.47" text-anchor="start" fill="black">Macia</text>
+<text x="64.000" y="82.200" font-size="2.47" text-anchor="middle" fill="black">4</text>
 <text x="74.000" y="82.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="88.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="88.200" font-size="2.47" text-anchor="start" fill="black">Misikir</text>
-<text x="64.000" y="88.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="88.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
-<text x="3.800" y="94.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="94.200" font-size="2.47" text-anchor="start" fill="black">NTJ2</text>
+<text x="3.800" y="88.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="88.200" font-size="2.47" text-anchor="start" fill="black">Melkam</text>
+<text x="64.000" y="88.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
+<text x="74.000" y="88.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="94.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="94.200" font-size="2.47" text-anchor="start" fill="black">Misikir</text>
 <text x="64.000" y="94.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
 <text x="74.000" y="94.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
-<text x="3.800" y="100.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="100.200" font-size="2.47" text-anchor="start" fill="black">P9501B</text>
+<text x="3.800" y="100.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="100.200" font-size="2.47" text-anchor="start" fill="black">NTJ2</text>
 <text x="64.000" y="100.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
 <text x="74.000" y="100.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
-<text x="3.800" y="106.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="106.200" font-size="2.47" text-anchor="start" fill="black">S35</text>
-<text x="64.000" y="106.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
-<text x="74.000" y="106.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="112.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="112.200" font-size="2.47" text-anchor="start" fill="black">SQR</text>
-<text x="64.000" y="112.200" font-size="2.47" text-anchor="middle" fill="black">16</text>
-<text x="74.000" y="112.200" font-size="2.47" text-anchor="middle" fill="black">9</text>
-<text x="3.800" y="118.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="118.200" font-size="2.47" text-anchor="start" fill="black">SRN</text>
-<text x="64.000" y="118.200" font-size="2.47" text-anchor="middle" fill="black">9</text>
-<text x="74.000" y="118.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
-<text x="3.800" y="124.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="124.200" font-size="2.47" text-anchor="start" fill="black">Teshale</text>
-<text x="64.000" y="124.200" font-size="2.47" text-anchor="middle" fill="black">151</text>
-<text x="74.000" y="124.200" font-size="2.47" text-anchor="middle" fill="black">18</text>
-<line x1="3.000" y1="125.600" x2="79.000" y2="125.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="130.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="130.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">cerasiforme</tspan></text>
-<text x="64.000" y="130.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="130.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
-<text x="3.800" y="136.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="136.200" font-size="2.47" text-anchor="start" fill="black">LA0513</text>
+<text x="3.800" y="106.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="106.200" font-size="2.47" text-anchor="start" fill="black">P9501B</text>
+<text x="64.000" y="106.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="106.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
+<text x="3.800" y="112.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="112.200" font-size="2.47" text-anchor="start" fill="black">S35</text>
+<text x="64.000" y="112.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
+<text x="74.000" y="112.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="118.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="118.200" font-size="2.47" text-anchor="start" fill="black">SQR</text>
+<text x="64.000" y="118.200" font-size="2.47" text-anchor="middle" fill="black">16</text>
+<text x="74.000" y="118.200" font-size="2.47" text-anchor="middle" fill="black">9</text>
+<text x="3.800" y="124.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="124.200" font-size="2.47" text-anchor="start" fill="black">SRN</text>
+<text x="64.000" y="124.200" font-size="2.47" text-anchor="middle" fill="black">9</text>
+<text x="74.000" y="124.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
+<text x="3.800" y="130.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="130.200" font-size="2.47" text-anchor="start" fill="black">Teshale</text>
+<text x="64.000" y="130.200" font-size="2.47" text-anchor="middle" fill="black">151</text>
+<text x="74.000" y="130.200" font-size="2.47" text-anchor="middle" fill="black">18</text>
+<line x1="3.000" y1="131.600" x2="79.000" y2="131.600" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="136.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="136.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">cerasiforme</tspan></text>
 <text x="64.000" y="136.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="136.200" font-size="2.47" text-anchor="middle" fill="black">7</text>
-<text x="3.800" y="142.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum lycopersicum</tspan></text>
-<text x="35.800" y="142.200" font-size="2.47" text-anchor="start" fill="black">M82</text>
-<text x="64.000" y="142.200" font-size="2.47" text-anchor="middle" fill="black">301</text>
-<text x="74.000" y="142.200" font-size="2.47" text-anchor="middle" fill="black">19</text>
-<text x="3.800" y="148.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="148.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">slasft</tspan></text>
-<text x="64.000" y="148.200" font-size="2.47" text-anchor="middle" fill="black">49</text>
-<text x="74.000" y="148.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="3.800" y="154.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="154.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">slmyb92</tspan></text>
-<text x="64.000" y="154.200" font-size="2.47" text-anchor="middle" fill="black">66</text>
-<text x="74.000" y="154.200" font-size="2.47" text-anchor="middle" fill="black">21</text>
-<text x="3.800" y="160.200" font-size="2.47" text-anchor="start" fill="black"/>
-<text x="35.800" y="160.200" font-size="2.47" text-anchor="start" fill="black">VF36</text>
-<text x="64.000" y="160.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="160.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
-<line x1="3.000" y1="161.600" x2="79.000" y2="161.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="166.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum aethiopicum</tspan></text>
-<text x="35.800" y="166.200" font-size="2.47" text-anchor="start" fill="black">PI424860</text>
-<text x="64.000" y="166.200" font-size="2.47" text-anchor="middle" fill="black">9</text>
-<text x="74.000" y="166.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="136.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
+<text x="3.800" y="142.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="142.200" font-size="2.47" text-anchor="start" fill="black">LA0513</text>
+<text x="64.000" y="142.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="142.200" font-size="2.47" text-anchor="middle" fill="black">7</text>
+<text x="3.800" y="148.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum lycopersicum</tspan></text>
+<text x="35.800" y="148.200" font-size="2.47" text-anchor="start" fill="black">M82</text>
+<text x="64.000" y="148.200" font-size="2.47" text-anchor="middle" fill="black">301</text>
+<text x="74.000" y="148.200" font-size="2.47" text-anchor="middle" fill="black">19</text>
+<text x="3.800" y="154.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="154.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">slasft</tspan></text>
+<text x="64.000" y="154.200" font-size="2.47" text-anchor="middle" fill="black">49</text>
+<text x="74.000" y="154.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="160.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="160.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">slmyb92</tspan></text>
+<text x="64.000" y="160.200" font-size="2.47" text-anchor="middle" fill="black">66</text>
+<text x="74.000" y="160.200" font-size="2.47" text-anchor="middle" fill="black">21</text>
+<text x="3.800" y="166.200" font-size="2.47" text-anchor="start" fill="black"></text>
+<text x="35.800" y="166.200" font-size="2.47" text-anchor="start" fill="black">VF36</text>
+<text x="64.000" y="166.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="166.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <line x1="3.000" y1="167.600" x2="79.000" y2="167.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="172.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum anguivi</tspan></text>
-<text x="35.800" y="172.200" font-size="2.47" text-anchor="start" fill="black">ANG1</text>
-<text x="64.000" y="172.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="172.200" font-size="2.47" text-anchor="middle" fill="black">1</text>
+<text x="3.800" y="172.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum aethiopicum</tspan></text>
+<text x="35.800" y="172.200" font-size="2.47" text-anchor="start" fill="black">PI424860</text>
+<text x="64.000" y="172.200" font-size="2.47" text-anchor="middle" fill="black">9</text>
+<text x="74.000" y="172.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
 <line x1="3.000" y1="173.600" x2="79.000" y2="173.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="178.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum arcanum</tspan></text>
-<text x="35.800" y="178.200" font-size="2.47" text-anchor="start" fill="black">LA2157</text>
+<text x="3.800" y="178.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum anguivi</tspan></text>
+<text x="35.800" y="178.200" font-size="2.47" text-anchor="start" fill="black">ANG1</text>
 <text x="64.000" y="178.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="178.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
+<text x="74.000" y="178.200" font-size="2.47" text-anchor="middle" fill="black">1</text>
 <line x1="3.000" y1="179.600" x2="79.000" y2="179.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="184.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum candidum</tspan></text>
-<text x="35.800" y="184.200" font-size="2.47" text-anchor="start" fill="black">994750097</text>
-<text x="64.000" y="184.200" font-size="2.47" text-anchor="middle" fill="black">7</text>
-<text x="74.000" y="184.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="184.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum arcanum</tspan></text>
+<text x="35.800" y="184.200" font-size="2.47" text-anchor="start" fill="black">LA2157</text>
+<text x="64.000" y="184.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="184.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
 <line x1="3.000" y1="185.600" x2="79.000" y2="185.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="190.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum cheesmaniae</tspan></text>
-<text x="35.800" y="190.200" font-size="2.47" text-anchor="start" fill="black">LA1407</text>
-<text x="64.000" y="190.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="190.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum candidum</tspan></text>
+<text x="35.800" y="190.200" font-size="2.47" text-anchor="start" fill="black">994750097</text>
+<text x="64.000" y="190.200" font-size="2.47" text-anchor="middle" fill="black">7</text>
 <text x="74.000" y="190.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
 <line x1="3.000" y1="191.600" x2="79.000" y2="191.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="196.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum habrochaites</tspan></text>
-<text x="35.800" y="196.200" font-size="2.47" text-anchor="start" fill="black">LA1777</text>
-<text x="64.000" y="196.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="196.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
+<text x="3.800" y="196.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum cheesmaniae</tspan></text>
+<text x="35.800" y="196.200" font-size="2.47" text-anchor="start" fill="black">LA1407</text>
+<text x="64.000" y="196.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="74.000" y="196.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
 <line x1="3.000" y1="197.600" x2="79.000" y2="197.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="202.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum huaylasense</tspan></text>
-<text x="35.800" y="202.200" font-size="2.47" text-anchor="start" fill="black">LA1364</text>
+<text x="3.800" y="202.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum habrochaites</tspan></text>
+<text x="35.800" y="202.200" font-size="2.47" text-anchor="start" fill="black">LA1777</text>
 <text x="64.000" y="202.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
 <text x="74.000" y="202.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
 <line x1="3.000" y1="203.600" x2="79.000" y2="203.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="208.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum insanum</tspan></text>
-<text x="35.800" y="208.200" font-size="2.47" text-anchor="start" fill="black">INS1</text>
+<text x="3.800" y="208.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum huaylasense</tspan></text>
+<text x="35.800" y="208.200" font-size="2.47" text-anchor="start" fill="black">LA1364</text>
 <text x="64.000" y="208.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="208.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
+<text x="74.000" y="208.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
 <line x1="3.000" y1="209.600" x2="79.000" y2="209.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="214.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum peruvianum</tspan></text>
-<text x="35.800" y="214.200" font-size="2.47" text-anchor="start" fill="black">LA1777</text>
-<text x="64.000" y="214.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
-<text x="74.000" y="214.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="3.800" y="214.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum insanum</tspan></text>
+<text x="35.800" y="214.200" font-size="2.47" text-anchor="start" fill="black">INS1</text>
+<text x="64.000" y="214.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="214.200" font-size="2.47" text-anchor="middle" fill="black">5</text>
 <line x1="3.000" y1="215.600" x2="79.000" y2="215.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="220.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum pimpinellifolium</tspan></text>
-<text x="35.800" y="220.200" font-size="2.47" text-anchor="start" fill="black">LA1589</text>
-<text x="64.000" y="220.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="220.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<text x="3.800" y="220.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum peruvianum</tspan></text>
+<text x="35.800" y="220.200" font-size="2.47" text-anchor="start" fill="black">LA1777</text>
+<text x="64.000" y="220.200" font-size="2.47" text-anchor="middle" fill="black">2</text>
+<text x="74.000" y="220.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
 <line x1="3.000" y1="221.600" x2="79.000" y2="221.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="226.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum quitoense</tspan></text>
-<text x="35.800" y="226.200" font-size="2.47" text-anchor="start" fill="black">PI489701</text>
+<text x="3.800" y="226.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum pimpinellifolium</tspan></text>
+<text x="35.800" y="226.200" font-size="2.47" text-anchor="start" fill="black">LA1589</text>
 <text x="64.000" y="226.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
 <text x="74.000" y="226.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
 <line x1="3.000" y1="227.600" x2="79.000" y2="227.600" stroke="black" stroke-width="0.2"/>
-<text x="3.800" y="232.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum violaceum</tspan></text>
-<text x="35.800" y="232.200" font-size="2.47" text-anchor="start" fill="black">PI319855</text>
+<text x="3.800" y="232.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum quitoense</tspan></text>
+<text x="35.800" y="232.200" font-size="2.47" text-anchor="start" fill="black">PI489701</text>
 <text x="64.000" y="232.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
-<text x="74.000" y="232.200" font-size="2.47" text-anchor="middle" fill="black">1</text>
-<line x1="3.000" y1="233.600" x2="79.000" y2="233.600" stroke="black" stroke-width="0.4"/>
+<text x="74.000" y="232.200" font-size="2.47" text-anchor="middle" fill="black">3</text>
+<line x1="3.000" y1="233.600" x2="79.000" y2="233.600" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="238.200" font-size="2.47" text-anchor="start" fill="black"><tspan font-style="italic">Solanum violaceum</tspan></text>
+<text x="35.800" y="238.200" font-size="2.47" text-anchor="start" fill="black">PI319855</text>
+<text x="64.000" y="238.200" font-size="2.47" text-anchor="middle" fill="black">0</text>
+<text x="74.000" y="238.200" font-size="2.47" text-anchor="middle" fill="black">1</text>
+<line x1="3.000" y1="239.600" x2="79.000" y2="239.600" stroke="black" stroke-width="0.4"/>
 </g>
 </g>
 </svg>

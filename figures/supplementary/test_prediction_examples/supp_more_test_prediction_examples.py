@@ -3,7 +3,7 @@ prediction masks, side by side.
 
 Selection: at most one sample per (species, microscope, genotype) combination
 drawn from the union of the Strategy A in-distribution test split and the
-Zeiss zero-shot split, so the figure captures as much species / genotype
+Zeiss out-of-distribution split, so the figure captures as much species / genotype
 diversity as the test set allows. Seeded for reproducibility.
 
 Layout: 18 sample-pairs in a 6 × 6 tile grid. Each pair sits in two
@@ -140,7 +140,7 @@ N_SAMPLES     = 10   # 9 hand-picked + 1 random Zeiss Rice replacement
 
 
 # Hand-picked retained samples (paper-curated). One additional Zeiss Rice
-# sample, randomly chosen with RANDOM_SEED from the unused zero-shot pool,
+# sample, randomly chosen with RANDOM_SEED from the unused out-of-distribution pool,
 # is appended at runtime.
 FIXED_KEEP_UIDS = [
     # Rice / Olympus
@@ -256,7 +256,7 @@ def get_native_hw(record) -> tuple[int, int] | None:
 def select_samples():
     """Return the curated 12-sample list for the figure:
        11 hand-picked UIDs from FIXED_KEEP_UIDS, plus one Zeiss Rice
-       sample drawn at random from the zero-shot pool (excluding
+       sample drawn at random from the out-of-distribution pool (excluding
        previously used UIDs and the previous figure's Zeiss pick).
     The returned list is sorted by species → microscope → genotype so
     the 6-row × 2-sample-per-row layout reads cleanly.
@@ -278,14 +278,14 @@ def select_samples():
 
     rng = random.Random(RANDOM_SEED)
 
-    # Random Zeiss Rice: any zero-shot sample not in EXCLUDED_UIDS and
+    # Random Zeiss Rice: any out-of-distribution sample not in EXCLUDED_UIDS and
     # not the prior figure's pick.
     zeiss_pool = [r for r in zs_recs
                   if r.uid not in EXCLUDED_UIDS
                   and r.uid != PREVIOUS_ZEISS_UID
                   and r.uid not in FIXED_KEEP_UIDS]
     if not zeiss_pool:
-        raise RuntimeError("no eligible Zeiss zero-shot sample available")
+        raise RuntimeError("no eligible Zeiss out-of-distribution sample available")
     new_zeiss = rng.choice(zeiss_pool)
     print(f"new Zeiss Rice: {new_zeiss.uid}")
 
@@ -327,7 +327,7 @@ def select_samples():
 
     out = []
     for rec in sorted_records:
-        split_name = "test" if rec.uid in test_ids else "zero-shot"
+        split_name = "test" if rec.uid in test_ids else "out-of-distribution"
         pred_dir = TEST_PRED_DIR if split_name == "test" else ZS_PRED_DIR
         pred_path = pred_dir / f"{rec.uid}.txt"
         gt_path = rec.annotation_path
@@ -449,7 +449,7 @@ def main():
             and gt_disp == gt_disp.lower()
             and re.fullmatch(r"[a-z0-9\-]+", gt_disp)
             and re.search(r"[a-z]", gt_disp))
-        # Plain species name (no "(zero-shot)" suffix - the row's
+        # Plain species name (no "(out-of-distribution)" suffix - the row's
         # geometry / microscope already conveys that context).
         sp_line = sp_disp
 

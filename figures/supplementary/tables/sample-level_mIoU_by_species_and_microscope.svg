@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg viewBox="0 0 180.000 59.400" xmlns="http://www.w3.org/2000/svg"
+     font-family="Helvetica, Arial, sans-serif">
+<g transform="translate(4.000, 0)">
+<line x1="3.000" y1="0.000" x2="169.000" y2="0.000" stroke="black" stroke-width="0.4"/>
+<text x="3.800" y="4.200" font-size="2.47" text-anchor="start" font-weight="bold" fill="black">Group</text>
+<text x="24.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">n</text>
+<text x="39.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Vascular</text>
+<text x="59.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Exodermis</text>
+<text x="79.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Endodermis</text>
+<text x="99.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Cortex</text>
+<text x="119.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Epidermis</text>
+<text x="139.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">Aerenchyma</text>
+<text x="159.000" y="4.200" font-size="2.47" text-anchor="middle" font-weight="bold" fill="black">mIoU</text>
+<line x1="3.000" y1="5.600" x2="169.000" y2="5.600" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="9.600" font-size="2.47" text-anchor="start" font-weight="bold" font-style="italic" fill="black">By species</text>
+<line x1="3.000" y1="10.900" x2="169.000" y2="10.900" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="15.600" font-size="2.47" text-anchor="start" fill="black">Rice</text>
+<text x="24.000" y="15.600" font-size="2.47" text-anchor="middle" fill="black">92</text>
+<text x="39.000" y="15.600" font-size="2.47" text-anchor="middle" fill="black">0.973 ± 0.016</text>
+<text x="59.000" y="15.600" font-size="2.47" text-anchor="middle" fill="black">0.809 ± 0.241</text>
+<text x="79.000" y="15.600" font-size="2.47" text-anchor="middle" fill="black">0.874 ± 0.057</text>
+<text x="99.000" y="15.600" font-size="2.47" text-anchor="middle" fill="black">0.970 ± 0.045</text>
+<text x="119.000" y="15.600" font-size="2.47" text-anchor="middle" fill="black">0.742 ± 0.175</text>
+<text x="139.000" y="15.600" font-size="2.47" text-anchor="middle" fill="black">0.755 ± 0.179</text>
+<text x="159.000" y="15.600" font-size="2.47" text-anchor="middle" fill="black">0.854 ± 0.085</text>
+<text x="3.800" y="21.600" font-size="2.47" text-anchor="start" fill="black">Millet</text>
+<text x="24.000" y="21.600" font-size="2.47" text-anchor="middle" fill="black">32</text>
+<text x="39.000" y="21.600" font-size="2.47" text-anchor="middle" fill="black">0.984 ± 0.006</text>
+<text x="59.000" y="21.600" font-size="2.47" text-anchor="middle" fill="black">0.930 ± 0.034</text>
+<text x="79.000" y="21.600" font-size="2.47" text-anchor="middle" fill="black">0.937 ± 0.021</text>
+<text x="99.000" y="21.600" font-size="2.47" text-anchor="middle" fill="black">0.972 ± 0.013</text>
+<text x="119.000" y="21.600" font-size="2.47" text-anchor="middle" fill="black">0.874 ± 0.042</text>
+<text x="139.000" y="21.600" font-size="2.47" text-anchor="middle" fill="black">0.286 ± 0.213</text>
+<text x="159.000" y="21.600" font-size="2.47" text-anchor="middle" fill="black">0.834 ± 0.045</text>
+<text x="3.800" y="27.600" font-size="2.47" text-anchor="start" fill="black">Sorghum</text>
+<text x="24.000" y="27.600" font-size="2.47" text-anchor="middle" fill="black">59</text>
+<text x="39.000" y="27.600" font-size="2.47" text-anchor="middle" fill="black">0.987 ± 0.005</text>
+<text x="59.000" y="27.600" font-size="2.47" text-anchor="middle" fill="black">0.895 ± 0.104</text>
+<text x="79.000" y="27.600" font-size="2.47" text-anchor="middle" fill="black">0.920 ± 0.028</text>
+<text x="99.000" y="27.600" font-size="2.47" text-anchor="middle" fill="black">0.980 ± 0.041</text>
+<text x="119.000" y="27.600" font-size="2.47" text-anchor="middle" fill="black">0.835 ± 0.047</text>
+<text x="139.000" y="27.600" font-size="2.47" text-anchor="middle" fill="black">0.671 ± 0.206</text>
+<text x="159.000" y="27.600" font-size="2.47" text-anchor="middle" fill="black">0.883 ± 0.048</text>
+<text x="3.800" y="33.600" font-size="2.47" text-anchor="start" fill="black">Solanums</text>
+<text x="24.000" y="33.600" font-size="2.47" text-anchor="middle" fill="black">37</text>
+<text x="39.000" y="33.600" font-size="2.47" text-anchor="middle" fill="black">0.974 ± 0.022</text>
+<text x="59.000" y="33.600" font-size="2.47" text-anchor="middle" fill="black">0.949 ± 0.028</text>
+<text x="79.000" y="33.600" font-size="2.47" text-anchor="middle" fill="black">0.922 ± 0.024</text>
+<text x="99.000" y="33.600" font-size="2.47" text-anchor="middle" fill="black">0.972 ± 0.018</text>
+<text x="119.000" y="33.600" font-size="2.47" text-anchor="middle" fill="black">0.864 ± 0.039</text>
+<text x="139.000" y="33.600" font-size="2.47" text-anchor="middle" fill="black">n/a</text>
+<text x="159.000" y="33.600" font-size="2.47" text-anchor="middle" fill="black">0.936 ± 0.018</text>
+<text x="3.800" y="39.000" font-size="2.47" text-anchor="start" font-weight="bold" font-style="italic" fill="black">By microscope</text>
+<line x1="3.000" y1="40.300" x2="169.000" y2="40.300" stroke="black" stroke-width="0.2"/>
+<text x="3.800" y="45.000" font-size="2.47" text-anchor="start" fill="black">Olympus</text>
+<text x="24.000" y="45.000" font-size="2.47" text-anchor="middle" fill="black">161</text>
+<text x="39.000" y="45.000" font-size="2.47" text-anchor="middle" fill="black">0.980 ± 0.017</text>
+<text x="59.000" y="45.000" font-size="2.47" text-anchor="middle" fill="black">0.870 ± 0.199</text>
+<text x="79.000" y="45.000" font-size="2.47" text-anchor="middle" fill="black">0.916 ± 0.044</text>
+<text x="99.000" y="45.000" font-size="2.47" text-anchor="middle" fill="black">0.970 ± 0.043</text>
+<text x="119.000" y="45.000" font-size="2.47" text-anchor="middle" fill="black">0.814 ± 0.138</text>
+<text x="139.000" y="45.000" font-size="2.47" text-anchor="middle" fill="black">0.593 ± 0.271</text>
+<text x="159.000" y="45.000" font-size="2.47" text-anchor="middle" fill="black">0.868 ± 0.078</text>
+<text x="3.800" y="51.000" font-size="2.47" text-anchor="start" fill="black">C10</text>
+<text x="24.000" y="51.000" font-size="2.47" text-anchor="middle" fill="black">24</text>
+<text x="39.000" y="51.000" font-size="2.47" text-anchor="middle" fill="black">0.974 ± 0.010</text>
+<text x="59.000" y="51.000" font-size="2.47" text-anchor="middle" fill="black">0.930 ± 0.040</text>
+<text x="79.000" y="51.000" font-size="2.47" text-anchor="middle" fill="black">0.887 ± 0.039</text>
+<text x="99.000" y="51.000" font-size="2.47" text-anchor="middle" fill="black">0.983 ± 0.007</text>
+<text x="119.000" y="51.000" font-size="2.47" text-anchor="middle" fill="black">0.862 ± 0.046</text>
+<text x="139.000" y="51.000" font-size="2.47" text-anchor="middle" fill="black">0.675 ± 0.180</text>
+<text x="159.000" y="51.000" font-size="2.47" text-anchor="middle" fill="black">0.905 ± 0.040</text>
+<text x="3.800" y="57.000" font-size="2.47" text-anchor="start" fill="black">Zeiss</text>
+<text x="24.000" y="57.000" font-size="2.47" text-anchor="middle" fill="black">35</text>
+<text x="39.000" y="57.000" font-size="2.47" text-anchor="middle" fill="black">0.974 ± 0.009</text>
+<text x="59.000" y="57.000" font-size="2.47" text-anchor="middle" fill="black">0.847 ± 0.084</text>
+<text x="79.000" y="57.000" font-size="2.47" text-anchor="middle" fill="black">0.858 ± 0.046</text>
+<text x="99.000" y="57.000" font-size="2.47" text-anchor="middle" fill="black">0.982 ± 0.009</text>
+<text x="119.000" y="57.000" font-size="2.47" text-anchor="middle" fill="black">0.738 ± 0.102</text>
+<text x="139.000" y="57.000" font-size="2.47" text-anchor="middle" fill="black">0.835 ± 0.085</text>
+<text x="159.000" y="57.000" font-size="2.47" text-anchor="middle" fill="black">0.872 ± 0.042</text>
+<line x1="3.000" y1="58.400" x2="169.000" y2="58.400" stroke="black" stroke-width="0.4"/>
+</g>
+</svg>

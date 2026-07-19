@@ -3,8 +3,9 @@
  *
  * Shared renderer for Figure 2b: per-sample mIoU (Bio-7) grouped by
  * microscope. Three boxes side-by-side - Olympus (test) and C10 (test)
- * are part of the Strategy A test split; Zeiss (oneshot) is the zero-shot
- * held-out split. Each box shows Q1/median/Q3 with whiskers at 1.5 × IQR
+ * are part of the Strategy A test split; Zeiss (oneshot) is the
+ * out-of-distribution held-out split. Each box shows Q1/median/Q3 with
+ * whiskers at 1.5 × IQR
  * clamped to observed min/max; jittered sample points overlay the box.
  *
  * Loaded by both fig2e_microscope_boxplot.html (interactive builder) and
@@ -15,7 +16,7 @@
  */
 (function () {
 
-// Display order + colour. Zeiss is the zero-shot microscope - this is
+// Display order + colour. Zeiss is the out-of-distribution microscope - this is
 // clarified via the Figure 2 caption rather than crammed into the x-label.
 const GROUPS = [
     { microscope: "Olympus", split: "test",    color: "#4e79a7", suffix: "" },
@@ -29,7 +30,7 @@ const DEFAULT_PANEL_W = 113, DEFAULT_PANEL_H = 57;
 // M.top = 3.5 and panelH = 42.16 the x-axis lands at canvas y = 31.5 mm
 // - same as 2a's. Single-line rotated tick labels drop ~3.5 mm below the
 // axis so the title baseline (axis + 7.47) sits ~4 mm below the labels.
-// M.right is widened to 11 mm so the "Zero-shot" annotation + arrow fit
+// M.right is widened to 11 mm so the "Out-of-distribution" annotation + arrow fit
 // to the right of the rotated "Zeiss" label without affecting PLOT_W.
 // M.top = 3 - the absolute minimum so the "n=" key (1.76 mm font,
 // cap-top at M.top − 2.95) just clears the panel's top edge. Matches
@@ -270,8 +271,8 @@ async function render(svgEl, opts) {
         });
     }
 
-    // ── "Zero-shot" annotation pointing at the Zeiss tick label ─────
-    // Reminds the reader that Zeiss is the held-out (zero-shot) microscope.
+    // ── "Out-of-distribution" annotation pointing at the Zeiss tick label ─────
+    // Reminds the reader that Zeiss is the held-out (out-of-distribution) microscope.
     // Coloured to match the Zeiss group; small arrow points up-left from the
     // text to just below the right end of the rotated "Zeiss" label.
     const zeissGp = GROUPS.find(gp => gp.microscope === "Zeiss");
@@ -317,7 +318,7 @@ async function render(svgEl, opts) {
             .attr("text-anchor", "start").attr("font-size", annoFS)
             .attr("font-style", "italic")
             .attr("fill", annoColor)
-            .text("Zero-shot");
+            .text("Out-of-distribution");
     }
 
     // Sample counts - "n=" key sits once in the M.top whitespace at the

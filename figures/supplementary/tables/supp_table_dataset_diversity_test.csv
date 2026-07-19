@@ -1,4 +1,4 @@
-Species,Genotype,In-distribution Test,Zero-shot Test,Total
+Species,Genotype,In-distribution Test,Out-of-distribution Test,Total
 Millet,AW23,32,0,32
 Rice,Kitaake,9,35,44
 Rice,*psy1-17*,3,0,3

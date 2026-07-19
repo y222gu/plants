@@ -96,7 +96,7 @@ const M = { top: 3, right: 4, bottom: 13, left: 8 };
 //   y-title centre   = axis − (1.2 + W_tick + GAP + title_half_thickness(7pt))
 //                    = axis − (1.2 + 4.3 + 0.5 + 1.235) = axis − 7.24  (4-char tick labels)
 // However, 2f's x-title is forced to match 2d's offset (7.47) so that the
-// "Zero-shot mIoU" and "Microscope" titles share the same canvas baseline.
+// "Out-of-distribution mIoU" and "Microscope" titles share the same canvas baseline.
 // 2d's larger offset comes from its −25° rotated tick labels needing extra
 // vertical room - 2f's horizontal tick labels just have ~1.6 mm of extra
 // whitespace between them and the title.
@@ -104,8 +104,11 @@ const LABEL_TITLE_GAP = 0.5;
 const TITLE_FONT_MM = 2.47;                 // 7 pt
 const X_TITLE_BASELINE_OFFSET = 9.47;       // matches panels d and e - aligns x-titles at same canvas y
 // 4-char tick labels ("0.78") at 6 pt ≈ 4.7 mm wide → y-title centre at
-// axis − (1.2 + 4.7 + 0.5 + 1.235) = axis − 7.635 mm.
-const Y_TITLE_CENTRE_OFFSET   = 7.635;      // from y-axis line
+// axis − (1.2 + 4.7 + 0.5 + 1.235) = axis − 7.635 mm for single-line.
+// Bumped to 9.0 mm because the y-title is broken into two lines
+// ("Out-of-distribution" / "Test mIoU") - the extra line adds ~1.36 mm of
+// thickness on the inner side that would otherwise crowd the tick labels.
+const Y_TITLE_CENTRE_OFFSET   = 9.0;      // from y-axis line
 
 
 /**
@@ -205,7 +208,7 @@ async function render(svgEl, opts) {
             .attr("font-size", 1.76)
             .attr("font-style", "italic")
             .attr("fill", "#888")
-            .text("Zero-shot mIoU = Test mIoU");
+            .text("Out-of-distribution mIoU = Test mIoU");
     }
 
     // Axes (slightly thicker than tick marks)
@@ -246,13 +249,17 @@ async function render(svgEl, opts) {
         .attr("text-anchor", "middle").attr("font-size", TITLE_FONT_MM)
         .attr("font-weight", "bold")
         .text("In-distribution Test mIoU");
-    // Y-title (7 pt bold): 0.5 mm left of the y-tick labels
-    svg.append("text")
+    // Y-title (7 pt bold): 0.5 mm left of the y-tick labels. Two lines
+    // because "Out-of-distribution Test mIoU" is too long for one row along
+    // the y-axis. tspan#1 sits further from the axis (top when reading), #2
+    // closer to the axis (bottom when reading).
+    const yTitle = svg.append("text")
         .attr("transform",
               `translate(${M.left - Y_TITLE_CENTRE_OFFSET},${M.top + PLOT_H / 2}) rotate(-90)`)
         .attr("text-anchor", "middle").attr("font-size", TITLE_FONT_MM)
-        .attr("font-weight", "bold")
-        .text("Zero-shot Test mIoU");
+        .attr("font-weight", "bold");
+    yTitle.append("tspan").attr("x", 0).attr("dy", "-0.55em").text("Out-of-distribution");
+    yTitle.append("tspan").attr("x", 0).attr("dy", "1.1em").text("Test mIoU");
 
     const pts = rows.map(d => ({ ...d, px: x(d.test), py: y(d.oneshot) }));
 

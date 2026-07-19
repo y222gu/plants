@@ -6,7 +6,7 @@ Single table that pools two ablation studies on the headline model
   2. Loss function              (Dice + Focal + wCE  vs  + Lovasz)
 
 For each variant we report sample-level mIoU (mean ± s.d.) on the
-in-distribution test split and the Zeiss zero-shot split, computed
+in-distribution test split and the Zeiss out-of-distribution split, computed
 directly from each run's `eval/{split}/metrics_bio7.csv`.
 
 Outputs (in this directory):
@@ -99,7 +99,7 @@ def main() -> None:
         f"weighted-CE base). Each variant retrains the baseline "
         f"DINOv3-S/16 + DPT-meta architecture on Strategy A with only the "
         f"indicated component changed. Test n = {n_test} is the "
-        f"in-distribution test split; Zero-shot n = {n_zero} is the "
+        f"in-distribution test split; Out-of-distribution n = {n_zero} is the "
         f"held-out Zeiss split. Whole Root is excluded from the mIoU "
         f"computation per project convention. Rows labelled \"RADIX\" "
         f"mark the recipe reported as RADIX throughout the manuscript.",
@@ -114,7 +114,7 @@ def main() -> None:
                    f"(mean ± s.d., n = {n_test})"],
          "width_mm": 40, "align": "middle"},
         {"key": "Zero mIoU",
-         "label": ["Zero-shot Test mIoU",
+         "label": ["Out-of-distribution Test mIoU",
                    f"(mean ± s.d., n = {n_zero})"],
          "width_mm": 36, "align": "middle"},
     ]

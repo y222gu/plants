@@ -3,7 +3,7 @@
 Panel a - Training and validation loss curves per model (one mini-plot each).
 Panel b - Total parameter count per model (horizontal bar chart).
 Panel c - Predictions of all 8 models on 10 random test samples + 5 random
-          zero-shot samples, with the input fluorescence composite and the
+          out-of-distribution samples, with the input fluorescence composite and the
           ground truth as the first two columns.
 
 Models match Figure 2f. Saved as a 600 dpi PNG to
@@ -309,7 +309,7 @@ def main(force_cache: bool = False):
     cache = build_cache(force=force_cache)
 
     # Sample selection - hand-picked from the earlier 10-test/5-oneshot random
-    # set (the 9th and 10th test samples and the 5th zero-shot sample).
+    # set (the 9th and 10th test samples and the 5th out-of-distribution sample).
     selected_test = [
         "Tomato_Olympus_Exp1_Lignin_mutants_132",
         "Sorghum_Olympus_Exp88_N3_22",
@@ -582,7 +582,7 @@ def main(force_cache: bool = False):
             groups[-1][2] = r
     from matplotlib.patches import Rectangle
     for split, r0, r1 in groups:
-        label = "Zero-shot Test" if split == "oneshot" else "In-distribution Test"
+        label = "Out-of-distribution Test" if split == "oneshot" else "In-distribution Test"
         # Use the Image column's cell extent (column 1) so the grey
         # rectangle aligns precisely with the top of the first row's
         # image and the bottom of the last row's image in the group.

@@ -329,7 +329,7 @@
          style="width:100%;height:100%;display:block;background:transparent;"></svg>
   </div>
 
-  <!-- c: per-class IoU on the zero-shot (Zeiss) split. Single-box plot, no
+  <!-- c: per-class IoU on the out-of-distribution (Zeiss) split. Single-box plot, no
        human baseline. 52.73 mm wide so box width matches panel b. LIVE. -->
   <div id="fig2c" class="panel">
     <span class="panel-letter">c</span>
@@ -338,7 +338,7 @@
          style="width:100%;height:100%;display:block;background:transparent;"></svg>
   </div>
 
-  <!-- a: merged single-panel gallery - Test Dicot + Test Monocot + Zero-shot
+  <!-- a: merged single-panel gallery - Test Dicot + Test Monocot + Out-of-distribution
        Zeiss share one set of row labels. Spans full 180 mm canvas width.
        Rendered live as a CSS grid here; no separate fig2a_gallery.svg load. -->
   <div id="fig2a" class="panel">
@@ -348,7 +348,7 @@
     <div></div>
     <div class="col-hdr" style="grid-column: 2 / span 3">In-distribution Test Dicot</div>
     <div class="col-hdr" style="grid-column: 5 / span 3">In-distribution Test Monocot</div>
-    <div class="col-hdr" style="grid-column: 8 / span 2">Zero-shot Test Monocot</div>
+    <div class="col-hdr" style="grid-column: 8 / span 2">Out-of-distribution Test Monocot</div>
 
     <!-- Row 2: Input Image (composite TRITC/FITC/DAPI) - 8 samples.
          data-bar-frac = cal_px_per_100µm / native_tif_width
@@ -461,7 +461,7 @@ function _loadScript(src) {
       title: "In-Distribution Test",
   }).catch(err => console.error("fig2d (panel b) render failed:", err));
 
-  // Panel c - per-class IoU on the zero-shot (Zeiss) split. No human
+  // Panel c - per-class IoU on the out-of-distribution (Zeiss) split. No human
   // baseline available outside the in-distribution annotator set, so
   // we suppress the second box per class by passing humanCsvPath: null.
   // Narrower panel (52.73 mm) - its single boxes match panel b's paired
@@ -472,7 +472,7 @@ function _loadScript(src) {
       splitFilter: "zero-shot",
       humanCsvPath: null,
       panelW: 52.73, panelH: 40.16,
-      title: "Zero-shot Test",
+      title: "Out-of-distribution Test",
   }).catch(err => console.error("fig2c (panel c) render failed:", err));
 
   Fig2eMicroscopeBoxplot.render(document.getElementById("fig2e-svg"), {
@@ -483,7 +483,7 @@ function _loadScript(src) {
   }).catch(err => console.error("fig2e render failed:", err));
 
   // Panel d - per-species sample-level mIoU pooling BOTH the in-distribution
-  // test split and the zero-shot (Zeiss) split. Only Rice has zero-shot
+  // test split and the out-of-distribution (Zeiss) split. Only Rice has out-of-distribution
   // rows, so its box mixes Olympus/C10/Zeiss samples; the other species
   // come purely from the in-distribution split. Width 45.5 mm - see the
   // box-width matching note in PANEL_SIZES below.
@@ -520,7 +520,7 @@ const FIG2A_SAMPLE_UIDS = [
   "Millet_Olympus_Exp4_1-2cm__75",
   "Rice_C10_Exp10_PSY9-4-b",
   "Sorghum_C10_Exp4_E2",
-  // Zero-shot Monocot (Rice Kitaake, Zeiss - Exp1 dropped)
+  // Out-of-distribution Monocot (Rice Kitaake, Zeiss - Exp1 dropped)
   "Rice_Zeiss_Exp2_Image_47",
   "Rice_Zeiss_Exp3_Image_38",
 ];
@@ -718,7 +718,7 @@ async function _fig2aFetchDataURL(url) {
 // Layout:
 //   ┌──────────────────────────────────────────────┐
 //   │                  a (fig2a)                   │   ← row 1: merged gallery,
-//   │  Test Dicot │ Test Monocot │ Zero-shot       │     180 × 65.5 mm
+//   │  Test Dicot │ Test Monocot │ Out-of-distribution       │     180 × 65.5 mm
 //   ├───┬──────────────────────────┬───────────────┤
 //   │leg│   b - per-class IoU      │  c - per-cls  │   ← row 2 top: legend
 //   │   │   test split, paired     │  IoU zero-    │     (canvas-left) + b + c.
@@ -727,15 +727,15 @@ async function _fig2aFetchDataURL(url) {
 //   ├───┴────────┬───────────┬─┴─────────────────┤     Box widths in b and
 //   │  d -       │  e -      │   f - scatter     │     c equal at ~4 mm.
 //   │  species   │  micro-   │   (test vs        │     Box widths in d and
-//   │  mIoU      │  scope    │   zero-shot)      │   ← e equal at ~5.27 mm.
+//   │  mIoU      │  scope    │   out-of-distribution)      │   ← e equal at ~5.27 mm.
 //   │  (Rice,    │  mIoU     │                   │     row 2 bottom:
 //   │  Millet,   │  (Olympus │                   │     d 56.48 + e 49.02 +
 //   │  Sor,      │  /C10/    │                   │     f 72.5 + 2 gaps =
 //   │  Solan.)   │  Zeiss)   │                   │     180 mm. Each panel
 //   └────────────┴───────────┴───────────────────┘     48.8 mm tall.
 // Panel mapping: a (merged gallery), b (per-class IoU on test split),
-// c (per-class IoU on zero-shot split), d (microscope boxplot, was c),
-// e (test-vs-zero-shot scatter, was d). The mask-classes legend at row 2
+// c (per-class IoU on out-of-distribution split), d (microscope boxplot, was c),
+// e (test-vs-out-of-distribution scatter, was d). The mask-classes legend at row 2
 // canvas-left labels the anatomy palette shared by panels a, b, c.
 const ROW1_GAL_H = 65.5;                  // merged fig2a SVG --h-mm (full 180 mm wide)
 
@@ -766,7 +766,7 @@ const ROW2_H = LEFTOVER_H / 2 + 1;        // 40.16 mm  (legacy reference; row-2 
 // (FIG_H_MM) is extended below to accommodate.
 const BOTTOM_PANEL_H = 48.8;              // d/e/f panel height (was 50)
 // Row-2 top: legend + b (per-class IoU, test split) + c (per-class IoU,
-// zero-shot split). The legend's left edge is aligned with panel a's
+// out-of-distribution split). The legend's left edge is aligned with panel a's
 // FIRST IMAGE COLUMN left edge (canvas x = 5 mm).
 //
 // Panel widths chosen so the box rectangles in b and c render at the
@@ -784,7 +784,7 @@ const LEG_LEFT_CANVAS = 5;                // legend left edge - aligned with pan
 const LEG_FIG2D_GAP   = 1;                // 1 mm gap between legend and b
 const FIG2BC_GAP      = 1;                // 1 mm gap between b and c
 const FIG2D_W         = 98.27;            // letter b - per-class IoU, test split (paired boxes)
-const FIG2C_W         = 180 - LEG_LEFT_CANVAS - LEG_W - LEG_FIG2D_GAP - FIG2D_W - FIG2BC_GAP;   // 52.73 mm - letter c, zero-shot split
+const FIG2C_W         = 180 - LEG_LEFT_CANVAS - LEG_W - LEG_FIG2D_GAP - FIG2D_W - FIG2BC_GAP;   // 52.73 mm - letter c, out-of-distribution split
 // Panel d width chosen so each box renders at the same ~5.27 mm physical
 // width as panel e's boxes. See the FIG2E_W / FIG2F_W layout block above
 // for the derivation that yields panelW_d = 56.48 mm.
@@ -795,7 +795,7 @@ const PANEL_SIZES = {
   fig2species:  { w: FIG2SPECIES_W,  h: BOTTOM_PANEL_H        },   // 56.48  × 48.8    (row 2 bottom left   - letter d, per-species mIoU; box width = panel e ~5.27 mm)
   fig2legend:   { w: LEG_W,          h: ROW1_H                 },   // 22     × 39.16   (row 2 top, canvas-left aligned - mask-classes legend)
   fig2d:        { w: FIG2D_W,        h: ROW2_H                 },   // 98.27  × 39.16   (row 2 top middle - letter b, per-class IoU on test, paired boxes)
-  fig2c:        { w: FIG2C_W,        h: ROW2_H                 },   // 52.73  × 39.16   (row 2 top right  - letter c, per-class IoU on zero-shot, single boxes)
+  fig2c:        { w: FIG2C_W,        h: ROW2_H                 },   // 52.73  × 39.16   (row 2 top right  - letter c, per-class IoU on out-of-distribution, single boxes)
   fig2a:        { w: 180,            h: ROW1_GAL_H             },   // 180    × 65.5    (row 1 - merged gallery: dicot + monocot + Zeiss)
 };
 const FIG_W_MM = 180;
@@ -816,7 +816,7 @@ function updateLayout() {
 
   const set = (id, css) => Object.assign(document.getElementById(id).style, css);
 
-  // Row-2 top: legend + b (per-class IoU, test) + c (per-class IoU, zero-shot).
+  // Row-2 top: legend + b (per-class IoU, test) + c (per-class IoU, out-of-distribution).
   // Top edge sits just below the gallery, with the same HEADER_OFFSET /
   // INNER_TOP_PAD nudge so plot regions in b and c align with legend content.
   const ROW1_TOP = HEADER_OFFSET - INNER_TOP_PAD + Y_OFF;
@@ -835,7 +835,7 @@ function updateLayout() {
     left: FIG2D_LEFT + "mm", right: "auto", bottom: "auto",
     width: fig2d.w + "mm", height: fig2d.h + "mm",
   });
-  // ── Letter-c panel (fig2c) - per-class IoU on the zero-shot split.
+  // ── Letter-c panel (fig2c) - per-class IoU on the out-of-distribution split.
   //    Sits to the right of b with a 1 mm gap; right edge at canvas x=180.
   const FIG2C_LEFT = FIG2D_LEFT + FIG2D_W + FIG2BC_GAP;                   // 127.27 mm
   set("fig2c", {

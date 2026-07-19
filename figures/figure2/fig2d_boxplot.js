@@ -345,7 +345,7 @@ async function render(svgEl, opts) {
     // width). Wrapped in a bordered rectangle to set it apart from the
     // data marks. Always rendered: panel b shows both rows (Model + human
     // baseline), panel c shows only the Model row since the annotator
-    // dataset does not cover the zero-shot split.
+    // dataset does not cover the out-of-distribution split.
     {
         const LG_FS = 2.12;                           // 6 pt
         const LG_BOX_W = 1.75, LG_BOX_H = 1.75;       // square swatch sized to text cap-height (≈ 0.71 × em)
